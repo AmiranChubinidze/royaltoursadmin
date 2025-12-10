@@ -30,6 +30,8 @@ import {
   ConfirmationFormData,
   Client,
   ItineraryDay,
+  GuestInfo,
+  KidInfo,
 } from "@/types/confirmation";
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
 import { useSavedHotels, SavedHotel } from "@/hooks/useSavedData";
@@ -339,6 +341,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     tourSource: initialData?.tourSource || "own-company",
     trackingNumber: initialData?.trackingNumber || "",
     clients: initialData?.clients || [{ name: "", passport: "" }],
+    guestInfo: initialData?.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [], numRooms: 1 },
     arrival: initialData?.arrival || { date: "", time: "", flight: "", from: "" },
     departure: initialData?.departure || { date: "", time: "", flight: "", to: "" },
     itinerary: initialData?.itinerary || [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "YES" }],
@@ -486,6 +489,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         arrival: filteredData.arrival,
         departure: filteredData.departure,
         itinerary: filteredData.itinerary,
+        guestInfo: filteredData.guestInfo,
         trackingNumber: filteredData.trackingNumber,
         services: filteredData.services,
         notes: filteredData.notes,
@@ -755,6 +759,86 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 <Plus className="h-4 w-4 mr-1" />
                 Add client
               </Button>
+            </section>
+
+            {/* Guest Info for Hotels */}
+            <section>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Guest Info (for hotel emails)</h2>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">Number of Adults</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.guestInfo.numAdults}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      guestInfo: { ...prev.guestInfo, numAdults: parseInt(e.target.value) || 1 }
+                    }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">Number of Kids</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={formData.guestInfo.numKids}
+                    onChange={(e) => {
+                      const numKids = parseInt(e.target.value) || 0;
+                      const kidsAges = [...formData.guestInfo.kidsAges];
+                      // Adjust kidsAges array length
+                      while (kidsAges.length < numKids) kidsAges.push({ age: 0 });
+                      while (kidsAges.length > numKids) kidsAges.pop();
+                      setFormData(prev => ({
+                        ...prev,
+                        guestInfo: { ...prev.guestInfo, numKids, kidsAges }
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-1.5 block">Number of Rooms</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.guestInfo.numRooms}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      guestInfo: { ...prev.guestInfo, numRooms: parseInt(e.target.value) || 1 }
+                    }))}
+                  />
+                </div>
+              </div>
+
+              {formData.guestInfo.numKids > 0 && (
+                <div className="mt-4">
+                  <Label className="text-sm font-medium mb-2 block">Kids Ages</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.guestInfo.kidsAges.map((kid, index) => (
+                      <div key={index} className="flex items-center gap-1">
+                        <span className="text-sm text-muted-foreground">Kid {index + 1}:</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={17}
+                          className="w-16 h-8"
+                          value={kid.age}
+                          onChange={(e) => {
+                            const newAges = [...formData.guestInfo.kidsAges];
+                            newAges[index] = { age: parseInt(e.target.value) || 0 };
+                            setFormData(prev => ({
+                              ...prev,
+                              guestInfo: { ...prev.guestInfo, kidsAges: newAges }
+                            }));
+                          }}
+                        />
+                        <span className="text-sm text-muted-foreground">YO</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Itinerary */}

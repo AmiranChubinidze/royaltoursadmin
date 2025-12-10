@@ -46,6 +46,27 @@ export function useCreateSavedHotel() {
   });
 }
 
+export function useUpdateSavedHotel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...hotel }: Partial<SavedHotel> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("saved_hotels")
+        .update(hotel)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data as SavedHotel;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved_hotels"] });
+    },
+  });
+}
+
 export function useDeleteSavedHotel() {
   const queryClient = useQueryClient();
 

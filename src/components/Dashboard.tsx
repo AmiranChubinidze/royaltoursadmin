@@ -135,9 +135,12 @@ export function Dashboard() {
               <Plus className="h-5 w-5 mr-2" />
               New Confirmation
             </Button>
-            <Button variant="ghost" size="icon" onClick={signOut} title="Sign Out">
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2 pl-2 border-l border-border">
+              <span className="text-sm text-muted-foreground">{user?.email}</span>
+              <Button variant="ghost" size="icon" onClick={signOut} title="Sign Out">
+                <LogOut className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </div>
 

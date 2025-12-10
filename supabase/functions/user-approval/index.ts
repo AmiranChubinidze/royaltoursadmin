@@ -8,6 +8,79 @@ const corsHeaders = {
 
 const ADMIN_EMAIL = "am1ko.ch4b1n1dze@gmail.com";
 
+// Secure HMAC-based token generation
+async function generateSecureToken(userId: string, timestamp: number): Promise<string> {
+  const secret = Deno.env.get("APPROVAL_SECRET");
+  if (!secret) {
+    throw new Error("APPROVAL_SECRET not configured");
+  }
+  
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  
+  const data = encoder.encode(`${userId}:${timestamp}`);
+  const signature = await crypto.subtle.sign("HMAC", key, data);
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  
+  // Return timestamp and hash combined
+  return `${timestamp.toString(36)}.${hashHex.substring(0, 32)}`;
+}
+
+// Verify the token with expiration check
+async function verifySecureToken(userId: string, token: string): Promise<boolean> {
+  const secret = Deno.env.get("APPROVAL_SECRET");
+  if (!secret) {
+    console.error("APPROVAL_SECRET not configured");
+    return false;
+  }
+  
+  try {
+    const [timestampStr, providedHash] = token.split('.');
+    if (!timestampStr || !providedHash) {
+      console.error("Invalid token format");
+      return false;
+    }
+    
+    const timestamp = parseInt(timestampStr, 36);
+    
+    // Check if token is expired (24 hours)
+    const now = Date.now();
+    const tokenAge = now - timestamp;
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    
+    if (tokenAge > maxAge) {
+      console.error("Token expired");
+      return false;
+    }
+    
+    // Regenerate the expected token
+    const expectedToken = await generateSecureToken(userId, timestamp);
+    const [, expectedHash] = expectedToken.split('.');
+    
+    // Constant-time comparison to prevent timing attacks
+    if (providedHash.length !== expectedHash.length) {
+      return false;
+    }
+    
+    let result = 0;
+    for (let i = 0; i < providedHash.length; i++) {
+      result |= providedHash.charCodeAt(i) ^ expectedHash.charCodeAt(i);
+    }
+    
+    return result === 0;
+  } catch (error) {
+    console.error("Token verification error:", error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -28,9 +101,17 @@ Deno.serve(async (req) => {
 
     // Handle approval action from email link (GET request)
     if (action === "approve" && userId && token) {
-      const expectedToken = btoa(userId + "approve-secret-key").substring(0, 20);
-      if (token !== expectedToken) {
-        return new Response("Invalid token", { status: 403 });
+      // Verify secure token
+      const isValid = await verifySecureToken(userId, token);
+      if (!isValid) {
+        return new Response(
+          `<html><body style="font-family: sans-serif; padding: 40px; text-align: center;">
+            <h1 style="color: #c53030;">✗ Invalid or Expired Link</h1>
+            <p>This approval link is invalid or has expired (links expire after 24 hours).</p>
+            <p>Please use the Admin Panel to approve users or request a new approval link.</p>
+          </body></html>`,
+          { status: 403, headers: { "Content-Type": "text/html", ...corsHeaders } }
+        );
       }
 
       // Get user email before approving
@@ -157,8 +238,10 @@ Deno.serve(async (req) => {
           });
         }
 
-        const approvalToken = btoa(userId + "approve-secret-key").substring(0, 20);
-        const approvalLink = `${supabaseUrl}/functions/v1/user-approval?action=approve&userId=${userId}&token=${approvalToken}`;
+        // Generate secure approval token with current timestamp
+        const timestamp = Date.now();
+        const approvalToken = await generateSecureToken(userId, timestamp);
+        const approvalLink = `${supabaseUrl}/functions/v1/user-approval?action=approve&userId=${userId}&token=${encodeURIComponent(approvalToken)}`;
 
         const client = new SMTPClient({
           connection: {
@@ -186,7 +269,7 @@ Deno.serve(async (req) => {
                 Approve User
               </a>
               <p style="margin-top: 20px; color: #666; font-size: 12px;">
-                Or manage all users in the Admin Panel.
+                This link expires in 24 hours. You can also manage users in the Admin Panel.
               </p>
             </div>
           `,

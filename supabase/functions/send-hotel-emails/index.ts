@@ -10,11 +10,10 @@ interface KidInfo {
   age: number;
 }
 
-interface GuestInfo {
+export interface GuestInfo {
   numAdults: number;
   numKids: number;
   kidsAges: KidInfo[];
-  numRooms: number;
 }
 
 interface HotelEmail {
@@ -85,7 +84,6 @@ Check in: ${hotel.checkIn}
 Check out: ${hotel.checkOut}
 Number of Adults: ${hotel.guestInfo.numAdults}
 Number of Kids: ${kidsInfo}
-Number of Rooms: ${hotel.guestInfo.numRooms}
 Meal Type (BB/FB): ${hotel.meals}
 Room Category (Standard/Upgrade): ${hotel.roomType}
 Guest Name: ${hotel.clientName}

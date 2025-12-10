@@ -11,7 +11,6 @@ export interface GuestInfo {
   numAdults: number;
   numKids: number;
   kidsAges: KidInfo[];
-  numRooms: number;
 }
 
 export interface ItineraryDay {

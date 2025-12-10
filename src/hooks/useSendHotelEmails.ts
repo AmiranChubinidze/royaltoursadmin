@@ -46,7 +46,7 @@ export function useSendHotelEmails() {
       // Build hotel email list with known email addresses
       const hotels: HotelEmail[] = [];
       const mainClient = payload.clients[0];
-      const guestInfo = payload.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [], numRooms: 1 };
+      const guestInfo = payload.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [] };
 
       for (const [hotelName, dates] of hotelMap.entries()) {
         const hotelEmail = HOTEL_EMAILS[hotelName];

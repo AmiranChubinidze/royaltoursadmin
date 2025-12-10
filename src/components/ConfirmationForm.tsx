@@ -341,7 +341,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     tourSource: initialData?.tourSource || "own-company",
     trackingNumber: initialData?.trackingNumber || "",
     clients: initialData?.clients || [{ name: "", passport: "" }],
-    guestInfo: initialData?.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [], numRooms: 1 },
+    guestInfo: initialData?.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [] },
     arrival: initialData?.arrival || { date: "", time: "", flight: "", from: "" },
     departure: initialData?.departure || { date: "", time: "", flight: "", to: "" },
     itinerary: initialData?.itinerary || [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "YES" }],
@@ -381,6 +381,21 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       }
     }
   }, [formData.arrival.date, formData.departure.date, isEdit]);
+
+  // Sync adults count with client count
+  useEffect(() => {
+    const totalClients = formData.clients.length;
+    const currentKids = Math.min(formData.guestInfo.numKids, totalClients);
+    const numAdults = totalClients - currentKids;
+    
+    if (numAdults !== formData.guestInfo.numAdults || currentKids !== formData.guestInfo.numKids) {
+      const kidsAges = formData.guestInfo.kidsAges.slice(0, currentKids);
+      setFormData(prev => ({
+        ...prev,
+        guestInfo: { numAdults, numKids: currentKids, kidsAges }
+      }));
+    }
+  }, [formData.clients.length]);
 
   const handleSameAsArrival = () => {
     setFormData(prev => ({
@@ -765,48 +780,38 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             <section>
               <h2 className="text-lg font-semibold text-foreground mb-4">Guest Info (for hotel emails)</h2>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm font-medium mb-1.5 block">Number of Adults</Label>
                   <Input
                     type="number"
-                    min={1}
+                    min={0}
                     value={formData.guestInfo.numAdults}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      guestInfo: { ...prev.guestInfo, numAdults: parseInt(e.target.value) || 1 }
-                    }))}
+                    readOnly
+                    className="bg-muted"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Auto-calculated from clients</p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium mb-1.5 block">Number of Kids</Label>
                   <Input
                     type="number"
                     min={0}
+                    max={formData.clients.length}
                     value={formData.guestInfo.numKids}
                     onChange={(e) => {
-                      const numKids = parseInt(e.target.value) || 0;
+                      const totalClients = formData.clients.length;
+                      const numKids = Math.min(parseInt(e.target.value) || 0, totalClients);
+                      const numAdults = totalClients - numKids;
                       const kidsAges = [...formData.guestInfo.kidsAges];
                       // Adjust kidsAges array length
                       while (kidsAges.length < numKids) kidsAges.push({ age: 0 });
                       while (kidsAges.length > numKids) kidsAges.pop();
                       setFormData(prev => ({
                         ...prev,
-                        guestInfo: { ...prev.guestInfo, numKids, kidsAges }
+                        guestInfo: { numAdults, numKids, kidsAges }
                       }));
                     }}
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm font-medium mb-1.5 block">Number of Rooms</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={formData.guestInfo.numRooms}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      guestInfo: { ...prev.guestInfo, numRooms: parseInt(e.target.value) || 1 }
-                    }))}
                   />
                 </div>
               </div>

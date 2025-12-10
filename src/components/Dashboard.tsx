@@ -29,7 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield } from "lucide-react";
 import {
   useConfirmations,
   useDeleteConfirmation,
@@ -41,7 +41,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
@@ -125,6 +125,12 @@ export function Dashboard() {
             <Button variant="outline" onClick={() => navigate("/saved-data")}>
               Saved Data
             </Button>
+            {user?.email === "am1ko.ch4b1n1dze@gmail.com" && (
+              <Button variant="outline" onClick={() => navigate("/admin")}>
+                <Shield className="h-4 w-4 mr-2" />
+                Admin
+              </Button>
+            )}
             <Button onClick={() => navigate("/new")} size="lg">
               <Plus className="h-5 w-5 mr-2" />
               New Confirmation

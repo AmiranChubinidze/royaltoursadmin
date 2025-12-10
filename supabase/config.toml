@@ -1,10 +1,10 @@
 project_id = "voukbajbrenetldossuc"
 
 [functions.send-hotel-emails]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-hotel-emails-custom]
-verify_jwt = false
+verify_jwt = true
 
 [functions.user-approval]
 verify_jwt = false

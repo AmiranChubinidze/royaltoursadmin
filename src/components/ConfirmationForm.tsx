@@ -24,16 +24,15 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Plus, ArrowLeft, CalendarIcon, Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, parse } from "date-fns";
 import {
   ConfirmationFormData,
   Client,
   ItineraryDay,
 } from "@/types/confirmation";
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
-import { useSavedHotels, useSavedClients } from "@/hooks/useSavedData";
+import { useSavedHotels, SavedHotel } from "@/hooks/useSavedData";
 import { toast } from "@/hooks/use-toast";
 
 interface ConfirmationFormProps {
@@ -109,15 +108,95 @@ function DatePicker({
   );
 }
 
+// Time Picker Component
+function TimePicker({
+  value,
+  onChange,
+  placeholder = "Select time"
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  
+  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, "0"));
+  const minutes = ["00", "15", "30", "45"];
+
+  const [selectedHour, selectedMinute] = value ? value.split(":") : ["", ""];
+
+  const selectTime = (hour: string, minute: string) => {
+    onChange(`${hour}:${minute}`);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal h-10",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <Clock className="mr-2 h-4 w-4" />
+          {value || placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-3" align="start">
+        <div className="flex gap-2">
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground mb-1 text-center">Hour</span>
+            <div className="h-48 overflow-y-auto border border-border rounded-md">
+              {hours.map((hour) => (
+                <button
+                  key={hour}
+                  onClick={() => selectTime(hour, selectedMinute || "00")}
+                  className={cn(
+                    "w-12 py-1.5 text-sm hover:bg-muted text-center",
+                    selectedHour === hour && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  {hour}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground mb-1 text-center">Minute</span>
+            <div className="border border-border rounded-md">
+              {minutes.map((minute) => (
+                <button
+                  key={minute}
+                  onClick={() => selectTime(selectedHour || "00", minute)}
+                  className={cn(
+                    "w-12 py-1.5 text-sm hover:bg-muted text-center",
+                    selectedMinute === minute && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  {minute}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 // Hotel Combobox Component
 function HotelCombobox({
   value,
   onChange,
   hotels,
+  onHotelSelect,
 }: {
   value: string;
   onChange: (value: string) => void;
-  hotels: { id: string; name: string }[];
+  hotels: SavedHotel[];
+  onHotelSelect?: (hotel: SavedHotel | null) => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -148,6 +227,7 @@ function HotelCombobox({
                   value={hotel.name}
                   onSelect={(currentValue) => {
                     onChange(currentValue);
+                    onHotelSelect?.(hotel);
                     setOpen(false);
                   }}
                 >
@@ -167,7 +247,10 @@ function HotelCombobox({
           <Input
             placeholder="Or type custom hotel name..."
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              onChange(e.target.value);
+              onHotelSelect?.(null);
+            }}
             className="h-8 text-sm"
           />
         </div>
@@ -176,19 +259,29 @@ function HotelCombobox({
   );
 }
 
-// Client Combobox Component
-function ClientCombobox({
+// Activity Combobox Component
+function ActivityCombobox({
   value,
   onChange,
-  clients,
-  onSelectClient,
+  activities,
 }: {
   value: string;
   onChange: (value: string) => void;
-  clients: { id: string; full_name: string; passport_number: string | null }[];
-  onSelectClient?: (client: { full_name: string; passport_number: string | null }) => void;
+  activities: string[];
 }) {
   const [open, setOpen] = useState(false);
+
+  if (activities.length === 0) {
+    return (
+      <Input
+        type="text"
+        placeholder="Activity / program description"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border-0 shadow-none px-0 h-8 focus-visible:ring-0 text-sm"
+      />
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -199,43 +292,34 @@ function ClientCombobox({
           aria-expanded={open}
           className="w-full justify-between h-8 border-0 shadow-none px-0 focus-visible:ring-0 text-sm font-normal"
         >
-          <span className={cn(!value && "text-muted-foreground")}>
-            {value || "Select client..."}
+          <span className={cn(!value && "text-muted-foreground", "truncate")}>
+            {value || "Select activity..."}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
-          <CommandInput placeholder="Search clients..." />
+          <CommandInput placeholder="Search activities..." />
           <CommandList>
-            <CommandEmpty>No client found. Type to add custom.</CommandEmpty>
+            <CommandEmpty>No activity found. Type to add custom.</CommandEmpty>
             <CommandGroup>
-              {clients.map((client) => (
+              {activities.map((activity) => (
                 <CommandItem
-                  key={client.id}
-                  value={client.full_name}
-                  onSelect={() => {
-                    if (onSelectClient) {
-                      onSelectClient(client);
-                    } else {
-                      onChange(client.full_name);
-                    }
+                  key={activity}
+                  value={activity}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
                     setOpen(false);
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 h-4 w-4",
-                      value === client.full_name ? "opacity-100" : "opacity-0"
+                      value === activity ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex flex-col">
-                    <span>{client.full_name}</span>
-                    {client.passport_number && (
-                      <span className="text-xs text-muted-foreground">{client.passport_number}</span>
-                    )}
-                  </div>
+                  {activity}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -243,7 +327,7 @@ function ClientCombobox({
         </Command>
         <div className="p-2 border-t border-border">
           <Input
-            placeholder="Or type custom name..."
+            placeholder="Or type custom activity..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
             className="h-8 text-sm"
@@ -258,7 +342,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   const navigate = useNavigate();
   const createMutation = useCreateConfirmation();
   const { data: savedHotels = [] } = useSavedHotels();
-  const { data: savedClients = [] } = useSavedClients();
+
+  // Track selected hotel per itinerary row for activity suggestions
+  const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "own-company",
@@ -340,15 +426,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     }));
   };
 
-  const selectSavedClient = (index: number, savedClient: { full_name: string; passport_number: string | null }) => {
-    setFormData(prev => ({
-      ...prev,
-      clients: prev.clients.map((client, i) =>
-        i === index ? { name: savedClient.full_name, passport: savedClient.passport_number || "" } : client
-      ),
-    }));
-  };
-
   const addDay = () => {
     const arrDate = parseDateDDMMYYYY(formData.arrival.date);
     const presetDate = arrDate ? formatDateDDMMYYYY(datePlusDays(arrDate, formData.itinerary.length)) : "";
@@ -357,6 +434,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       itinerary: [...prev.itinerary, { date: presetDate, day: "", route: "", hotel: "", roomType: "", meals: "YES" }],
     }));
+    setSelectedHotels(prev => [...prev, null]);
   };
 
   const removeDay = (index: number) => {
@@ -365,6 +443,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       itinerary: prev.itinerary.filter((_, i) => i !== index),
     }));
+    setSelectedHotels(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateItinerary = (index: number, field: keyof ItineraryDay, value: string) => {
@@ -374,6 +453,30 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         i === index ? { ...day, [field]: value } : day
       ),
     }));
+  };
+
+  const handleHotelSelect = (index: number, hotel: SavedHotel | null) => {
+    setSelectedHotels(prev => {
+      const newSelected = [...prev];
+      newSelected[index] = hotel;
+      return newSelected;
+    });
+  };
+
+  const getActivitiesForRow = (index: number): string[] => {
+    const hotel = selectedHotels[index];
+    if (hotel?.activities?.length) {
+      return hotel.activities;
+    }
+    // Try to find hotel by name if not tracked
+    const hotelName = formData.itinerary[index]?.hotel;
+    if (hotelName) {
+      const foundHotel = savedHotels.find(h => h.name.toLowerCase() === hotelName.toLowerCase());
+      if (foundHotel?.activities?.length) {
+        return foundHotel.activities;
+      }
+    }
+    return [];
   };
 
   const handleSubmit = async () => {
@@ -501,13 +604,13 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">Time</Label>
-                    <Input
-                      type="time"
+                    <TimePicker
                       value={formData.arrival.time}
-                      onChange={(e) => setFormData(prev => ({
+                      onChange={(value) => setFormData(prev => ({
                         ...prev,
-                        arrival: { ...prev.arrival, time: e.target.value }
+                        arrival: { ...prev.arrival, time: value }
                       }))}
+                      placeholder="Select arrival time"
                     />
                   </div>
                   <div>
@@ -562,13 +665,13 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">Time</Label>
-                    <Input
-                      type="time"
+                    <TimePicker
                       value={formData.departure.time}
-                      onChange={(e) => setFormData(prev => ({
+                      onChange={(value) => setFormData(prev => ({
                         ...prev,
-                        departure: { ...prev.departure, time: e.target.value }
+                        departure: { ...prev.departure, time: value }
                       }))}
+                      placeholder="Select departure time"
                     />
                   </div>
                   <div>
@@ -603,7 +706,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Clients</h2>
-                <p className="text-sm text-muted-foreground">Select from saved or type new</p>
               </div>
               
               <div className="border border-border rounded-lg overflow-hidden">
@@ -619,11 +721,12 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                     {formData.clients.map((client, index) => (
                       <tr key={index} className="border-b border-border/50 last:border-b-0">
                         <td className="px-4 py-2">
-                          <ClientCombobox
+                          <Input
+                            type="text"
+                            placeholder="Full name"
                             value={client.name}
-                            onChange={(value) => updateClient(index, "name", value)}
-                            clients={savedClients}
-                            onSelectClient={(saved) => selectSavedClient(index, saved)}
+                            onChange={(e) => updateClient(index, "name", e.target.value)}
+                            className="border-0 shadow-none px-0 h-8 focus-visible:ring-0 text-sm"
                           />
                         </td>
                         <td className="px-4 py-2">
@@ -700,15 +803,14 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                             value={day.hotel}
                             onChange={(value) => updateItinerary(index, "hotel", value)}
                             hotels={savedHotels}
+                            onHotelSelect={(hotel) => handleHotelSelect(index, hotel)}
                           />
                         </td>
                         <td className="px-4 py-2">
-                          <Input
-                            type="text"
-                            placeholder="Activity / program description"
+                          <ActivityCombobox
                             value={day.route}
-                            onChange={(e) => updateItinerary(index, "route", e.target.value)}
-                            className="border-0 shadow-none px-0 h-8 focus-visible:ring-0 text-sm"
+                            onChange={(value) => updateItinerary(index, "route", value)}
+                            activities={getActivitiesForRow(index)}
                           />
                         </td>
                         <td className="px-4 py-2">

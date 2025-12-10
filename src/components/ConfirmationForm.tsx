@@ -120,15 +120,11 @@ function TimePicker({
 }) {
   const [open, setOpen] = useState(false);
   
-  const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, "0"));
-  const minutes = ["00", "15", "30", "45"];
-
-  const [selectedHour, selectedMinute] = value ? value.split(":") : ["", ""];
-
-  const selectTime = (hour: string, minute: string) => {
-    onChange(`${hour}:${minute}`);
-    setOpen(false);
-  };
+  const commonTimes = [
+    "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+    "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+    "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
+  ];
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -144,42 +140,35 @@ function TimePicker({
           {value || placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3" align="start">
-        <div className="flex gap-2">
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground mb-1 text-center">Hour</span>
-            <div className="h-48 overflow-y-auto border border-border rounded-md">
-              {hours.map((hour) => (
-                <button
-                  key={hour}
-                  onClick={() => selectTime(hour, selectedMinute || "00")}
-                  className={cn(
-                    "w-12 py-1.5 text-sm hover:bg-muted text-center",
-                    selectedHour === hour && "bg-primary text-primary-foreground"
-                  )}
-                >
-                  {hour}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground mb-1 text-center">Minute</span>
-            <div className="border border-border rounded-md">
-              {minutes.map((minute) => (
-                <button
-                  key={minute}
-                  onClick={() => selectTime(selectedHour || "00", minute)}
-                  className={cn(
-                    "w-12 py-1.5 text-sm hover:bg-muted text-center",
-                    selectedMinute === minute && "bg-primary text-primary-foreground"
-                  )}
-                >
-                  {minute}
-                </button>
-              ))}
-            </div>
-          </div>
+      <PopoverContent className="w-48 p-2 bg-popover" align="start">
+        <div className="grid grid-cols-3 gap-1">
+          {commonTimes.map((time) => (
+            <button
+              key={time}
+              onClick={() => {
+                onChange(time);
+                setOpen(false);
+              }}
+              className={cn(
+                "px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors",
+                value === time && "bg-primary text-primary-foreground hover:bg-primary"
+              )}
+            >
+              {time}
+            </button>
+          ))}
+        </div>
+        <div className="mt-2 pt-2 border-t border-border">
+          <Input
+            type="time"
+            value={value}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setOpen(false);
+            }}
+            className="h-8 text-sm"
+            placeholder="Custom time"
+          />
         </div>
       </PopoverContent>
     </Popover>

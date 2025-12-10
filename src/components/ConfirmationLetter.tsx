@@ -1,5 +1,6 @@
 import { Confirmation, ConfirmationPayload } from "@/types/confirmation";
 import signatureStamp from "@/assets/signature-stamp.jpg";
+import { format } from "date-fns";
 
 interface ConfirmationLetterProps {
   confirmation: Confirmation;
@@ -12,6 +13,12 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
   const departure = payload?.departure || { date: "", time: "", flight: "", to: "" };
   const itinerary = payload?.itinerary || [];
   const trackingNumber = payload?.trackingNumber;
+
+  // Check if confirmation was edited (updated_at differs from created_at by more than 1 minute)
+  const createdAt = new Date(confirmation.created_at).getTime();
+  const updatedAt = new Date(confirmation.updated_at).getTime();
+  const wasEdited = updatedAt - createdAt > 60000;
+  const editedDate = wasEdited ? format(new Date(confirmation.updated_at), "dd/MM/yyyy") : null;
 
   return (
     <div 
@@ -56,6 +63,16 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
                 </div>
                 <div className="text-lg font-bold text-[#1c1f26] print:text-base">
                   {trackingNumber}
+                </div>
+              </>
+            )}
+            {editedDate && (
+              <>
+                <div className="text-xs text-[#6b7280]" style={{ letterSpacing: '0.05em' }}>
+                  EDITED
+                </div>
+                <div className="text-lg font-bold text-[#1c1f26] print:text-base">
+                  {editedDate}
                 </div>
               </>
             )}

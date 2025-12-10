@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { ConfirmationPayload, HOTEL_EMAILS, GuestInfo } from "@/types/confirmation";
+import { ConfirmationPayload, GuestInfo } from "@/types/confirmation";
 
 interface HotelEmail {
   hotelName: string;
@@ -25,6 +25,18 @@ export function useSendHotelEmails() {
     setIsSending(true);
 
     try {
+      // Fetch saved hotels from database to get email addresses
+      const { data: savedHotels } = await supabase
+        .from("saved_hotels")
+        .select("name, email");
+      
+      const hotelEmailMap: Record<string, string> = {};
+      savedHotels?.forEach(hotel => {
+        if (hotel.email) {
+          hotelEmailMap[hotel.name] = hotel.email;
+        }
+      });
+
       // Extract unique hotels from itinerary and map to email addresses
       const hotelMap = new Map<string, { checkIn: string; checkOut: string; roomType: string; meals: string }>();
       
@@ -49,7 +61,7 @@ export function useSendHotelEmails() {
       const guestInfo = payload.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [] };
 
       for (const [hotelName, dates] of hotelMap.entries()) {
-        const hotelEmail = HOTEL_EMAILS[hotelName];
+        const hotelEmail = hotelEmailMap[hotelName];
         if (hotelEmail) {
           hotels.push({
             hotelName,
@@ -68,7 +80,7 @@ export function useSendHotelEmails() {
       if (hotels.length === 0) {
         toast({
           title: "No hotel emails found",
-          description: "None of the hotels in this itinerary have email addresses configured.",
+          description: "None of the hotels in this itinerary have email addresses configured in saved hotels.",
           variant: "destructive",
         });
         return { success: false, reason: "no_hotels" };

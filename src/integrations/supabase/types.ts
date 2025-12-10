@@ -62,60 +62,30 @@ export type Database = {
         }
         Relationships: []
       }
-      saved_clients: {
-        Row: {
-          created_at: string
-          email: string | null
-          full_name: string
-          id: string
-          notes: string | null
-          passport_number: string | null
-          phone: string | null
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          full_name: string
-          id?: string
-          notes?: string | null
-          passport_number?: string | null
-          phone?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          full_name?: string
-          id?: string
-          notes?: string | null
-          passport_number?: string | null
-          phone?: string | null
-        }
-        Relationships: []
-      }
       saved_hotels: {
         Row: {
+          activities: string[] | null
           address: string | null
           created_at: string
           email: string | null
           id: string
           name: string
-          phone: string | null
         }
         Insert: {
+          activities?: string[] | null
           address?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name: string
-          phone?: string | null
         }
         Update: {
+          activities?: string[] | null
           address?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name?: string
-          phone?: string | null
         }
         Relationships: []
       }

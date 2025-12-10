@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Select,
   SelectContent,
@@ -10,13 +11,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Plus, ArrowLeft, CalendarIcon, Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { format, parse } from "date-fns";
 import {
   ConfirmationFormData,
   Client,
   ItineraryDay,
 } from "@/types/confirmation";
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
+import { useSavedHotels, useSavedClients } from "@/hooks/useSavedData";
 import { toast } from "@/hooks/use-toast";
 
 interface ConfirmationFormProps {
@@ -47,9 +64,201 @@ function datePlusDays(date: Date, days: number): Date {
   return d;
 }
 
+// Date Picker Component
+function DatePicker({ 
+  value, 
+  onChange, 
+  placeholder = "Select date" 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const date = parseDateDDMMYYYY(value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full justify-start text-left font-normal h-10",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value || placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={date || undefined}
+          onSelect={(d) => {
+            if (d) {
+              onChange(formatDateDDMMYYYY(d));
+            }
+            setOpen(false);
+          }}
+          initialFocus
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Hotel Combobox Component
+function HotelCombobox({
+  value,
+  onChange,
+  hotels,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  hotels: { id: string; name: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-8 border-0 shadow-none px-0 focus-visible:ring-0 text-sm font-normal"
+        >
+          <span className={cn(!value && "text-muted-foreground")}>
+            {value || "Select hotel..."}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search hotels..." />
+          <CommandList>
+            <CommandEmpty>No hotel found. Type to add custom.</CommandEmpty>
+            <CommandGroup>
+              {hotels.map((hotel) => (
+                <CommandItem
+                  key={hotel.id}
+                  value={hotel.name}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === hotel.name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {hotel.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+        <div className="p-2 border-t border-border">
+          <Input
+            placeholder="Or type custom hotel name..."
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Client Combobox Component
+function ClientCombobox({
+  value,
+  onChange,
+  clients,
+  onSelectClient,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  clients: { id: string; full_name: string; passport_number: string | null }[];
+  onSelectClient?: (client: { full_name: string; passport_number: string | null }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between h-8 border-0 shadow-none px-0 focus-visible:ring-0 text-sm font-normal"
+        >
+          <span className={cn(!value && "text-muted-foreground")}>
+            {value || "Select client..."}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Search clients..." />
+          <CommandList>
+            <CommandEmpty>No client found. Type to add custom.</CommandEmpty>
+            <CommandGroup>
+              {clients.map((client) => (
+                <CommandItem
+                  key={client.id}
+                  value={client.full_name}
+                  onSelect={() => {
+                    if (onSelectClient) {
+                      onSelectClient(client);
+                    } else {
+                      onChange(client.full_name);
+                    }
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === client.full_name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <div className="flex flex-col">
+                    <span>{client.full_name}</span>
+                    {client.passport_number && (
+                      <span className="text-xs text-muted-foreground">{client.passport_number}</span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+        <div className="p-2 border-t border-border">
+          <Input
+            placeholder="Or type custom name..."
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: ConfirmationFormProps) {
   const navigate = useNavigate();
   const createMutation = useCreateConfirmation();
+  const { data: savedHotels = [] } = useSavedHotels();
+  const { data: savedClients = [] } = useSavedClients();
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "own-company",
@@ -123,6 +332,23 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     }));
   };
 
+  const removeClient = (index: number) => {
+    if (formData.clients.length <= 1) return;
+    setFormData(prev => ({
+      ...prev,
+      clients: prev.clients.filter((_, i) => i !== index),
+    }));
+  };
+
+  const selectSavedClient = (index: number, savedClient: { full_name: string; passport_number: string | null }) => {
+    setFormData(prev => ({
+      ...prev,
+      clients: prev.clients.map((client, i) =>
+        i === index ? { name: savedClient.full_name, passport: savedClient.passport_number || "" } : client
+      ),
+    }));
+  };
+
   const addDay = () => {
     const arrDate = parseDateDDMMYYYY(formData.arrival.date);
     const presetDate = arrDate ? formatDateDDMMYYYY(datePlusDays(arrDate, formData.itinerary.length)) : "";
@@ -130,6 +356,14 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     setFormData(prev => ({
       ...prev,
       itinerary: [...prev.itinerary, { date: presetDate, day: "", route: "", hotel: "", roomType: "", meals: "YES" }],
+    }));
+  };
+
+  const removeDay = (index: number) => {
+    if (formData.itinerary.length <= 1) return;
+    setFormData(prev => ({
+      ...prev,
+      itinerary: prev.itinerary.filter((_, i) => i !== index),
     }));
   };
 
@@ -186,11 +420,23 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         <div className="bg-card rounded-lg shadow-sm border border-border">
           {/* Header */}
           <header className="px-6 py-5 border-b border-border">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Tour confirmation</p>
-            <h1 className="text-2xl font-bold text-foreground">
-              {isEdit ? "Edit confirmation letter" : "Generate confirmation letter"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <div className="flex items-center gap-4 mb-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/")}
+                className="h-8 w-8"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Tour confirmation</p>
+                <h1 className="text-2xl font-bold text-foreground">
+                  {isEdit ? "Edit confirmation letter" : "Generate confirmation letter"}
+                </h1>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground ml-12">
               {isEdit ? "Update and save the confirmation details." : "Fill the details below. Blank client/itinerary rows will be ignored."}
             </p>
           </header>
@@ -200,8 +446,8 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             <section>
               <h2 className="text-lg font-semibold text-foreground mb-4">Trip / Confirmation info</h2>
               
-              <div className="flex flex-wrap gap-4 mb-6">
-                <div className="flex-1 min-w-[200px]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
                   <Label htmlFor="tourSource" className="text-sm font-medium mb-1.5 block">Tour source</Label>
                   <Select
                     value={formData.tourSource}
@@ -224,7 +470,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 </div>
                 
                 {showTrackingNumber && (
-                  <div className="flex-1 min-w-[200px]">
+                  <div>
                     <Label htmlFor="trackingNumber" className="text-sm font-medium mb-1.5 block">Tracking number</Label>
                     <Input
                       id="trackingNumber"
@@ -237,65 +483,62 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 )}
               </div>
 
-              {/* Arrival / Departure */}
-              <div className="flex flex-wrap gap-8 mt-6">
+              {/* Arrival / Departure - Grid aligned */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 {/* Arrival */}
-                <div className="flex-1 min-w-[280px]">
-                  <h3 className="font-semibold text-foreground mb-4">Arrival</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Arrival date</Label>
-                      <Input
-                        type="text"
-                        placeholder="dd/mm/yyyy"
-                        value={formData.arrival.date}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          arrival: { ...prev.arrival, date: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Arrival time</Label>
-                      <Input
-                        type="time"
-                        value={formData.arrival.time}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          arrival: { ...prev.arrival, time: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Arrival city</Label>
-                      <Input
-                        type="text"
-                        placeholder="e.g. Tbilisi"
-                        value={formData.arrival.from}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          arrival: { ...prev.arrival, from: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Arrival ticket number</Label>
-                      <Input
-                        type="text"
-                        placeholder="Flight / ticket number"
-                        value={formData.arrival.flight}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          arrival: { ...prev.arrival, flight: e.target.value }
-                        }))}
-                      />
-                    </div>
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-foreground">Arrival</h3>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">Date</Label>
+                    <DatePicker
+                      value={formData.arrival.date}
+                      onChange={(value) => setFormData(prev => ({
+                        ...prev,
+                        arrival: { ...prev.arrival, date: value }
+                      }))}
+                      placeholder="Select arrival date"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">Time</Label>
+                    <Input
+                      type="time"
+                      value={formData.arrival.time}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        arrival: { ...prev.arrival, time: e.target.value }
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">City</Label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Tbilisi"
+                      value={formData.arrival.from}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        arrival: { ...prev.arrival, from: e.target.value }
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">Flight / Ticket number</Label>
+                    <Input
+                      type="text"
+                      placeholder="Flight or ticket number"
+                      value={formData.arrival.flight}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        arrival: { ...prev.arrival, flight: e.target.value }
+                      }))}
+                    />
                   </div>
                 </div>
 
                 {/* Departure */}
-                <div className="flex-1 min-w-[280px]">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-foreground">Departure</h3>
                     <Button
                       type="button"
@@ -306,54 +549,51 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                       Same as arrival
                     </Button>
                   </div>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Departure date</Label>
-                      <Input
-                        type="text"
-                        placeholder="dd/mm/yyyy"
-                        value={formData.departure.date}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          departure: { ...prev.departure, date: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Departure time</Label>
-                      <Input
-                        type="time"
-                        value={formData.departure.time}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          departure: { ...prev.departure, time: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Departure city</Label>
-                      <Input
-                        type="text"
-                        placeholder="e.g. Batumi"
-                        value={formData.departure.to}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          departure: { ...prev.departure, to: e.target.value }
-                        }))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-medium mb-1.5 block">Departure ticket number</Label>
-                      <Input
-                        type="text"
-                        placeholder="Flight / ticket number"
-                        value={formData.departure.flight}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          departure: { ...prev.departure, flight: e.target.value }
-                        }))}
-                      />
-                    </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">Date</Label>
+                    <DatePicker
+                      value={formData.departure.date}
+                      onChange={(value) => setFormData(prev => ({
+                        ...prev,
+                        departure: { ...prev.departure, date: value }
+                      }))}
+                      placeholder="Select departure date"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">Time</Label>
+                    <Input
+                      type="time"
+                      value={formData.departure.time}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        departure: { ...prev.departure, time: e.target.value }
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">City</Label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Batumi"
+                      value={formData.departure.to}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        departure: { ...prev.departure, to: e.target.value }
+                      }))}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium mb-1.5 block">Flight / Ticket number</Label>
+                    <Input
+                      type="text"
+                      placeholder="Flight or ticket number"
+                      value={formData.departure.flight}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        departure: { ...prev.departure, flight: e.target.value }
+                      }))}
+                    />
                   </div>
                 </div>
               </div>
@@ -363,27 +603,27 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Clients</h2>
-                <p className="text-sm text-muted-foreground">Add as many as needed. Empty rows are ignored.</p>
+                <p className="text-sm text-muted-foreground">Select from saved or type new</p>
               </div>
               
-              <div className="border border-border rounded-md overflow-hidden">
+              <div className="border border-border rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
-                      <th className="text-left text-sm font-medium text-foreground px-4 py-2">Full name</th>
-                      <th className="text-left text-sm font-medium text-foreground px-4 py-2">Passport number</th>
+                      <th className="text-left text-sm font-medium text-foreground px-4 py-3">Full name</th>
+                      <th className="text-left text-sm font-medium text-foreground px-4 py-3">Passport number</th>
+                      <th className="w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {formData.clients.map((client, index) => (
                       <tr key={index} className="border-b border-border/50 last:border-b-0">
                         <td className="px-4 py-2">
-                          <Input
-                            type="text"
-                            placeholder="Full name"
+                          <ClientCombobox
                             value={client.name}
-                            onChange={(e) => updateClient(index, "name", e.target.value)}
-                            className="border-0 shadow-none px-0 h-8 focus-visible:ring-0"
+                            onChange={(value) => updateClient(index, "name", value)}
+                            clients={savedClients}
+                            onSelectClient={(saved) => selectSavedClient(index, saved)}
                           />
                         </td>
                         <td className="px-4 py-2">
@@ -394,6 +634,18 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                             onChange={(e) => updateClient(index, "passport", e.target.value)}
                             className="border-0 shadow-none px-0 h-8 focus-visible:ring-0"
                           />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeClient(index)}
+                            disabled={formData.clients.length <= 1}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -417,17 +669,18 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Itinerary</h2>
-                <p className="text-sm text-muted-foreground">Add as many days as needed. Empty rows are ignored.</p>
+                <p className="text-sm text-muted-foreground">Auto-generated from dates</p>
               </div>
 
-              <div className="border border-border rounded-md overflow-hidden overflow-x-auto">
-                <table className="w-full min-w-[600px]">
+              <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
+                <table className="w-full min-w-[700px]">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
-                      <th className="text-left text-sm font-medium text-foreground px-4 py-2 w-28">Date</th>
-                      <th className="text-left text-sm font-medium text-foreground px-4 py-2 w-36">Hotel</th>
-                      <th className="text-left text-sm font-medium text-foreground px-4 py-2">Program / activity</th>
-                      <th className="text-left text-sm font-medium text-foreground px-4 py-2 w-20">Driver</th>
+                      <th className="text-left text-sm font-medium text-foreground px-4 py-3 w-28">Date</th>
+                      <th className="text-left text-sm font-medium text-foreground px-4 py-3 w-40">Hotel</th>
+                      <th className="text-left text-sm font-medium text-foreground px-4 py-3">Program / Activity</th>
+                      <th className="text-left text-sm font-medium text-foreground px-4 py-3 w-24">Driver</th>
+                      <th className="w-10"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -443,12 +696,10 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                           />
                         </td>
                         <td className="px-4 py-2">
-                          <Input
-                            type="text"
-                            placeholder="Hotel"
+                          <HotelCombobox
                             value={day.hotel}
-                            onChange={(e) => updateItinerary(index, "hotel", e.target.value)}
-                            className="border-0 shadow-none px-0 h-8 focus-visible:ring-0 text-sm"
+                            onChange={(value) => updateItinerary(index, "hotel", value)}
+                            hotels={savedHotels}
                           />
                         </td>
                         <td className="px-4 py-2">
@@ -474,6 +725,18 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                             </SelectContent>
                           </Select>
                         </td>
+                        <td className="px-2 py-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeDay(index)}
+                            disabled={formData.itinerary.length <= 1}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -493,10 +756,17 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             </section>
 
             {/* Submit */}
-            <div className="flex justify-end pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between pt-6 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/")}
+              >
+                Cancel
+              </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={createMutation.isPending}
+                size="lg"
               >
                 {createMutation.isPending 
                   ? "Processing..." 

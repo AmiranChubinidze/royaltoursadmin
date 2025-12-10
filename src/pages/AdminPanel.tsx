@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, X, Users, Clock, CheckCircle } from "lucide-react";
+import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
@@ -87,6 +86,24 @@ const AdminPanel = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
       toast({ title: "User rejected", description: "User has been removed." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ approved: false })
+        .eq("id", userId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      toast({ title: "Access revoked", description: "User access has been revoked." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -257,6 +274,7 @@ const AdminPanel = () => {
                       <TableHead>Email</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -268,6 +286,20 @@ const AdminPanel = () => {
                         </TableCell>
                         <TableCell>
                           <Badge variant="default" className="bg-emerald-500">Approved</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {profile.email !== ADMIN_EMAIL && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => revokeMutation.mutate(profile.id)}
+                              disabled={revokeMutation.isPending}
+                            >
+                              <Ban className="h-4 w-4 mr-1" />
+                              Revoke
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

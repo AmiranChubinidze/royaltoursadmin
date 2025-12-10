@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -11,98 +10,59 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Copy, ArrowLeft } from "lucide-react";
+import { Plus, Clock, ChevronDown } from "lucide-react";
 import {
   ConfirmationFormData,
   Client,
   ItineraryDay,
   TOUR_SOURCES,
-  Confirmation,
 } from "@/types/confirmation";
-import {
-  useCreateConfirmation,
-  useUpdateConfirmation,
-} from "@/hooks/useConfirmations";
-import {
-  validateConfirmationData,
-  generateItineraryDays,
-  formatDateToDDMMYYYY,
-  parseDDMMYYYY,
-} from "@/lib/confirmationUtils";
+import { useCreateConfirmation } from "@/hooks/useConfirmations";
 import { toast } from "@/hooks/use-toast";
 
 interface ConfirmationFormProps {
-  initialData?: Confirmation | null;
+  initialData?: Partial<ConfirmationFormData>;
+  onSubmit?: (data: ConfirmationFormData) => void;
   isEdit?: boolean;
 }
 
-const emptyClient: Client = { name: "", passport: "" };
-const emptyItineraryDay: ItineraryDay = {
-  date: "",
-  day: "",
-  route: "",
-  hotel: "",
-  roomType: "",
-  meals: "",
-};
-
-export function ConfirmationForm({ initialData, isEdit }: ConfirmationFormProps) {
+export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: ConfirmationFormProps) {
   const navigate = useNavigate();
   const createMutation = useCreateConfirmation();
-  const updateMutation = useUpdateConfirmation();
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
-    tourSource: "",
-    trackingNumber: "",
-    clients: [{ ...emptyClient }],
-    arrival: { date: "", time: "", flight: "", from: "" },
-    departure: { date: "", time: "", flight: "", to: "" },
-    itinerary: [],
-    services: "",
-    notes: "",
+    tourSource: initialData?.tourSource || "",
+    trackingNumber: initialData?.trackingNumber || "",
+    clients: initialData?.clients || [{ name: "", passport: "" }],
+    arrival: initialData?.arrival || { date: "", time: "", flight: "", from: "" },
+    departure: initialData?.departure || { date: "", time: "", flight: "", to: "" },
+    itinerary: initialData?.itinerary || [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "" }],
+    services: initialData?.services || "",
+    notes: initialData?.notes || "",
   });
 
-  const [errors, setErrors] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (initialData?.raw_payload) {
-      const payload = initialData.raw_payload;
-      setFormData({
-        tourSource: initialData.tour_source || "",
-        trackingNumber: payload.trackingNumber || "",
-        clients: payload.clients?.length > 0 ? payload.clients : [{ ...emptyClient }],
-        arrival: payload.arrival || { date: "", time: "", flight: "", from: "" },
-        departure: payload.departure || { date: "", time: "", flight: "", to: "" },
-        itinerary: payload.itinerary || [],
-        services: payload.services || "",
-        notes: payload.notes || "",
-      });
-    }
-  }, [initialData]);
-
-  const handleAddClient = () => {
-    setFormData((prev) => ({
+  const handleSameAsArrival = () => {
+    setFormData(prev => ({
       ...prev,
-      clients: [...prev.clients, { ...emptyClient }],
+      departure: {
+        ...prev.departure,
+        date: prev.arrival.date,
+        time: prev.arrival.time,
+        flight: prev.arrival.flight,
+        to: prev.arrival.from,
+      },
     }));
   };
 
-  const handleRemoveClient = (index: number) => {
-    if (formData.clients.length > 1) {
-      setFormData((prev) => ({
-        ...prev,
-        clients: prev.clients.filter((_, i) => i !== index),
-      }));
-    }
+  const addClient = () => {
+    setFormData(prev => ({
+      ...prev,
+      clients: [...prev.clients, { name: "", passport: "" }],
+    }));
   };
 
-  const handleClientChange = (
-    index: number,
-    field: keyof Client,
-    value: string
-  ) => {
-    setFormData((prev) => ({
+  const updateClient = (index: number, field: keyof Client, value: string) => {
+    setFormData(prev => ({
       ...prev,
       clients: prev.clients.map((client, i) =>
         i === index ? { ...client, [field]: value } : client
@@ -110,26 +70,15 @@ export function ConfirmationForm({ initialData, isEdit }: ConfirmationFormProps)
     }));
   };
 
-  const handleAddItineraryDay = () => {
-    setFormData((prev) => ({
+  const addDay = () => {
+    setFormData(prev => ({
       ...prev,
-      itinerary: [...prev.itinerary, { ...emptyItineraryDay }],
+      itinerary: [...prev.itinerary, { date: "", day: "", route: "", hotel: "", roomType: "", meals: "" }],
     }));
   };
 
-  const handleRemoveItineraryDay = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      itinerary: prev.itinerary.filter((_, i) => i !== index),
-    }));
-  };
-
-  const handleItineraryChange = (
-    index: number,
-    field: keyof ItineraryDay,
-    value: string
-  ) => {
-    setFormData((prev) => ({
+  const updateItinerary = (index: number, field: keyof ItineraryDay, value: string) => {
+    setFormData(prev => ({
       ...prev,
       itinerary: prev.itinerary.map((day, i) =>
         i === index ? { ...day, [field]: value } : day
@@ -137,489 +86,339 @@ export function ConfirmationForm({ initialData, isEdit }: ConfirmationFormProps)
     }));
   };
 
-  const handleGenerateItinerary = () => {
-    if (!formData.arrival.date || !formData.departure.date) {
-      toast({
-        title: "Error",
-        description: "Please set arrival and departure dates first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const days = generateItineraryDays(formData.arrival.date, formData.departure.date);
-    setFormData((prev) => ({
-      ...prev,
-      itinerary: days.map((d) => ({
-        ...emptyItineraryDay,
-        date: d.date,
-        day: d.day,
-      })),
-    }));
-  };
-
-  const handleCopyArrivalToDeparture = () => {
-    setFormData((prev) => ({
-      ...prev,
-      departure: {
-        ...prev.departure,
-        flight: prev.arrival.flight,
-        from: prev.arrival.from,
-      },
-    }));
-  };
-
-  const handleDateInput = (
-    section: "arrival" | "departure",
-    value: string
-  ) => {
-    // Auto-format as user types
-    let formatted = value.replace(/\D/g, "");
-    if (formatted.length > 2) {
-      formatted = formatted.slice(0, 2) + "/" + formatted.slice(2);
-    }
-    if (formatted.length > 5) {
-      formatted = formatted.slice(0, 5) + "/" + formatted.slice(5, 9);
-    }
-    setFormData((prev) => ({
-      ...prev,
-      [section]: { ...prev[section], date: formatted },
-    }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const validation = validateConfirmationData({
-      arrival: formData.arrival,
-      departure: formData.departure,
-      clients: formData.clients,
-    });
-
-    if (!validation.valid) {
-      setErrors(validation.errors);
-      toast({
-        title: "Validation Error",
-        description: validation.errors[0],
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setErrors([]);
-
-    // Filter empty clients and itinerary days
-    const payload = {
+  const handleSubmit = async () => {
+    // Filter out empty clients and itinerary days
+    const filteredData = {
       ...formData,
-      clients: formData.clients.filter((c) => c.name.trim()),
-      itinerary: formData.itinerary.filter((d) => d.route.trim() || d.hotel.trim()),
+      clients: formData.clients.filter(c => c.name.trim() || c.passport.trim()),
+      itinerary: formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()),
     };
 
+    if (onSubmit) {
+      onSubmit(filteredData);
+      return;
+    }
+
     try {
-      if (isEdit && initialData) {
-        const result = await updateMutation.mutateAsync({
-          id: initialData.id,
-          payload,
-        });
-        navigate(`/confirmation/${result.id}`);
-      } else {
-        const result = await createMutation.mutateAsync(payload);
-        navigate(`/confirmation/${result.id}`);
-      }
+      const result = await createMutation.mutateAsync({
+        clients: filteredData.clients,
+        arrival: filteredData.arrival,
+        departure: filteredData.departure,
+        itinerary: filteredData.itinerary,
+        trackingNumber: filteredData.trackingNumber,
+        services: filteredData.services,
+        notes: filteredData.notes,
+      });
+
+      toast({
+        title: "Confirmation created",
+        description: `Confirmation ${result.confirmation_code} has been created.`,
+      });
+
+      navigate(`/confirmation/${result.id}`);
     } catch (error) {
-      // Error handled by mutation
+      toast({
+        title: "Error creating confirmation",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const showTrackingField = formData.tourSource && formData.tourSource !== "Direct Booking";
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4 mb-6">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-2xl font-semibold text-foreground">
-          {isEdit ? "Edit Confirmation" : "New Confirmation"}
-        </h1>
-      </div>
-
-      {errors.length > 0 && (
-        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <ul className="list-disc list-inside text-destructive text-sm">
-            {errors.map((error, i) => (
-              <li key={i}>{error}</li>
-            ))}
-          </ul>
+    <div className="min-h-screen bg-slate-50 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Tour Confirmation</p>
+          <h1 className="text-2xl font-bold text-foreground">Generate confirmation letter</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Fill the details below. Blank client/itinerary rows will be ignored.
+          </p>
         </div>
-      )}
 
-      {/* Tour Source */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Tour Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="tourSource">Tour Source</Label>
-              <Select
-                value={formData.tourSource}
-                onValueChange={(value) =>
-                  setFormData((prev) => ({ ...prev, tourSource: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TOUR_SOURCES.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {source}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {showTrackingField && (
-              <div>
-                <Label htmlFor="trackingNumber">Tracking Number</Label>
-                <Input
-                  id="trackingNumber"
-                  value={formData.trackingNumber}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      trackingNumber: e.target.value,
-                    }))
-                  }
-                  placeholder="Booking reference"
-                />
-              </div>
-            )}
+        {/* Trip / Confirmation info */}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-primary mb-4">Trip / Confirmation info</h2>
+          
+          <div className="mb-6">
+            <Label className="text-xs font-medium text-muted-foreground mb-1 block">Tour source</Label>
+            <Select
+              value={formData.tourSource}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, tourSource: value }))}
+            >
+              <SelectTrigger className="w-full bg-white">
+                <SelectValue placeholder="Own tour company" />
+              </SelectTrigger>
+              <SelectContent>
+                {TOUR_SOURCES.map(source => (
+                  <SelectItem key={source} value={source}>{source}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Clients */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Clients</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={handleAddClient}>
-            <Plus className="h-4 w-4 mr-1" /> Add Client
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {formData.clients.map((client, index) => (
-            <div key={index} className="flex gap-3 items-end">
-              <div className="flex-1">
-                <Label>Full Name</Label>
-                <Input
-                  value={client.name}
-                  onChange={(e) => handleClientChange(index, "name", e.target.value)}
-                  placeholder="John Doe"
-                />
+          {/* Arrival / Departure */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Arrival */}
+            <div>
+              <h3 className="font-semibold text-foreground mb-4">Arrival</h3>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Arrival date</Label>
+                  <Input
+                    type="text"
+                    placeholder="dd/mm/yyyy"
+                    value={formData.arrival.date}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      arrival: { ...prev.arrival, date: e.target.value }
+                    }))}
+                    className="bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Arrival time</Label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      placeholder="-- : -- --"
+                      value={formData.arrival.time}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        arrival: { ...prev.arrival, time: e.target.value }
+                      }))}
+                      className="bg-white pr-10"
+                    />
+                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Arrival city</Label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Tbilisi"
+                    value={formData.arrival.from}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      arrival: { ...prev.arrival, from: e.target.value }
+                    }))}
+                    className="bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Arrival ticket number</Label>
+                  <Input
+                    type="text"
+                    placeholder="Flight / ticket number"
+                    value={formData.arrival.flight}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      arrival: { ...prev.arrival, flight: e.target.value }
+                    }))}
+                    className="bg-white"
+                  />
+                </div>
               </div>
-              <div className="flex-1">
-                <Label>Passport Number</Label>
-                <Input
-                  value={client.passport}
-                  onChange={(e) => handleClientChange(index, "passport", e.target.value)}
-                  placeholder="AB1234567"
-                />
-              </div>
-              {formData.clients.length > 1 && (
+            </div>
+
+            {/* Departure */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-foreground">Departure</h3>
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveClient(index)}
-                  className="text-destructive hover:text-destructive"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSameAsArrival}
+                  className="text-xs"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  Same as arrival
                 </Button>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Arrival & Departure */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Arrival</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label>Date (DD/MM/YYYY)</Label>
-              <Input
-                value={formData.arrival.date}
-                onChange={(e) => handleDateInput("arrival", e.target.value)}
-                placeholder="02/12/2025"
-                maxLength={10}
-              />
-            </div>
-            <div>
-              <Label>Time</Label>
-              <Input
-                value={formData.arrival.time}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    arrival: { ...prev.arrival, time: e.target.value },
-                  }))
-                }
-                placeholder="14:30"
-              />
-            </div>
-            <div>
-              <Label>Flight</Label>
-              <Input
-                value={formData.arrival.flight}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    arrival: { ...prev.arrival, flight: e.target.value },
-                  }))
-                }
-                placeholder="TK123"
-              />
-            </div>
-            <div>
-              <Label>From</Label>
-              <Input
-                value={formData.arrival.from}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    arrival: { ...prev.arrival, from: e.target.value },
-                  }))
-                }
-                placeholder="Istanbul"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Departure</CardTitle>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleCopyArrivalToDeparture}
-            >
-              <Copy className="h-4 w-4 mr-1" /> Same as Arrival
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label>Date (DD/MM/YYYY)</Label>
-              <Input
-                value={formData.departure.date}
-                onChange={(e) => handleDateInput("departure", e.target.value)}
-                placeholder="10/12/2025"
-                maxLength={10}
-              />
-            </div>
-            <div>
-              <Label>Time</Label>
-              <Input
-                value={formData.departure.time}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    departure: { ...prev.departure, time: e.target.value },
-                  }))
-                }
-                placeholder="10:00"
-              />
-            </div>
-            <div>
-              <Label>Flight</Label>
-              <Input
-                value={formData.departure.flight}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    departure: { ...prev.departure, flight: e.target.value },
-                  }))
-                }
-                placeholder="TK124"
-              />
-            </div>
-            <div>
-              <Label>To</Label>
-              <Input
-                value={formData.departure.to}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    departure: { ...prev.departure, to: e.target.value },
-                  }))
-                }
-                placeholder="Istanbul"
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Itinerary */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-lg">Itinerary</CardTitle>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleGenerateItinerary}
-            >
-              Auto-generate Days
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleAddItineraryDay}
-            >
-              <Plus className="h-4 w-4 mr-1" /> Add Day
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {formData.itinerary.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-4">
-              Set arrival and departure dates, then click "Auto-generate Days" or add days manually.
-            </p>
-          ) : (
-            formData.itinerary.map((day, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-6 gap-3 items-end border-b border-border pb-4"
-              >
+              </div>
+              <div className="space-y-3">
                 <div>
-                  <Label>Date</Label>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Departure date</Label>
                   <Input
-                    value={day.date}
-                    onChange={(e) =>
-                      handleItineraryChange(index, "date", e.target.value)
-                    }
-                    placeholder="02/12"
+                    type="text"
+                    placeholder="dd/mm/yyyy"
+                    value={formData.departure.date}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      departure: { ...prev.departure, date: e.target.value }
+                    }))}
+                    className="bg-white"
                   />
                 </div>
                 <div>
-                  <Label>Day</Label>
-                  <Input
-                    value={day.day}
-                    onChange={(e) =>
-                      handleItineraryChange(index, "day", e.target.value)
-                    }
-                    placeholder="Day 1"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label>Route</Label>
-                  <Input
-                    value={day.route}
-                    onChange={(e) =>
-                      handleItineraryChange(index, "route", e.target.value)
-                    }
-                    placeholder="Tbilisi → Mtskheta → Tbilisi"
-                  />
-                </div>
-                <div>
-                  <Label>Hotel</Label>
-                  <Input
-                    value={day.hotel}
-                    onChange={(e) =>
-                      handleItineraryChange(index, "hotel", e.target.value)
-                    }
-                    placeholder="Marriott Tbilisi"
-                  />
-                </div>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label>Meals</Label>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Departure time</Label>
+                  <div className="relative">
                     <Input
-                      value={day.meals}
-                      onChange={(e) =>
-                        handleItineraryChange(index, "meals", e.target.value)
-                      }
-                      placeholder="BB"
+                      type="text"
+                      placeholder="-- : -- --"
+                      value={formData.departure.time}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        departure: { ...prev.departure, time: e.target.value }
+                      }))}
+                      className="bg-white pr-10"
                     />
+                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveItineraryDay(index)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Departure city</Label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Batumi"
+                    value={formData.departure.to}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      departure: { ...prev.departure, to: e.target.value }
+                    }))}
+                    className="bg-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium text-orange-600 mb-1 block">Departure ticket number</Label>
+                  <Input
+                    type="text"
+                    placeholder="Flight / ticket number"
+                    value={formData.departure.flight}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      departure: { ...prev.departure, flight: e.target.value }
+                    }))}
+                    className="bg-white"
+                  />
                 </div>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Services & Notes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Additional Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Services Included</Label>
-            <Textarea
-              value={formData.services}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, services: e.target.value }))
-              }
-              placeholder="English speaking guide, comfortable transport, hotel accommodations..."
-              rows={3}
-            />
+            </div>
           </div>
-          <div>
-            <Label>Notes</Label>
-            <Textarea
-              value={formData.notes}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, notes: e.target.value }))
-              }
-              placeholder="Any additional notes..."
-              rows={2}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        </section>
 
-      {/* Submit */}
-      <div className="flex justify-end gap-4">
-        <Button type="button" variant="outline" onClick={() => navigate("/")}>
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          disabled={createMutation.isPending || updateMutation.isPending}
-        >
-          {createMutation.isPending || updateMutation.isPending
-            ? "Saving..."
-            : isEdit
-            ? "Update Confirmation"
-            : "Create Confirmation"}
-        </Button>
+        {/* Clients */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-primary">Clients</h2>
+            <p className="text-xs text-orange-600">Add as many as needed. Empty rows are ignored.</p>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-4">
+              <Label className="text-sm font-semibold text-foreground">Full name</Label>
+              <Label className="text-sm font-semibold text-foreground">Passport number</Label>
+            </div>
+            
+            {formData.clients.map((client, index) => (
+              <div key={index} className="grid grid-cols-2 gap-4">
+                <Input
+                  type="text"
+                  placeholder="Full name"
+                  value={client.name}
+                  onChange={(e) => updateClient(index, "name", e.target.value)}
+                  className="bg-white"
+                />
+                <Input
+                  type="text"
+                  placeholder="Passport number"
+                  value={client.passport}
+                  onChange={(e) => updateClient(index, "passport", e.target.value)}
+                  className="bg-white"
+                />
+              </div>
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addClient}
+            className="mt-3 text-xs"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Add client
+          </Button>
+        </section>
+
+        {/* Itinerary */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-primary">Itinerary</h2>
+            <p className="text-xs text-orange-600">Add as many days as needed. Empty rows are ignored.</p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-[100px_1fr_2fr_100px] gap-4">
+              <Label className="text-sm font-semibold text-foreground">Date</Label>
+              <Label className="text-sm font-semibold text-foreground">Hotel</Label>
+              <Label className="text-sm font-semibold text-foreground">Program / activity</Label>
+              <Label className="text-sm font-semibold text-foreground">Driver</Label>
+            </div>
+
+            {formData.itinerary.map((day, index) => (
+              <div key={index} className="grid grid-cols-[100px_1fr_2fr_100px] gap-4">
+                <Input
+                  type="text"
+                  placeholder="dd/mm/yyyy"
+                  value={day.date}
+                  onChange={(e) => updateItinerary(index, "date", e.target.value)}
+                  className="bg-white text-sm"
+                />
+                <Input
+                  type="text"
+                  placeholder="Hotel"
+                  value={day.hotel}
+                  onChange={(e) => updateItinerary(index, "hotel", e.target.value)}
+                  className="bg-white text-sm"
+                />
+                <Input
+                  type="text"
+                  placeholder="Activity / program description"
+                  value={day.route}
+                  onChange={(e) => updateItinerary(index, "route", e.target.value)}
+                  className="bg-white text-sm"
+                />
+                <Select
+                  value={day.meals || "YES"}
+                  onValueChange={(value) => updateItinerary(index, "meals", value)}
+                >
+                  <SelectTrigger className="bg-white text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="YES">YES</SelectItem>
+                    <SelectItem value="NO">NO</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={addDay}
+            className="mt-3 text-xs"
+          >
+            <Plus className="h-3 w-3 mr-1" />
+            Add day
+          </Button>
+        </section>
+
+        {/* Submit */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSubmit}
+            disabled={createMutation.isPending}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {createMutation.isPending ? "Creating..." : "Generate confirmation"}
+          </Button>
+        </div>
       </div>
-    </form>
+    </div>
   );
 }

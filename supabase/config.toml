@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.send-hotel-emails-custom]
 verify_jwt = false
+
+[functions.user-approval]
+verify_jwt = false

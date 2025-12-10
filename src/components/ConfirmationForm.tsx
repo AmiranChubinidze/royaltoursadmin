@@ -598,7 +598,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                 {/* Arrival */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-foreground">Arrival</h3>
+                  <div className="flex items-center justify-between h-9">
+                    <h3 className="font-semibold text-foreground">Arrival</h3>
+                  </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">Date</Label>
                     <DatePicker
@@ -649,7 +651,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
 
                 {/* Departure */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between h-9">
                     <h3 className="font-semibold text-foreground">Departure</h3>
                     <Button
                       type="button"

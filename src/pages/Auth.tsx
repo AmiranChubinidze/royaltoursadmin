@@ -7,14 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Clock } from "lucide-react";
+import { Clock, ArrowLeft } from "lucide-react";
+
+type AuthMode = "login" | "signup" | "forgot-password";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -22,9 +25,10 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     setPendingApproval(false);
+    setResetEmailSent(false);
 
     try {
-      if (isLogin) {
+      if (mode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -50,7 +54,7 @@ const Auth = () => {
         }
 
         navigate("/");
-      } else {
+      } else if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -72,6 +76,16 @@ const Auth = () => {
           description: "Your account is pending admin approval. You'll be notified when approved.",
         });
         setPendingApproval(true);
+      } else if (mode === "forgot-password") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth?mode=reset`,
+        });
+        if (error) throw error;
+        setResetEmailSent(true);
+        toast({
+          title: "Reset email sent",
+          description: "Check your email for the password reset link.",
+        });
       }
     } catch (error: any) {
       toast({
@@ -84,6 +98,23 @@ const Auth = () => {
     }
   };
 
+  const getTitle = () => {
+    switch (mode) {
+      case "login": return "Sign in to your account";
+      case "signup": return "Create a new account";
+      case "forgot-password": return "Reset your password";
+    }
+  };
+
+  const getButtonText = () => {
+    if (loading) return "Loading...";
+    switch (mode) {
+      case "login": return "Sign In";
+      case "signup": return "Sign Up";
+      case "forgot-password": return "Send Reset Link";
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -91,9 +122,7 @@ const Auth = () => {
           <CardTitle className="text-2xl font-bold text-primary">
             Confirmation System
           </CardTitle>
-          <CardDescription>
-            {isLogin ? "Sign in to your account" : "Create a new account"}
-          </CardDescription>
+          <CardDescription>{getTitle()}</CardDescription>
         </CardHeader>
         <CardContent>
           {pendingApproval && (
@@ -101,6 +130,13 @@ const Auth = () => {
               <Clock className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
                 Your account is pending admin approval. Please wait for approval before signing in.
+              </AlertDescription>
+            </Alert>
+          )}
+          {resetEmailSent && (
+            <Alert className="mb-4 border-emerald-500 bg-emerald-50">
+              <AlertDescription className="text-emerald-800">
+                Password reset email sent! Check your inbox and click the link to reset your password.
               </AlertDescription>
             </Alert>
           )}
@@ -116,35 +152,76 @@ const Auth = () => {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                minLength={6}
-              />
-            </div>
+            {mode !== "forgot-password" && (
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+              {getButtonText()}
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setPendingApproval(false);
-              }}
-              className="text-sm text-muted-foreground hover:text-primary"
-            >
-              {isLogin
-                ? "Don't have an account? Sign up"
-                : "Already have an account? Sign in"}
-            </button>
+          
+          <div className="mt-4 space-y-2 text-center">
+            {mode === "login" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("forgot-password");
+                    setPendingApproval(false);
+                    setResetEmailSent(false);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-primary block w-full"
+                >
+                  Forgot your password?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("signup");
+                    setPendingApproval(false);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Don't have an account? Sign up
+                </button>
+              </>
+            )}
+            {mode === "signup" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setPendingApproval(false);
+                }}
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Already have an account? Sign in
+              </button>
+            )}
+            {mode === "forgot-password" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setResetEmailSent(false);
+                }}
+                className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 w-full"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Back to sign in
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>

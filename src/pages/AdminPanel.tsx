@@ -18,8 +18,6 @@ import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban } from "lucide-reac
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
-const ADMIN_EMAIL = "am1ko.ch4b1n1dze@gmail.com";
-
 interface Profile {
   id: string;
   email: string;
@@ -33,8 +31,23 @@ const AdminPanel = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Check if current user is admin
-  const isAdmin = user?.email === ADMIN_EMAIL;
+  // Check if current user has admin role via database
+  const { data: isAdmin, isLoading: isAdminLoading } = useQuery({
+    queryKey: ["is-admin", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
+      if (error) {
+        console.error("Error checking admin role:", error);
+        return false;
+      }
+      return data === true;
+    },
+    enabled: !!user?.id,
+  });
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["admin-profiles"],
@@ -47,7 +60,7 @@ const AdminPanel = () => {
       if (error) throw error;
       return data as Profile[];
     },
-    enabled: isAdmin,
+    enabled: isAdmin === true,
   });
 
   const approveMutation = useMutation({
@@ -109,6 +122,18 @@ const AdminPanel = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  // Show loading while checking admin status
+  if (isAdminLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="space-y-4 text-center">
+          <Skeleton className="h-8 w-48 mx-auto" />
+          <Skeleton className="h-64 w-96" />
+        </div>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (
@@ -288,7 +313,7 @@ const AdminPanel = () => {
                           <Badge variant="default" className="bg-emerald-500">Approved</Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {profile.email !== ADMIN_EMAIL && (
+                          {profile.id !== user?.id && (
                             <Button
                               size="sm"
                               variant="outline"

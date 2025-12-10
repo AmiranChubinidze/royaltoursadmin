@@ -6,8 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ADMIN_EMAIL = "am1ko.ch4b1n1dze@gmail.com";
-
 // Secure HMAC-based token generation
 async function generateSecureToken(userId: string, timestamp: number): Promise<string> {
   const secret = Deno.env.get("APPROVAL_SECRET");
@@ -79,6 +77,36 @@ async function verifySecureToken(userId: string, token: string): Promise<boolean
     console.error("Token verification error:", error);
     return false;
   }
+}
+
+// Get admin emails from user_roles table
+async function getAdminEmails(supabaseUrl: string, supabaseServiceKey: string): Promise<string[]> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin");
+  
+  if (error || !data || data.length === 0) {
+    console.error("Error fetching admin roles:", error);
+    return [];
+  }
+  
+  const userIds = (data as { user_id: string }[]).map(r => r.user_id);
+  
+  // Get emails from profiles table
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("email")
+    .in("id", userIds);
+  
+  if (profilesError || !profiles) {
+    console.error("Error fetching admin emails:", profilesError);
+    return [];
+  }
+  
+  return (profiles as { email: string }[]).map(p => p.email).filter(Boolean);
 }
 
 Deno.serve(async (req) => {
@@ -179,7 +207,7 @@ Deno.serve(async (req) => {
     // Handle POST requests
     if (req.method === "POST") {
       const body = await req.json();
-      const { userEmail, userId, action: postAction } = body;
+      const { userEmail, userId: bodyUserId, action: postAction } = body;
 
       // Send notification to user that they've been approved (called from admin panel)
       if (postAction === "notify-approved" && userEmail) {
@@ -229,7 +257,7 @@ Deno.serve(async (req) => {
       }
 
       // Send approval request to admin (new signup)
-      if (userEmail && userId) {
+      if (userEmail && bodyUserId) {
         if (!gmailUser || !gmailPassword) {
           console.error("Gmail credentials not configured");
           return new Response(JSON.stringify({ error: "Email service not configured" }), {
@@ -238,10 +266,20 @@ Deno.serve(async (req) => {
           });
         }
 
+        // Get admin emails from database
+        const adminEmails = await getAdminEmails(supabaseUrl, supabaseServiceKey);
+        if (adminEmails.length === 0) {
+          console.error("No admin users found in database");
+          return new Response(JSON.stringify({ error: "No admin users configured" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+
         // Generate secure approval token with current timestamp
         const timestamp = Date.now();
-        const approvalToken = await generateSecureToken(userId, timestamp);
-        const approvalLink = `${supabaseUrl}/functions/v1/user-approval?action=approve&userId=${userId}&token=${encodeURIComponent(approvalToken)}`;
+        const approvalToken = await generateSecureToken(bodyUserId, timestamp);
+        const approvalLink = `${supabaseUrl}/functions/v1/user-approval?action=approve&userId=${bodyUserId}&token=${encodeURIComponent(approvalToken)}`;
 
         const client = new SMTPClient({
           connection: {
@@ -252,31 +290,39 @@ Deno.serve(async (req) => {
           },
         });
 
-        await client.send({
-          from: gmailUser,
-          to: ADMIN_EMAIL,
-          subject: `[Approval Required] New User: ${userEmail}`,
-          content: "New user registration request",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h2 style="color: #2f5597;">New User Registration Request</h2>
-              <p>A new user has requested access to the Confirmation System:</p>
-              <div style="background: #f4f6fb; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0;"><strong>Email:</strong> ${userEmail}</p>
-              </div>
-              <p>Click the button below to approve this user:</p>
-              <a href="${approvalLink}" style="display: inline-block; background: #2f5597; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
-                Approve User
-              </a>
-              <p style="margin-top: 20px; color: #666; font-size: 12px;">
-                This link expires in 24 hours. You can also manage users in the Admin Panel.
-              </p>
-            </div>
-          `,
-        });
+        // Send to all admin users
+        for (const adminEmail of adminEmails) {
+          try {
+            await client.send({
+              from: gmailUser,
+              to: adminEmail,
+              subject: `[Approval Required] New User: ${userEmail}`,
+              content: "New user registration request",
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h2 style="color: #2f5597;">New User Registration Request</h2>
+                  <p>A new user has requested access to the Confirmation System:</p>
+                  <div style="background: #f4f6fb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 0;"><strong>Email:</strong> ${userEmail}</p>
+                  </div>
+                  <p>Click the button below to approve this user:</p>
+                  <a href="${approvalLink}" style="display: inline-block; background: #2f5597; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin-top: 10px;">
+                    Approve User
+                  </a>
+                  <p style="margin-top: 20px; color: #666; font-size: 12px;">
+                    This link expires in 24 hours. You can also manage users in the Admin Panel.
+                  </p>
+                </div>
+              `,
+            });
+            console.log(`Approval email sent to admin: ${adminEmail}`);
+          } catch (emailError) {
+            console.error(`Failed to send to ${adminEmail}:`, emailError);
+          }
+        }
 
         await client.close();
-        console.log(`Approval email sent to admin for user: ${userEmail}`);
+        console.log(`Approval email sent to ${adminEmails.length} admin(s) for user: ${userEmail}`);
 
         return new Response(JSON.stringify({ success: true }), {
           headers: { "Content-Type": "application/json", ...corsHeaders },

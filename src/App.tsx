@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import NewConfirmation from "./pages/NewConfirmation";
 import EditConfirmation from "./pages/EditConfirmation";
 import ViewConfirmation from "./pages/ViewConfirmation";
+import SavedData from "./pages/SavedData";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/new" element={<NewConfirmation />} />
+          <Route path="/saved-data" element={<SavedData />} />
           <Route path="/confirmation/:id" element={<ViewConfirmation />} />
           <Route path="/confirmation/:id/edit" element={<EditConfirmation />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,5 +1,5 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Edit, Copy, Mail, Trash2, Printer } from "lucide-react";
@@ -9,7 +9,6 @@ import {
   useDeleteConfirmation,
   useDuplicateConfirmation,
 } from "@/hooks/useConfirmations";
-import { useSendHotelEmails } from "@/hooks/useSendHotelEmails";
 import { toast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -22,17 +21,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import { ConfirmationPayload } from "@/types/confirmation";
 
 export default function ViewConfirmation() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   
   const { data: confirmation, isLoading, error } = useConfirmation(id);
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
-  const { sendHotelEmails, isSending } = useSendHotelEmails();
 
   useEffect(() => {
     const emailStatus = searchParams.get("email_status");
@@ -92,13 +92,9 @@ export default function ViewConfirmation() {
     }
   };
 
-  const handleSendEmails = async () => {
+  const handleSendEmails = () => {
     if (!confirmation?.raw_payload) return;
-    
-    await sendHotelEmails(
-      confirmation.raw_payload as ConfirmationPayload,
-      confirmation.confirmation_code
-    );
+    setEmailDialogOpen(true);
   };
 
   if (isLoading) {
@@ -166,10 +162,9 @@ export default function ViewConfirmation() {
           <Button
             variant="outline"
             onClick={handleSendEmails}
-            disabled={isSending}
           >
             <Mail className="mr-2 h-4 w-4" />
-            {isSending ? "Sending..." : "Send Emails"}
+            Send Emails
           </Button>
 
           <AlertDialog>
@@ -218,6 +213,16 @@ export default function ViewConfirmation() {
 
       {/* Confirmation Letter */}
       <ConfirmationLetter confirmation={confirmation} />
+
+      {/* Email Preview Dialog */}
+      {confirmation?.raw_payload && (
+        <EmailPreviewDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          payload={confirmation.raw_payload as ConfirmationPayload}
+          confirmationCode={confirmation.confirmation_code}
+        />
+      )}
     </div>
   );
 }

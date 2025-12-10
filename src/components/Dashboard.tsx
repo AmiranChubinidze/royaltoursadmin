@@ -282,27 +282,40 @@ export function Dashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredConfirmations.map((confirmation) => (
-                      <TableRow
-                        key={confirmation.id}
-                        className="cursor-pointer hover:bg-muted/30 transition-colors"
-                        onClick={() => navigate(`/confirmation/${confirmation.id}`)}
-                      >
-                        <TableCell className="font-mono font-semibold text-primary">
-                          {confirmation.confirmation_code}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {confirmation.main_client_name || "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {confirmation.arrival_date || "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {confirmation.tour_source || "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {confirmation.total_days}D / {confirmation.total_nights}N
-                        </TableCell>
+                    {filteredConfirmations.map((confirmation) => {
+                      // Check if confirmation was edited (updated_at differs from created_at by more than 1 minute)
+                      const createdAt = new Date(confirmation.created_at).getTime();
+                      const updatedAt = new Date(confirmation.updated_at).getTime();
+                      const wasEdited = updatedAt - createdAt > 60000; // More than 1 minute difference
+
+                      return (
+                        <TableRow
+                          key={confirmation.id}
+                          className="cursor-pointer hover:bg-muted/30 transition-colors"
+                          onClick={() => navigate(`/confirmation/${confirmation.id}`)}
+                        >
+                          <TableCell className="font-mono font-semibold text-primary">
+                            <div className="flex items-center gap-2">
+                              {confirmation.confirmation_code}
+                              {wasEdited && (
+                                <span className="text-xs text-muted-foreground font-normal">
+                                  (edited)
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {confirmation.main_client_name || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {confirmation.arrival_date || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {confirmation.tour_source || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {confirmation.total_days}D / {confirmation.total_nights}N
+                          </TableCell>
                         <TableCell className="text-right">
                           <div
                             className="flex items-center justify-end gap-1"
@@ -367,9 +380,10 @@ export function Dashboard() {
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

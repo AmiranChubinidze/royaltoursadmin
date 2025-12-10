@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { ConfirmationPayload, HOTEL_EMAILS } from "@/types/confirmation";
+import { ConfirmationPayload, HOTEL_EMAILS, GuestInfo } from "@/types/confirmation";
 
 interface HotelEmail {
   hotelName: string;
   hotelEmail: string;
   clientName: string;
-  clientPassport: string;
   checkIn: string;
   checkOut: string;
   roomType: string;
+  meals: string;
   confirmationCode: string;
+  guestInfo: GuestInfo;
 }
 
 export function useSendHotelEmails() {
@@ -25,7 +26,7 @@ export function useSendHotelEmails() {
 
     try {
       // Extract unique hotels from itinerary and map to email addresses
-      const hotelMap = new Map<string, { checkIn: string; checkOut: string; roomType: string }>();
+      const hotelMap = new Map<string, { checkIn: string; checkOut: string; roomType: string; meals: string }>();
       
       for (const day of payload.itinerary) {
         if (day.hotel && !hotelMap.has(day.hotel)) {
@@ -33,6 +34,7 @@ export function useSendHotelEmails() {
             checkIn: day.date,
             checkOut: day.date,
             roomType: day.roomType || "Standard",
+            meals: day.meals || "BB",
           });
         } else if (day.hotel && hotelMap.has(day.hotel)) {
           // Update checkout date
@@ -44,6 +46,7 @@ export function useSendHotelEmails() {
       // Build hotel email list with known email addresses
       const hotels: HotelEmail[] = [];
       const mainClient = payload.clients[0];
+      const guestInfo = payload.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [], numRooms: 1 };
 
       for (const [hotelName, dates] of hotelMap.entries()) {
         const hotelEmail = HOTEL_EMAILS[hotelName];
@@ -52,11 +55,12 @@ export function useSendHotelEmails() {
             hotelName,
             hotelEmail,
             clientName: mainClient?.name || "Guest",
-            clientPassport: mainClient?.passport || "N/A",
             checkIn: dates.checkIn,
             checkOut: dates.checkOut,
             roomType: dates.roomType,
+            meals: dates.meals,
             confirmationCode,
+            guestInfo,
           });
         }
       }

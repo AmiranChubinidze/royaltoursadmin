@@ -3,6 +3,17 @@ export interface Client {
   passport: string;
 }
 
+export interface KidInfo {
+  age: number;
+}
+
+export interface GuestInfo {
+  numAdults: number;
+  numKids: number;
+  kidsAges: KidInfo[];
+  numRooms: number;
+}
+
 export interface ItineraryDay {
   date: string;
   day: string;
@@ -31,6 +42,7 @@ export interface ConfirmationPayload {
   arrival: ArrivalInfo;
   departure: DepartureInfo;
   itinerary: ItineraryDay[];
+  guestInfo?: GuestInfo;
   trackingNumber?: string;
   services?: string;
   notes?: string;
@@ -56,6 +68,7 @@ export interface ConfirmationFormData {
   tourSource: string;
   trackingNumber: string;
   clients: Client[];
+  guestInfo: GuestInfo;
   arrival: ArrivalInfo;
   departure: DepartureInfo;
   itinerary: ItineraryDay[];

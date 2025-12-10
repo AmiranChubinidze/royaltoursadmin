@@ -6,15 +6,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface KidInfo {
+  age: number;
+}
+
+interface GuestInfo {
+  numAdults: number;
+  numKids: number;
+  kidsAges: KidInfo[];
+  numRooms: number;
+}
+
 interface HotelEmail {
   hotelName: string;
   hotelEmail: string;
   clientName: string;
-  clientPassport: string;
   checkIn: string;
   checkOut: string;
   roomType: string;
+  meals: string;
   confirmationCode: string;
+  guestInfo: GuestInfo;
 }
 
 interface SendEmailRequest {
@@ -59,21 +71,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const hotel of hotels) {
       try {
+        // Format kids info
+        let kidsInfo = "0";
+        if (hotel.guestInfo.numKids > 0) {
+          const agesStr = hotel.guestInfo.kidsAges.map(k => `${k.age} YO`).join(", ");
+          kidsInfo = `${hotel.guestInfo.numKids} (${agesStr})`;
+        }
+
         const emailBody = `
-Dear ${hotel.hotelName} Reservations Team,
+Please confirm the booking with the following details
 
-We would like to confirm the following reservation:
-
-CONFIRMATION CODE: ${hotel.confirmationCode}
-
-Guest Information:
-- Name: ${hotel.clientName}
-- Passport: ${hotel.clientPassport}
-
-Reservation Details:
-- Check-in: ${hotel.checkIn}
-- Check-out: ${hotel.checkOut}
-- Room Type: ${hotel.roomType}
+Check in: ${hotel.checkIn}
+Check out: ${hotel.checkOut}
+Number of Adults: ${hotel.guestInfo.numAdults}
+Number of Kids: ${kidsInfo}
+Number of Rooms: ${hotel.guestInfo.numRooms}
+Meal Type (BB/FB): ${hotel.meals}
+Room Category (Standard/Upgrade): ${hotel.roomType}
+Guest Name: ${hotel.clientName}
 
 Please confirm receipt of this reservation request.
 

@@ -181,11 +181,11 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen bg-background p-6 animate-fade-in">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+        <div className="bg-card rounded-lg shadow-sm border border-border">
           {/* Header */}
-          <header className="px-6 py-5 border-b border-slate-200">
+          <header className="px-6 py-5 border-b border-border">
             <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Tour confirmation</p>
             <h1 className="text-2xl font-bold text-foreground">
               {isEdit ? "Edit confirmation letter" : "Generate confirmation letter"}
@@ -366,17 +366,17 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 <p className="text-sm text-muted-foreground">Add as many as needed. Empty rows are ignored.</p>
               </div>
               
-              <div className="border border-slate-200 rounded-md overflow-hidden">
+              <div className="border border-border rounded-md overflow-hidden">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
+                    <tr className="bg-muted/50 border-b border-border">
                       <th className="text-left text-sm font-medium text-foreground px-4 py-2">Full name</th>
                       <th className="text-left text-sm font-medium text-foreground px-4 py-2">Passport number</th>
                     </tr>
                   </thead>
                   <tbody>
                     {formData.clients.map((client, index) => (
-                      <tr key={index} className="border-b border-slate-100 last:border-b-0">
+                      <tr key={index} className="border-b border-border/50 last:border-b-0">
                         <td className="px-4 py-2">
                           <Input
                             type="text"
@@ -420,10 +420,10 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 <p className="text-sm text-muted-foreground">Add as many days as needed. Empty rows are ignored.</p>
               </div>
 
-              <div className="border border-slate-200 rounded-md overflow-hidden overflow-x-auto">
+              <div className="border border-border rounded-md overflow-hidden overflow-x-auto">
                 <table className="w-full min-w-[600px]">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
+                    <tr className="bg-muted/50 border-b border-border">
                       <th className="text-left text-sm font-medium text-foreground px-4 py-2 w-28">Date</th>
                       <th className="text-left text-sm font-medium text-foreground px-4 py-2 w-36">Hotel</th>
                       <th className="text-left text-sm font-medium text-foreground px-4 py-2">Program / activity</th>
@@ -432,7 +432,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   </thead>
                   <tbody>
                     {formData.itinerary.map((day, index) => (
-                      <tr key={index} className="border-b border-slate-100 last:border-b-0">
+                      <tr key={index} className="border-b border-border/50 last:border-b-0">
                         <td className="px-4 py-2">
                           <Input
                             type="text"

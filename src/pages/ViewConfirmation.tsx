@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import { ConfirmationPayload } from "@/types/confirmation";
+import { format } from "date-fns";
 
 export default function ViewConfirmation() {
   const { id } = useParams<{ id: string }>();
@@ -127,14 +128,27 @@ export default function ViewConfirmation() {
 
   const emailStatus = searchParams.get("email_status");
 
+  // Check if confirmation was edited
+  const createdAt = new Date(confirmation.created_at).getTime();
+  const updatedAt = new Date(confirmation.updated_at).getTime();
+  const wasEdited = updatedAt - createdAt > 60000;
+  const editedDate = wasEdited ? format(new Date(confirmation.updated_at), "dd/MM/yyyy") : null;
+
   return (
     <div className="container mx-auto py-8 px-4">
       {/* Action Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 print:hidden">
-        <Button variant="outline" onClick={() => navigate("/")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={() => navigate("/")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          {editedDate && (
+            <span className="text-xs text-muted-foreground">
+              Edited: {editedDate}
+            </span>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handlePrint}>

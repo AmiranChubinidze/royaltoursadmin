@@ -33,11 +33,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, Hotel, X } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Hotel, X, Pencil } from "lucide-react";
 import {
   useSavedHotels,
   useCreateSavedHotel,
+  useUpdateSavedHotel,
   useDeleteSavedHotel,
+  SavedHotel,
 } from "@/hooks/useSavedData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
@@ -46,6 +48,7 @@ export default function SavedData() {
   const navigate = useNavigate();
   const { data: hotels, isLoading: hotelsLoading } = useSavedHotels();
   const createHotel = useCreateSavedHotel();
+  const updateHotel = useUpdateSavedHotel();
   const deleteHotel = useDeleteSavedHotel();
 
   // Hotel form state
@@ -55,6 +58,18 @@ export default function SavedData() {
   const [hotelActivities, setHotelActivities] = useState<string[]>([]);
   const [activityInput, setActivityInput] = useState("");
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
+
+  // Edit state
+  const [editingHotel, setEditingHotel] = useState<SavedHotel | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const resetForm = () => {
+    setHotelName("");
+    setHotelEmail("");
+    setHotelAddress("");
+    setHotelActivities([]);
+    setActivityInput("");
+  };
 
   const addActivity = () => {
     if (activityInput.trim() && !hotelActivities.includes(activityInput.trim())) {
@@ -80,19 +95,59 @@ export default function SavedData() {
         activities: hotelActivities,
       });
       toast({ title: "Hotel saved successfully" });
-      setHotelName("");
-      setHotelEmail("");
-      setHotelAddress("");
-      setHotelActivities([]);
+      resetForm();
       setHotelDialogOpen(false);
     } catch (error) {
       toast({ title: "Error saving hotel", variant: "destructive" });
     }
   };
 
+  const openEditDialog = (hotel: SavedHotel) => {
+    setEditingHotel(hotel);
+    setHotelName(hotel.name);
+    setHotelEmail(hotel.email || "");
+    setHotelAddress(hotel.address || "");
+    setHotelActivities(hotel.activities || []);
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateHotel = async () => {
+    if (!editingHotel) return;
+    if (!hotelName.trim()) {
+      toast({ title: "Hotel name is required", variant: "destructive" });
+      return;
+    }
+    try {
+      await updateHotel.mutateAsync({
+        id: editingHotel.id,
+        name: hotelName,
+        email: hotelEmail || null,
+        address: hotelAddress || null,
+        activities: hotelActivities,
+      });
+      toast({ title: "Hotel updated successfully" });
+      resetForm();
+      setEditingHotel(null);
+      setEditDialogOpen(false);
+    } catch (error) {
+      toast({ title: "Error updating hotel", variant: "destructive" });
+    }
+  };
+
   const handleDeleteHotel = async (id: string) => {
     await deleteHotel.mutateAsync(id);
     toast({ title: "Hotel deleted" });
+  };
+
+  const closeEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditingHotel(null);
+    resetForm();
+  };
+
+  const closeAddDialog = () => {
+    setHotelDialogOpen(false);
+    resetForm();
   };
 
   return (
@@ -113,7 +168,10 @@ export default function SavedData() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Hotels & Activities</CardTitle>
-            <Dialog open={hotelDialogOpen} onOpenChange={setHotelDialogOpen}>
+            <Dialog open={hotelDialogOpen} onOpenChange={(open) => {
+              if (!open) closeAddDialog();
+              else setHotelDialogOpen(true);
+            }}>
               <DialogTrigger asChild>
                 <Button size="sm">
                   <Plus className="h-4 w-4 mr-1" />
@@ -190,7 +248,7 @@ export default function SavedData() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setHotelDialogOpen(false)}>
+                  <Button variant="outline" onClick={closeAddDialog}>
                     Cancel
                   </Button>
                   <Button onClick={handleAddHotel} disabled={createHotel.isPending}>
@@ -241,30 +299,40 @@ export default function SavedData() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" className="text-destructive">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Hotel</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete {hotel.name}?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteHotel(hotel.id)}
-                                className="bg-destructive text-destructive-foreground"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(hotel)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Hotel</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete {hotel.name}?
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteHotel(hotel.id)}
+                                  className="bg-destructive text-destructive-foreground"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -273,6 +341,90 @@ export default function SavedData() {
             )}
           </CardContent>
         </Card>
+
+        {/* Edit Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={(open) => {
+          if (!open) closeEditDialog();
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Hotel</DialogTitle>
+              <DialogDescription>
+                Update hotel details and activities.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label>Hotel Name *</Label>
+                <Input
+                  value={hotelName}
+                  onChange={(e) => setHotelName(e.target.value)}
+                  placeholder="e.g. ONYX"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={hotelEmail}
+                  onChange={(e) => setHotelEmail(e.target.value)}
+                  placeholder="reservations@hotel.com"
+                />
+              </div>
+              <div>
+                <Label>Address</Label>
+                <Input
+                  value={hotelAddress}
+                  onChange={(e) => setHotelAddress(e.target.value)}
+                  placeholder="Hotel address"
+                />
+              </div>
+              <div>
+                <Label>Activities</Label>
+                <div className="flex gap-2 mt-1.5">
+                  <Input
+                    value={activityInput}
+                    onChange={(e) => setActivityInput(e.target.value)}
+                    placeholder="e.g. Tbilisi Tour"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addActivity();
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={addActivity} variant="secondary">
+                    Add
+                  </Button>
+                </div>
+                {hotelActivities.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {hotelActivities.map((activity) => (
+                      <Badge key={activity} variant="secondary" className="gap-1">
+                        {activity}
+                        <button
+                          type="button"
+                          onClick={() => removeActivity(activity)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={closeEditDialog}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateHotel} disabled={updateHotel.isPending}>
+                {updateHotel.isPending ? "Updating..." : "Update Hotel"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

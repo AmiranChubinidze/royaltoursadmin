@@ -9,6 +9,7 @@ import NewConfirmation from "./pages/NewConfirmation";
 import EditConfirmation from "./pages/EditConfirmation";
 import ViewConfirmation from "./pages/ViewConfirmation";
 import SavedData from "./pages/SavedData";
+import AdminPanel from "./pages/AdminPanel";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/new" element={<ProtectedRoute><NewConfirmation /></ProtectedRoute>} />
           <Route path="/saved-data" element={<ProtectedRoute><SavedData /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           <Route path="/confirmation/:id" element={<ProtectedRoute><ViewConfirmation /></ProtectedRoute>} />
           <Route path="/confirmation/:id/edit" element={<ProtectedRoute><EditConfirmation /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,4 +1,5 @@
-import { Confirmation, ConfirmationPayload, COMPANY_INFO } from "@/types/confirmation";
+import { Confirmation, ConfirmationPayload } from "@/types/confirmation";
+import signatureStamp from "@/assets/signature-stamp.jpg";
 
 interface ConfirmationLetterProps {
   confirmation: Confirmation;
@@ -10,156 +11,162 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
   const arrival = payload?.arrival || { date: "", time: "", flight: "", from: "" };
   const departure = payload?.departure || { date: "", time: "", flight: "", to: "" };
   const itinerary = payload?.itinerary || [];
-  const trackingNumber = payload?.trackingNumber;
 
   return (
-    <div className="bg-white max-w-4xl mx-auto print:max-w-none print:mx-0">
+    <div className="bg-white max-w-4xl mx-auto print:max-w-none print:mx-0 p-8 text-[#333]" style={{ fontFamily: 'Arial, sans-serif' }}>
       {/* Header */}
-      <header className="flex justify-between items-start mb-4 pb-4">
+      <header className="flex justify-between items-start mb-6">
         <div>
-          <div className="inline-block bg-emerald-600 text-white font-bold text-lg px-4 py-1 mb-3">
+          {/* CONFIRMED Title */}
+          <h1 className="text-[#2f5597] text-4xl font-bold tracking-wide mb-4" style={{ letterSpacing: '0.15em' }}>
             CONFIRMED
-          </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
-            <div className="text-muted-foreground uppercase text-xs">Confirmation Number</div>
-            <div className="font-bold text-primary text-lg">{confirmation.confirmation_code}</div>
-            <div className="text-muted-foreground uppercase text-xs">Confirmation Date</div>
-            <div>{confirmation.confirmation_date}</div>
-            {trackingNumber && trackingNumber.trim() !== "" && (
-              <>
-                <div className="text-muted-foreground uppercase text-xs">Tracking Number</div>
-                <div>{trackingNumber}</div>
-              </>
-            )}
+          </h1>
+          {/* Confirmation Info Box */}
+          <div className="border border-gray-300 rounded overflow-hidden">
+            <div className="flex">
+              <div className="bg-gray-100 px-4 py-2 text-xs text-gray-500 uppercase w-44">
+                Confirmation Number
+              </div>
+              <div className="px-4 py-2 font-bold text-[#2f5597] text-lg">
+                {confirmation.confirmation_code}
+              </div>
+            </div>
+            <div className="flex border-t border-gray-300">
+              <div className="bg-gray-100 px-4 py-2 text-xs text-gray-500 uppercase w-44">
+                Confirmation Date
+              </div>
+              <div className="px-4 py-2 font-bold">
+                {confirmation.confirmation_date}
+              </div>
+            </div>
           </div>
         </div>
+        
+        {/* Company Info */}
         <div className="text-right text-sm">
-          <div className="font-bold text-base">{COMPANY_INFO.name}</div>
-          <div className="text-muted-foreground">ID: 405449063</div>
-          <div>{COMPANY_INFO.phone}</div>
-          <div>+995 571 021 021</div>
-          <div className="text-primary">{COMPANY_INFO.email}</div>
+          <div className="font-bold text-base mb-1">LLC Royal Georgian Tours</div>
+          <div className="text-gray-600">ID: 404515208</div>
+          <div className="text-gray-600">+995 557 141 357</div>
+          <div className="text-gray-600">+995 592 005 450</div>
+          <div className="text-[#2f5597] font-medium">Royalgeorgiantours@gmail.com</div>
         </div>
       </header>
 
-      <div className="border-t-2 border-primary mb-6" />
+      {/* Blue Divider */}
+      <div className="h-0.5 bg-[#2f5597] mb-6" />
 
       {/* Confirmed To Section */}
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-foreground mb-2">Confirmed To:</h2>
-        <table className="w-full text-sm">
-          <tbody>
-            {clients.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="text-muted-foreground italic py-2">
-                  No client data provided.
-                </td>
-              </tr>
-            ) : (
-              clients.map((client, index) => (
-                <tr key={index} className="border-b border-muted/30">
-                  <td className="py-2 font-medium">{client.name}</td>
-                  <td className="py-2 text-muted-foreground">{client.passport || "—"}</td>
+        <h2 className="text-base font-semibold text-gray-800 mb-3">Confirmed To:</h2>
+        <div className="border border-gray-200 rounded overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {clients.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="text-gray-400 italic py-3 px-4">
+                    No client data provided.
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                clients.map((client, index) => (
+                  <tr key={index} className="border-b border-gray-100 last:border-b-0">
+                    <td className="py-2.5 px-4 font-medium text-gray-800">{client.name}</td>
+                    <td className="py-2.5 px-4 text-gray-600 text-right">{client.passport || "—"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Arrival / Departure Section */}
       <section className="mb-6">
-        <table className="w-full text-sm">
-          <tbody>
-            <tr className="border-b border-muted/30">
-              <td className="py-2 font-semibold text-muted-foreground w-24">ARRIVAL</td>
-              <td className="py-2 font-bold">{arrival.date || "—"}</td>
-              <td className="py-2">{arrival.time || "—"}</td>
-              <td className="py-2">{arrival.from || "—"}</td>
-              <td className="py-2">{arrival.flight || "—"}</td>
-            </tr>
-            <tr className="border-b border-muted/30">
-              <td className="py-2 font-semibold text-muted-foreground w-24">DEPARTURE</td>
-              <td className="py-2 font-bold">{departure.date || "—"}</td>
-              <td className="py-2">{departure.time || "—"}</td>
-              <td className="py-2">{departure.to || "—"}</td>
-              <td className="py-2">{departure.flight || "—"}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="border border-gray-200 rounded overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              <tr className="bg-[#dce6f1]">
+                <td className="py-2.5 px-4 font-semibold text-[#2f5597] w-28">ARRIVAL</td>
+                <td className="py-2.5 px-4 font-bold text-gray-800">{arrival.date || "—"}</td>
+                <td className="py-2.5 px-4 text-gray-700">{arrival.time || "—"}</td>
+                <td className="py-2.5 px-4 text-gray-700">{arrival.from || "—"}</td>
+                <td className="py-2.5 px-4 text-gray-700">{arrival.flight || "—"}</td>
+              </tr>
+              <tr className="bg-white border-t border-gray-200">
+                <td className="py-2.5 px-4 font-semibold text-[#2f5597] w-28">DEPARTURE</td>
+                <td className="py-2.5 px-4 font-bold text-gray-800">{departure.date || "—"}</td>
+                <td className="py-2.5 px-4 text-gray-700">{departure.time || "—"}</td>
+                <td className="py-2.5 px-4 text-gray-700">{departure.to || "—"}</td>
+                <td className="py-2.5 px-4 text-gray-700">{departure.flight || "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Itinerary Section */}
       <section className="mb-6">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b-2 border-foreground/20">
-              <th className="py-2 text-left font-semibold text-muted-foreground uppercase text-xs">Date</th>
-              <th className="py-2 text-left font-semibold text-muted-foreground uppercase text-xs">Hotel</th>
-              <th className="py-2 text-left font-semibold text-muted-foreground uppercase text-xs">Program / Activity</th>
-              <th className="py-2 text-center font-semibold text-muted-foreground uppercase text-xs w-20">Driver</th>
-            </tr>
-          </thead>
-          <tbody>
-            {itinerary.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="text-muted-foreground italic py-2">
-                  No itinerary items provided.
-                </td>
+        <div className="border border-gray-200 rounded overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-[#2f5597] text-white">
+                <th className="py-2.5 px-4 text-left font-semibold text-xs uppercase tracking-wide w-28">Date</th>
+                <th className="py-2.5 px-4 text-left font-semibold text-xs uppercase tracking-wide">Hotel</th>
+                <th className="py-2.5 px-4 text-left font-semibold text-xs uppercase tracking-wide">Program / Activity</th>
+                <th className="py-2.5 px-4 text-right font-semibold text-xs uppercase tracking-wide w-20">Driver</th>
               </tr>
-            ) : (
-              itinerary.map((item, index) => (
-                <tr key={index} className="border-b border-muted/30">
-                  <td className="py-2">{item.date || "—"}</td>
-                  <td className="py-2">{item.hotel || "—"}</td>
-                  <td className="py-2">{item.route || "—"}</td>
-                  <td className="py-2 text-center">{item.meals || "YES"}</td>
+            </thead>
+            <tbody>
+              {itinerary.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-gray-400 italic py-3 px-4">
+                    No itinerary items provided.
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                itinerary.map((item, index) => (
+                  <tr key={index} className="border-b border-gray-100 last:border-b-0">
+                    <td className="py-2.5 px-4 text-gray-800">{item.date || "—"}</td>
+                    <td className="py-2.5 px-4 text-gray-800 uppercase">{item.hotel || "—"}</td>
+                    <td className="py-2.5 px-4 text-gray-800 uppercase">{item.route || "—"}</td>
+                    <td className="py-2.5 px-4 text-gray-800 text-right">{item.meals || "YES"}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       {/* Services and Signature Section */}
-      <div className="grid grid-cols-[1fr_auto] gap-8">
-        <section className="border border-muted/50 rounded">
-          <div className="bg-muted/30 px-4 py-2 font-semibold text-sm border-b border-muted/50">
-            SERVICES
+      <div className="flex gap-6">
+        {/* Services Box */}
+        <section className="flex-1 border border-gray-200 rounded overflow-hidden">
+          <div className="bg-[#dce6f1] px-4 py-2.5 font-semibold text-sm text-[#2f5597] uppercase tracking-wide">
+            Services
           </div>
           <div className="p-4 text-sm">
-            <div className="flex gap-8 mb-4">
-              <span>
-                Total number of days: <strong>{confirmation.total_days ?? "--"}</strong>
-              </span>
-              <span>
-                Total number of nights: <strong>{confirmation.total_nights ?? "--"}</strong>
-              </span>
-            </div>
-            <ul className="space-y-1 text-sm">
+            <p className="mb-3">
+              Total number of days: <strong>{confirmation.total_days ?? "—"}</strong>{" "}
+              Total number of nights: <strong>{confirmation.total_nights ?? "—"}</strong>
+            </p>
+            <ul className="space-y-1.5 text-gray-700">
               <li>• Each adult: INTERNET PACKAGE</li>
               <li>• Driver working hours: From 10:00 to 19:00</li>
-              <li className="font-medium">• Any changes in reservation can be subject to extra charge</li>
-              <li className="text-red-600">• Discount 10% in New Istanbul Restaurant</li>
-              <li className="text-red-600">• Discount 10% in Yemeni Restaurant in Batumi</li>
+              <li className="font-semibold text-gray-800">• Any changes in reservation can be subject to extra charge</li>
+              <li>• Discount 10% in New Istanbul Restaurant</li>
+              <li>• Discount 10% in Yemeni Restaurant in Batumi</li>
             </ul>
           </div>
         </section>
 
-        <section className="flex items-end">
-          <div className="text-center">
-            <img
-              src="/signature.jpg"
-              alt="Signature"
-              className="h-16 w-auto mb-2"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
-            />
-            <div className="border-t border-foreground/30 pt-1 text-xs text-muted-foreground">
-              Authorized Signature
-            </div>
-          </div>
+        {/* Signature and Stamp */}
+        <section className="flex items-end justify-center w-48">
+          <img
+            src={signatureStamp}
+            alt="Signature and Stamp"
+            className="w-40 h-auto object-contain"
+          />
         </section>
       </div>
     </div>

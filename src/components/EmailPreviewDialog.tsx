@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Mail, Send } from "lucide-react";
 import { ConfirmationPayload, GuestInfo } from "@/types/confirmation";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,8 +68,9 @@ export function EmailPreviewDialog({
   const [hotels, setHotels] = useState<HotelEmailData[]>([]);
   const [emailBodies, setEmailBodies] = useState<Record<string, string>>({});
   const [subjects, setSubjects] = useState<Record<string, string>>({});
+  const [selectedHotels, setSelectedHotels] = useState<Record<string, boolean>>({});
   const [isSending, setIsSending] = useState(false);
-  const [selectedHotel, setSelectedHotel] = useState<string>("");
+  const [editingHotel, setEditingHotel] = useState<string>("");
 
   useEffect(() => {
     if (open) {
@@ -135,16 +137,24 @@ export function EmailPreviewDialog({
     setHotels(hotelList);
     setEmailBodies(bodies);
     setSubjects(subjs);
+    
+    // Select all hotels by default
+    const selected: Record<string, boolean> = {};
+    hotelList.forEach(h => { selected[h.hotelName] = true; });
+    setSelectedHotels(selected);
+    
     if (hotelList.length > 0) {
-      setSelectedHotel(hotelList[0].hotelName);
+      setEditingHotel(hotelList[0].hotelName);
     }
   };
 
+  const hotelsToSend = hotels.filter(h => selectedHotels[h.hotelName]);
+
   const handleSend = async () => {
-    if (hotels.length === 0) {
+    if (hotelsToSend.length === 0) {
       toast({
-        title: "No hotels to send",
-        description: "No hotels with email addresses found in this confirmation.",
+        title: "No hotels selected",
+        description: "Please select at least one hotel to send email to.",
         variant: "destructive",
       });
       return;
@@ -153,7 +163,7 @@ export function EmailPreviewDialog({
     setIsSending(true);
 
     try {
-      const emailData = hotels.map(hotel => ({
+      const emailData = hotelsToSend.map(hotel => ({
         hotelName: hotel.hotelName,
         hotelEmail: hotel.hotelEmail,
         subject: subjects[hotel.hotelName],
@@ -168,7 +178,7 @@ export function EmailPreviewDialog({
 
       const successCount = data.results.filter((r: { success: boolean }) => r.success).length;
 
-      if (successCount === hotels.length) {
+      if (successCount === hotelsToSend.length) {
         toast({
           title: "Emails sent successfully",
           description: `All ${successCount} hotel confirmation emails were sent.`,
@@ -177,7 +187,7 @@ export function EmailPreviewDialog({
       } else if (successCount > 0) {
         toast({
           title: "Some emails sent",
-          description: `${successCount} of ${hotels.length} emails were sent.`,
+          description: `${successCount} of ${hotelsToSend.length} emails were sent.`,
           variant: "destructive",
         });
       } else {
@@ -199,7 +209,8 @@ export function EmailPreviewDialog({
     }
   };
 
-  const currentHotel = hotels.find(h => h.hotelName === selectedHotel);
+  const currentHotel = hotels.find(h => h.hotelName === editingHotel);
+  const selectedCount = Object.values(selectedHotels).filter(Boolean).length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,59 +230,67 @@ export function EmailPreviewDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            {hotels.length > 1 && (
-              <div>
-                <Label className="text-sm font-medium mb-1.5 block">Select Hotel</Label>
-                <select
-                  value={selectedHotel}
-                  onChange={(e) => setSelectedHotel(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Select Hotels to Email</Label>
+            <div className="border rounded-lg divide-y">
+              {hotels.map(hotel => (
+                <div
+                  key={hotel.hotelName}
+                  className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 ${
+                    editingHotel === hotel.hotelName ? "bg-muted" : ""
+                  }`}
+                  onClick={() => setEditingHotel(hotel.hotelName)}
                 >
-                  {hotels.map(hotel => (
-                    <option key={hotel.hotelName} value={hotel.hotelName}>
-                      {hotel.hotelName} ({hotel.hotelEmail})
-                    </option>
-                  ))}
-                </select>
+                  <Checkbox
+                    checked={selectedHotels[hotel.hotelName] || false}
+                    onCheckedChange={(checked) => {
+                      setSelectedHotels(prev => ({
+                        ...prev,
+                        [hotel.hotelName]: !!checked
+                      }));
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">{hotel.hotelName}</div>
+                    <div className="text-xs text-muted-foreground truncate">{hotel.hotelEmail}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {currentHotel && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="text-sm font-medium text-muted-foreground">
+                Editing: {currentHotel.hotelName} ({currentHotel.hotelEmail})
               </div>
-            )}
+              
+              <div>
+                <Label className="text-sm font-medium mb-1.5 block">Subject</Label>
+                <Input
+                  value={subjects[editingHotel] || ""}
+                  onChange={(e) => setSubjects(prev => ({
+                    ...prev,
+                    [editingHotel]: e.target.value
+                  }))}
+                />
+              </div>
 
-            {currentHotel && (
-              <>
-                <div>
-                  <Label className="text-sm font-medium mb-1.5 block">To</Label>
-                  <Input
-                    value={currentHotel.hotelEmail}
-                    readOnly
-                    className="bg-muted"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium mb-1.5 block">Subject</Label>
-                  <Input
-                    value={subjects[selectedHotel] || ""}
-                    onChange={(e) => setSubjects(prev => ({
-                      ...prev,
-                      [selectedHotel]: e.target.value
-                    }))}
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-sm font-medium mb-1.5 block">Email Body</Label>
-                  <Textarea
-                    value={emailBodies[selectedHotel] || ""}
-                    onChange={(e) => setEmailBodies(prev => ({
-                      ...prev,
-                      [selectedHotel]: e.target.value
-                    }))}
-                    rows={15}
-                    className="font-mono text-sm"
-                  />
-                </div>
-              </>
-            )}
+              <div>
+                <Label className="text-sm font-medium mb-1.5 block">Email Body</Label>
+                <Textarea
+                  value={emailBodies[editingHotel] || ""}
+                  onChange={(e) => setEmailBodies(prev => ({
+                    ...prev,
+                    [editingHotel]: e.target.value
+                  }))}
+                  rows={12}
+                  className="font-mono text-sm"
+                />
+              </div>
+            </div>
+          )}
           </div>
         )}
 
@@ -281,10 +300,10 @@ export function EmailPreviewDialog({
           </Button>
           <Button
             onClick={handleSend}
-            disabled={isSending || hotels.length === 0}
+            disabled={isSending || selectedCount === 0}
           >
             <Send className="mr-2 h-4 w-4" />
-            {isSending ? "Sending..." : `Send ${hotels.length > 1 ? `All ${hotels.length} Emails` : "Email"}`}
+            {isSending ? "Sending..." : `Send ${selectedCount} Email${selectedCount !== 1 ? "s" : ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>

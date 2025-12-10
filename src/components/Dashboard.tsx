@@ -1,6 +1,8 @@
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -20,7 +22,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X } from "lucide-react";
 import {
   useConfirmations,
   useDeleteConfirmation,
@@ -35,6 +44,10 @@ export function Dashboard() {
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
 
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterMonth, setFilterMonth] = useState<string>("all");
+
   const handleDuplicate = async (id: string) => {
     const result = await duplicateMutation.mutateAsync(id);
     navigate(`/confirmation/${result.id}/edit`);
@@ -43,6 +56,47 @@ export function Dashboard() {
   const handleDelete = async (id: string) => {
     await deleteMutation.mutateAsync(id);
   };
+
+  // Filter confirmations
+  const filteredConfirmations = useMemo(() => {
+    if (!confirmations) return [];
+
+    return confirmations.filter((c) => {
+      // Search filter
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        c.confirmation_code?.toLowerCase().includes(searchLower) ||
+        c.main_client_name?.toLowerCase().includes(searchLower) ||
+        c.tour_source?.toLowerCase().includes(searchLower);
+
+      // Month filter
+      let matchesMonth = true;
+      if (filterMonth !== "all") {
+        const date = new Date(c.created_at);
+        const now = new Date();
+        if (filterMonth === "this-month") {
+          matchesMonth =
+            date.getMonth() === now.getMonth() &&
+            date.getFullYear() === now.getFullYear();
+        } else if (filterMonth === "last-month") {
+          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          matchesMonth =
+            date.getMonth() === lastMonth.getMonth() &&
+            date.getFullYear() === lastMonth.getFullYear();
+        }
+      }
+
+      return matchesSearch && matchesMonth;
+    });
+  }, [confirmations, searchQuery, filterMonth]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterMonth("all");
+  };
+
+  const hasActiveFilters = searchQuery || filterMonth !== "all";
 
   if (error) {
     return (
@@ -58,17 +112,22 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background p-6 animate-fade-in">
-      {/* Header */}
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-foreground">{COMPANY_INFO.name}</h1>
             <p className="text-muted-foreground mt-1">Tour Confirmation Management</p>
           </div>
-          <Button onClick={() => navigate("/new")} size="lg">
-            <Plus className="h-5 w-5 mr-2" />
-            New Confirmation
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate("/saved-data")}>
+              Saved Data
+            </Button>
+            <Button onClick={() => navigate("/new")} size="lg">
+              <Plus className="h-5 w-5 mr-2" />
+              New Confirmation
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -91,8 +150,8 @@ export function Dashboard() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-success/10">
-                  <FileText className="h-6 w-6 text-success" />
+                <div className="p-3 rounded-full bg-emerald-500/10">
+                  <FileText className="h-6 w-6 text-emerald-500" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">This Month</p>
@@ -127,6 +186,44 @@ export function Dashboard() {
           </Card>
         </div>
 
+        {/* Search and Filter */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by code, client name, or source..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={filterMonth} onValueChange={setFilterMonth}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by date" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All time</SelectItem>
+                  <SelectItem value="this-month">This month</SelectItem>
+                  <SelectItem value="last-month">Last month</SelectItem>
+                </SelectContent>
+              </Select>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-4 w-4 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
+            {hasActiveFilters && (
+              <p className="text-sm text-muted-foreground mt-2">
+                Showing {filteredConfirmations.length} of {confirmations?.length || 0} confirmations
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Table */}
         <Card>
           <CardHeader>
@@ -139,19 +236,23 @@ export function Dashboard() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : confirmations?.length === 0 ? (
+            ) : filteredConfirmations.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-foreground mb-2">
-                  No confirmations yet
+                  {hasActiveFilters ? "No matching confirmations" : "No confirmations yet"}
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Create your first tour confirmation letter
+                  {hasActiveFilters
+                    ? "Try adjusting your search or filters"
+                    : "Create your first tour confirmation letter"}
                 </p>
-                <Button onClick={() => navigate("/new")}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Confirmation
-                </Button>
+                {!hasActiveFilters && (
+                  <Button onClick={() => navigate("/new")}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Confirmation
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="rounded-lg border border-border overflow-hidden">
@@ -167,7 +268,7 @@ export function Dashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {confirmations?.map((confirmation) => (
+                    {filteredConfirmations.map((confirmation) => (
                       <TableRow
                         key={confirmation.id}
                         className="cursor-pointer hover:bg-muted/30 transition-colors"

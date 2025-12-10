@@ -6,29 +6,52 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Clock } from "lucide-react";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setPendingApproval(false);
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
+
+        // Check if user is approved
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("approved")
+          .eq("id", data.user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Profile error:", profileError);
+          throw new Error("Could not verify account status");
+        }
+
+        if (!profile.approved) {
+          await supabase.auth.signOut();
+          setPendingApproval(true);
+          return;
+        }
+
         navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -36,11 +59,19 @@ const Auth = () => {
           },
         });
         if (error) throw error;
+
+        // Send approval request to admin
+        if (data.user) {
+          await supabase.functions.invoke("user-approval", {
+            body: { userEmail: email, userId: data.user.id },
+          });
+        }
+
         toast({
           title: "Account created",
-          description: "You can now log in with your credentials.",
+          description: "Your account is pending admin approval. You'll be notified when approved.",
         });
-        setIsLogin(true);
+        setPendingApproval(true);
       }
     } catch (error: any) {
       toast({
@@ -65,6 +96,14 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {pendingApproval && (
+            <Alert className="mb-4 border-amber-500 bg-amber-50">
+              <Clock className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                Your account is pending admin approval. Please wait for approval before signing in.
+              </AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -96,7 +135,10 @@ const Auth = () => {
           <div className="mt-4 text-center">
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setPendingApproval(false);
+              }}
               className="text-sm text-muted-foreground hover:text-primary"
             >
               {isLogin

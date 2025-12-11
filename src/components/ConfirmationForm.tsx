@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { printLuggageTags } from "@/components/LuggageTagPrint";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -340,8 +340,8 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
   
-  // Luggage tag toggles per client
-  const [luggageTagToggles, setLuggageTagToggles] = useState<boolean[]>([false]);
+  // Luggage tag - only one client can be selected at a time
+  const [luggageTagSelectedIndex, setLuggageTagSelectedIndex] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "own-company",
@@ -420,7 +420,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       clients: [...prev.clients, { name: "", passport: "" }],
     }));
-    setLuggageTagToggles(prev => [...prev, false]);
   };
 
   const updateClient = (index: number, field: keyof Client, value: string) => {
@@ -438,7 +437,12 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       clients: prev.clients.filter((_, i) => i !== index),
     }));
-    setLuggageTagToggles(prev => prev.filter((_, i) => i !== index));
+    // Reset luggage tag selection if removed client was selected
+    if (luggageTagSelectedIndex === index) {
+      setLuggageTagSelectedIndex(null);
+    } else if (luggageTagSelectedIndex !== null && luggageTagSelectedIndex > index) {
+      setLuggageTagSelectedIndex(luggageTagSelectedIndex - 1);
+    }
   };
 
   const addDay = () => {
@@ -518,12 +522,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         notes: filteredData.notes,
       });
 
-      // Print luggage tags for clients with toggle enabled
-      const clientsWithTags = filteredData.clients
-        .filter((_, index) => luggageTagToggles[index] && formData.clients[index]?.name.trim());
-      
-      if (clientsWithTags.length > 0) {
-        printLuggageTags(clientsWithTags.map(c => c.name));
+      // Print luggage tag for selected client
+      if (luggageTagSelectedIndex !== null && formData.clients[luggageTagSelectedIndex]?.name.trim()) {
+        printLuggageTags([formData.clients[luggageTagSelectedIndex].name]);
       }
 
       toast({
@@ -766,16 +767,12 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                           />
                         </td>
                         <td className="px-2 py-2 text-center">
-                          <Switch
-                            checked={luggageTagToggles[index] || false}
+                          <Checkbox
+                            checked={luggageTagSelectedIndex === index}
                             onCheckedChange={(checked) => {
-                              setLuggageTagToggles(prev => {
-                                const newToggles = [...prev];
-                                newToggles[index] = checked;
-                                return newToggles;
-                              });
+                              setLuggageTagSelectedIndex(checked ? index : null);
                             }}
-                            disabled={!client.name.trim()}
+                            disabled={!client.name.trim() || (luggageTagSelectedIndex !== null && luggageTagSelectedIndex !== index)}
                           />
                         </td>
                         <td className="px-2 py-2">

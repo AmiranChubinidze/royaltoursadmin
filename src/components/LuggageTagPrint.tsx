@@ -12,7 +12,9 @@ export function printLuggageTags(clientNames: string[]) {
     <div class="tag-page">
       <div class="tag-container">
         <img src="${luggageTagTemplate}" class="tag-image" />
-        <div class="tag-name">${name.toUpperCase()}</div>
+        <div class="tag-name-wrapper">
+          <div class="tag-name">${name.toUpperCase()}</div>
+        </div>
       </div>
     </div>
   `).join("");
@@ -57,22 +59,30 @@ export function printLuggageTags(clientNames: string[]) {
             width: auto;
             height: auto;
           }
-          .tag-name {
+          .tag-name-wrapper {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding-top: 0;
+            margin-top: -5%;
+          }
+          .tag-name {
+            font-family: 'Arial Black', 'Helvetica Bold', sans-serif;
             font-size: 28pt;
             font-weight: 900;
             text-align: center;
-            color: #000;
-            white-space: nowrap;
-            letter-spacing: 1px;
-            text-shadow: 
-              1px 1px 0 #fff,
-              -1px -1px 0 #fff,
-              1px -1px 0 #fff,
-              -1px 1px 0 #fff;
+            color: #1a1a1a;
+            letter-spacing: 2px;
+            line-height: 1.2;
+            text-transform: uppercase;
+            max-width: 80%;
+            word-break: break-word;
           }
           @media print {
             body {

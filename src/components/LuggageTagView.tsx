@@ -50,7 +50,7 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
         {/* Name overlay - positioned to match original template text location */}
         <div 
           className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-          style={{ top: "50%", transform: "translateY(-50%)" }}
+          style={{ top: "60%", transform: "translateY(-50%)" }}
         >
           <div 
             className="text-center uppercase leading-tight"

@@ -26,8 +26,8 @@ export function printLuggageTags(clientNames: string[]) {
         <title>Luggage Tags</title>
         <style>
           @page {
-            size: A4 portrait;
-            margin: 10mm;
+            size: 100mm 150mm;
+            margin: 0;
           }
           * {
             margin: 0;
@@ -39,8 +39,8 @@ export function printLuggageTags(clientNames: string[]) {
             background: white;
           }
           .tag-page {
-            width: 100%;
-            height: 100vh;
+            width: 100mm;
+            height: 150mm;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -52,12 +52,13 @@ export function printLuggageTags(clientNames: string[]) {
           .tag-container {
             position: relative;
             display: inline-block;
+            width: 100mm;
+            height: 150mm;
           }
           .tag-image {
-            max-width: 180mm;
-            max-height: 250mm;
-            width: auto;
-            height: auto;
+            width: 100mm;
+            height: 150mm;
+            object-fit: contain;
           }
           .tag-name-wrapper {
             position: absolute;

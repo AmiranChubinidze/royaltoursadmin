@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Edit, Copy, Mail, Trash2, Printer, FileText, Tag } from "lucide-react";
 import { ConfirmationLetter } from "@/components/ConfirmationLetter";
 import { LuggageTagView } from "@/components/LuggageTagView";
-import { printLuggageTags } from "@/components/LuggageTagPrint";
+// Luggage tag print styles are now handled via CSS in LuggageTagView
 import {
   useConfirmation,
   useDeleteConfirmation,
@@ -58,17 +58,7 @@ export default function ViewConfirmation() {
   }, [searchParams, setSearchParams]);
 
   const handlePrint = () => {
-    if (viewMode === "tag") {
-      const payload = confirmation?.raw_payload as ConfirmationPayload | undefined;
-      const clients = payload?.clients || [];
-      const validClients = clients.filter(c => c.name.trim());
-      const selectedClient = validClients[selectedTagClientIndex];
-      if (selectedClient) {
-        printLuggageTags([selectedClient.name]);
-      }
-    } else {
-      window.print();
-    }
+    window.print();
   };
 
   const handleDuplicate = async () => {

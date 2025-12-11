@@ -1,5 +1,7 @@
-import luggageTagTemplate from "@/assets/luggage-tag-template.jpg";
+import { useEffect } from "react";
+import royalGeorgianLogo from "@/assets/royal-georgian-logo.jpg";
 import { Client } from "@/types/confirmation";
+import { luggageTagPrintStyles } from "@/components/LuggageTagPrint";
 
 interface LuggageTagViewProps {
   clients: Client[];
@@ -10,6 +12,23 @@ interface LuggageTagViewProps {
 export function LuggageTagView({ clients, selectedClientIndex, onClientChange }: LuggageTagViewProps) {
   const validClients = clients.filter(c => c.name.trim());
   const selectedClient = validClients[selectedClientIndex] || validClients[0];
+
+  // Inject print styles
+  useEffect(() => {
+    const styleId = "luggage-tag-print-styles";
+    let styleEl = document.getElementById(styleId);
+    
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = styleId;
+      styleEl.textContent = luggageTagPrintStyles;
+      document.head.appendChild(styleEl);
+    }
+    
+    return () => {
+      // Don't remove on unmount - keep for printing
+    };
+  }, []);
 
   if (validClients.length === 0) {
     return (
@@ -23,7 +42,7 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
     <div className="flex flex-col items-center">
       {/* Client selector */}
       {validClients.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-4 print:hidden">
+        <div className="flex flex-wrap gap-2 mb-6 print:hidden">
           {validClients.map((client, index) => (
             <button
               key={index}
@@ -40,33 +59,37 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
         </div>
       )}
 
-      {/* Tag preview */}
-      <div className="relative inline-block bg-white rounded-lg shadow-sm border border-border p-4">
+      {/* Tag preview - this is what gets printed */}
+      <div 
+        className="luggage-tag-print-container bg-white rounded-lg shadow-sm border border-border flex flex-col items-center justify-center"
+        style={{ 
+          width: "100mm", 
+          height: "150mm",
+          padding: "10mm"
+        }}
+      >
+        {/* Logo */}
         <img 
-          src={luggageTagTemplate} 
-          alt="Luggage tag" 
-          className="max-w-full max-h-[70vh] w-auto h-auto"
+          src={royalGeorgianLogo} 
+          alt="Royal Georgian Tours" 
+          className="w-auto max-w-[80mm] max-h-[60mm] object-contain mb-6"
         />
-        {/* Name overlay - positioned to match original template text location */}
+        
+        {/* Client Name */}
         <div 
-          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-          style={{ top: "60%", transform: "translateY(-50%)" }}
+          className="text-center uppercase leading-tight"
+          style={{ 
+            fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
+            fontSize: "28pt",
+            fontWeight: 900,
+            color: "#000000",
+            letterSpacing: "2px",
+            lineHeight: 1.2,
+            maxWidth: "85mm",
+            wordBreak: "break-word"
+          }}
         >
-          <div 
-            className="text-center uppercase leading-tight"
-            style={{ 
-              fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
-              fontSize: "clamp(16px, 4vw, 32px)",
-              fontWeight: 900,
-              color: "#1a1a1a",
-              letterSpacing: "2px",
-              lineHeight: 1.2,
-              maxWidth: "80%",
-              wordBreak: "break-word"
-            }}
-          >
-            {selectedClient?.name || ""}
-          </div>
+          {selectedClient?.name || ""}
         </div>
       </div>
     </div>

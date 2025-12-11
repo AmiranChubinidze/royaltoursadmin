@@ -1,34 +1,24 @@
 import { useEffect } from "react";
 import royalGeorgianLogo from "@/assets/royal-georgian-logo.jpg";
 import { Client } from "@/types/confirmation";
-import { luggageTagPrintStyles } from "@/components/LuggageTagPrint";
 
-interface LuggageTagViewProps {
-  clients: Client[];
+const printStyles = `
+@media print {
+  @page { size: 120mm 120mm; margin: 0; }
+  body * { visibility: hidden; }
+  #luggage-tag-content, #luggage-tag-content * { visibility: visible; }
+  #luggage-tag-content { position: absolute; top: 0; left: 0; width: 120mm !important; height: 120mm !important; }
+  .print\\:hidden { display: none !important; }
+}
+`;
   selectedClientIndex: number;
   onClientChange: (index: number) => void;
+  onSavePDF?: () => void;
 }
 
 export function LuggageTagView({ clients, selectedClientIndex, onClientChange }: LuggageTagViewProps) {
   const validClients = clients.filter(c => c.name.trim());
   const selectedClient = validClients[selectedClientIndex] || validClients[0];
-
-  // Inject print styles
-  useEffect(() => {
-    const styleId = "luggage-tag-print-styles";
-    let styleEl = document.getElementById(styleId);
-    
-    if (!styleEl) {
-      styleEl = document.createElement("style");
-      styleEl.id = styleId;
-      styleEl.textContent = luggageTagPrintStyles;
-      document.head.appendChild(styleEl);
-    }
-    
-    return () => {
-      // Don't remove on unmount - keep for printing
-    };
-  }, []);
 
   if (validClients.length === 0) {
     return (
@@ -40,9 +30,8 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
 
   return (
     <div className="flex flex-col items-center">
-      {/* Client selector */}
       {validClients.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-6 print:hidden">
+        <div className="flex flex-wrap gap-2 mb-6">
           {validClients.map((client, index) => (
             <button
               key={index}
@@ -59,39 +48,37 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
         </div>
       )}
 
-      {/* Tag preview - SQUARE format for airport standing display */}
       <div 
-        className="luggage-tag-print-container bg-white rounded-lg shadow-sm border border-border flex flex-col items-center justify-center"
+        id="luggage-tag-content"
+        className="bg-white rounded-lg shadow-sm border border-border flex flex-col items-center justify-center"
         style={{ 
           width: "120mm", 
           height: "120mm",
-          padding: "10mm"
+          padding: "8mm"
         }}
       >
-        {/* Logo - rotated 90 degrees clockwise to fix orientation */}
         <img 
           src={royalGeorgianLogo} 
           alt="Royal Georgian Tours" 
-          className="object-contain mb-4"
+          className="object-contain"
           style={{
             transform: "rotate(90deg)",
-            width: "60mm",
+            width: "85mm",
             height: "auto",
-            maxHeight: "50mm"
+            maxHeight: "70mm"
           }}
         />
         
-        {/* Client Name - bold black for airport visibility */}
         <div 
-          className="text-center uppercase leading-tight mt-4"
+          className="text-center uppercase leading-tight mt-2"
           style={{ 
             fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
-            fontSize: "24pt",
+            fontSize: "22pt",
             fontWeight: 900,
             color: "#000000",
             letterSpacing: "1px",
             lineHeight: 1.2,
-            maxWidth: "100mm",
+            maxWidth: "105mm",
             wordBreak: "break-word"
           }}
         >

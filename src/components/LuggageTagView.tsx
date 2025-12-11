@@ -41,7 +41,7 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
       )}
 
       {/* Tag preview */}
-      <div className="relative inline-block bg-white rounded-lg shadow-sm border border-border p-4">
+      <div className="relative inline-block">
         <img 
           src={luggageTagTemplate} 
           alt="Luggage tag" 

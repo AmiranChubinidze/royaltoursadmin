@@ -1,4 +1,4 @@
-import luggageTagTemplate from "@/assets/luggage-tag-template.png";
+import luggageTagTemplate from "@/assets/luggage-tag-template.jpg";
 import { Client } from "@/types/confirmation";
 
 interface LuggageTagViewProps {

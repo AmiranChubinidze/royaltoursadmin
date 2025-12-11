@@ -1,4 +1,4 @@
-import luggageTagTemplate from "@/assets/luggage-tag-template.png";
+import luggageTagTemplate from "@/assets/luggage-tag-template.jpg";
 
 export { luggageTagTemplate };
 

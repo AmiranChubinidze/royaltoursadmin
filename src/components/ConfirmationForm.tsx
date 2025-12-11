@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LuggageTagPrint } from "@/components/LuggageTagPrint";
+import { Switch } from "@/components/ui/switch";
+import { printLuggageTags } from "@/components/LuggageTagPrint";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -25,7 +26,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Tag } from "lucide-react";
+import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ConfirmationFormData,
@@ -339,8 +340,8 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
   
-  // Luggage tag printing state
-  const [luggageTagClient, setLuggageTagClient] = useState<string | null>(null);
+  // Luggage tag toggles per client
+  const [luggageTagToggles, setLuggageTagToggles] = useState<boolean[]>([false]);
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "own-company",
@@ -419,6 +420,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       clients: [...prev.clients, { name: "", passport: "" }],
     }));
+    setLuggageTagToggles(prev => [...prev, false]);
   };
 
   const updateClient = (index: number, field: keyof Client, value: string) => {
@@ -436,6 +438,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       clients: prev.clients.filter((_, i) => i !== index),
     }));
+    setLuggageTagToggles(prev => prev.filter((_, i) => i !== index));
   };
 
   const addDay = () => {
@@ -514,6 +517,14 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         services: filteredData.services,
         notes: filteredData.notes,
       });
+
+      // Print luggage tags for clients with toggle enabled
+      const clientsWithTags = filteredData.clients
+        .filter((_, index) => luggageTagToggles[index] && formData.clients[index]?.name.trim());
+      
+      if (clientsWithTags.length > 0) {
+        printLuggageTags(clientsWithTags.map(c => c.name));
+      }
 
       toast({
         title: "Confirmation created",
@@ -729,6 +740,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                     <tr className="bg-muted/50 border-b border-border">
                       <th className="text-left text-sm font-medium text-foreground px-4 py-3">Full name</th>
                       <th className="text-left text-sm font-medium text-foreground px-4 py-3">Passport number</th>
+                      <th className="text-center text-sm font-medium text-foreground px-2 py-3" title="Print luggage tag">Tag</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
@@ -751,6 +763,19 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                             value={client.passport}
                             onChange={(e) => updateClient(index, "passport", e.target.value)}
                             className="border-0 shadow-none px-0 h-8 focus-visible:ring-0"
+                          />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <Switch
+                            checked={luggageTagToggles[index] || false}
+                            onCheckedChange={(checked) => {
+                              setLuggageTagToggles(prev => {
+                                const newToggles = [...prev];
+                                newToggles[index] = checked;
+                                return newToggles;
+                              });
+                            }}
+                            disabled={!client.name.trim()}
                           />
                         </td>
                         <td className="px-2 py-2">
@@ -942,31 +967,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
               </Button>
             </section>
 
-            {/* Luggage Tag Section */}
-            <section>
-              <h2 className="text-lg font-semibold text-foreground mb-4">Luggage Tag</h2>
-              <p className="text-sm text-muted-foreground mb-3">
-                Select a client to generate a printable luggage tag.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {formData.clients.filter(c => c.name.trim()).map((client, index) => (
-                  <Button
-                    key={index}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLuggageTagClient(client.name)}
-                  >
-                    <Tag className="h-4 w-4 mr-1" />
-                    {client.name}
-                  </Button>
-                ))}
-                {formData.clients.filter(c => c.name.trim()).length === 0 && (
-                  <p className="text-sm text-muted-foreground italic">Add at least one client with a name first.</p>
-                )}
-              </div>
-            </section>
-
             {/* Submit */}
             <div className="flex items-center justify-between pt-6 border-t border-border">
               <Button
@@ -988,14 +988,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 }
               </Button>
             </div>
-
-            {/* Luggage Tag Print Modal */}
-            {luggageTagClient && (
-              <LuggageTagPrint
-                clientName={luggageTagClient}
-                onClose={() => setLuggageTagClient(null)}
-              />
-            )}
           </div>
         </div>
       </div>

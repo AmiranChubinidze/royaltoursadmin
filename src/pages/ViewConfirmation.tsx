@@ -2,8 +2,10 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Edit, Copy, Mail, Trash2, Printer } from "lucide-react";
+import { ArrowLeft, Edit, Copy, Mail, Trash2, Printer, FileText, Tag } from "lucide-react";
 import { ConfirmationLetter } from "@/components/ConfirmationLetter";
+import { LuggageTagView } from "@/components/LuggageTagView";
+import { printLuggageTags } from "@/components/LuggageTagPrint";
 import {
   useConfirmation,
   useDeleteConfirmation,
@@ -22,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
-import { ConfirmationPayload } from "@/types/confirmation";
+import { ConfirmationPayload, Client } from "@/types/confirmation";
 import { format } from "date-fns";
 
 export default function ViewConfirmation() {
@@ -30,6 +32,8 @@ export default function ViewConfirmation() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"letter" | "tag">("letter");
+  const [selectedTagClientIndex, setSelectedTagClientIndex] = useState(0);
   
   const { data: confirmation, isLoading, error } = useConfirmation(id);
   const deleteMutation = useDeleteConfirmation();
@@ -54,7 +58,17 @@ export default function ViewConfirmation() {
   }, [searchParams, setSearchParams]);
 
   const handlePrint = () => {
-    window.print();
+    if (viewMode === "tag") {
+      const payload = confirmation?.raw_payload as ConfirmationPayload | undefined;
+      const clients = payload?.clients || [];
+      const validClients = clients.filter(c => c.name.trim());
+      const selectedClient = validClients[selectedTagClientIndex];
+      if (selectedClient) {
+        printLuggageTags([selectedClient.name]);
+      }
+    } else {
+      window.print();
+    }
   };
 
   const handleDuplicate = async () => {
@@ -150,6 +164,32 @@ export default function ViewConfirmation() {
           )}
         </div>
 
+        {/* View Toggle */}
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <button
+            onClick={() => setViewMode("letter")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+              viewMode === "letter"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            Letter
+          </button>
+          <button
+            onClick={() => setViewMode("tag")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+              viewMode === "tag"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Tag className="h-4 w-4" />
+            Tag
+          </button>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
@@ -225,8 +265,16 @@ export default function ViewConfirmation() {
         </div>
       )}
 
-      {/* Confirmation Letter */}
-      <ConfirmationLetter confirmation={confirmation} />
+      {/* Content - Letter or Tag */}
+      {viewMode === "letter" ? (
+        <ConfirmationLetter confirmation={confirmation} />
+      ) : (
+        <LuggageTagView
+          clients={(confirmation?.raw_payload as ConfirmationPayload)?.clients || []}
+          selectedClientIndex={selectedTagClientIndex}
+          onClientChange={setSelectedTagClientIndex}
+        />
+      )}
 
       {/* Email Preview Dialog */}
       {confirmation?.raw_payload && (

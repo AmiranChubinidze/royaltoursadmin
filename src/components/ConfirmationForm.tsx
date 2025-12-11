@@ -522,11 +522,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         notes: filteredData.notes,
       });
 
-      // Print luggage tag for selected client
-      if (luggageTagSelectedIndex !== null && formData.clients[luggageTagSelectedIndex]?.name.trim()) {
-        printLuggageTags([formData.clients[luggageTagSelectedIndex].name]);
-      }
-
       toast({
         title: "Confirmation created",
         description: `Confirmation ${result.confirmation_code} has been created.`,

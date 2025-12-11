@@ -41,7 +41,7 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
       )}
 
       {/* Tag preview */}
-      <div className="relative inline-block">
+      <div className="relative inline-block bg-white rounded-lg shadow-sm border border-border p-4">
         <img 
           src={luggageTagTemplate} 
           alt="Luggage tag" 
@@ -50,7 +50,7 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
         {/* Name overlay - positioned to match original template text location */}
         <div 
           className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-          style={{ top: "45%", transform: "translateY(-50%)" }}
+          style={{ top: "50%", transform: "translateY(-50%)" }}
         >
           <div 
             className="text-center uppercase leading-tight"

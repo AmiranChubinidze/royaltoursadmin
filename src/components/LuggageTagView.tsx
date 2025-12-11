@@ -47,13 +47,26 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
           alt="Luggage tag" 
           className="max-w-full max-h-[70vh] w-auto h-auto"
         />
+        {/* Name overlay - positioned to match original template text location */}
         <div 
-          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
-                     text-2xl md:text-3xl font-black text-black text-center uppercase tracking-wide
-                     [text-shadow:_1px_1px_0_#fff,_-1px_-1px_0_#fff,_1px_-1px_0_#fff,_-1px_1px_0_#fff]"
-          style={{ whiteSpace: "nowrap" }}
+          className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+          style={{ top: "45%", transform: "translateY(-50%)" }}
         >
-          {selectedClient?.name || ""}
+          <div 
+            className="text-center uppercase leading-tight"
+            style={{ 
+              fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
+              fontSize: "clamp(16px, 4vw, 32px)",
+              fontWeight: 900,
+              color: "#1a1a1a",
+              letterSpacing: "2px",
+              lineHeight: 1.2,
+              maxWidth: "80%",
+              wordBreak: "break-word"
+            }}
+          >
+            {selectedClient?.name || ""}
+          </div>
         </div>
       </div>
     </div>

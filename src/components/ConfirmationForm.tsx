@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { LuggageTagPrint } from "@/components/LuggageTagPrint";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
@@ -24,7 +25,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ConfirmationFormData,
@@ -337,6 +338,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
 
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
+  
+  // Luggage tag printing state
+  const [luggageTagClient, setLuggageTagClient] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "own-company",
@@ -938,6 +942,31 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
               </Button>
             </section>
 
+            {/* Luggage Tag Section */}
+            <section>
+              <h2 className="text-lg font-semibold text-foreground mb-4">Luggage Tag</h2>
+              <p className="text-sm text-muted-foreground mb-3">
+                Select a client to generate a printable luggage tag.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {formData.clients.filter(c => c.name.trim()).map((client, index) => (
+                  <Button
+                    key={index}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLuggageTagClient(client.name)}
+                  >
+                    <Tag className="h-4 w-4 mr-1" />
+                    {client.name}
+                  </Button>
+                ))}
+                {formData.clients.filter(c => c.name.trim()).length === 0 && (
+                  <p className="text-sm text-muted-foreground italic">Add at least one client with a name first.</p>
+                )}
+              </div>
+            </section>
+
             {/* Submit */}
             <div className="flex items-center justify-between pt-6 border-t border-border">
               <Button
@@ -959,6 +988,14 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 }
               </Button>
             </div>
+
+            {/* Luggage Tag Print Modal */}
+            {luggageTagClient && (
+              <LuggageTagPrint
+                clientName={luggageTagClient}
+                onClose={() => setLuggageTagClient(null)}
+              />
+            )}
           </div>
         </div>
       </div>

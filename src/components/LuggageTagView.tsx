@@ -1,0 +1,61 @@
+import luggageTagTemplate from "@/assets/luggage-tag-template.jpg";
+import { Client } from "@/types/confirmation";
+
+interface LuggageTagViewProps {
+  clients: Client[];
+  selectedClientIndex: number;
+  onClientChange: (index: number) => void;
+}
+
+export function LuggageTagView({ clients, selectedClientIndex, onClientChange }: LuggageTagViewProps) {
+  const validClients = clients.filter(c => c.name.trim());
+  const selectedClient = validClients[selectedClientIndex] || validClients[0];
+
+  if (validClients.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[600px] bg-muted rounded-lg">
+        <p className="text-muted-foreground">No clients available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center">
+      {/* Client selector */}
+      {validClients.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-4 print:hidden">
+          {validClients.map((client, index) => (
+            <button
+              key={index}
+              onClick={() => onClientChange(index)}
+              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                selectedClientIndex === index
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted hover:bg-muted/80 text-foreground"
+              }`}
+            >
+              {client.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Tag preview */}
+      <div className="relative inline-block bg-white rounded-lg shadow-sm border border-border p-4">
+        <img 
+          src={luggageTagTemplate} 
+          alt="Luggage tag" 
+          className="max-w-full max-h-[70vh] w-auto h-auto"
+        />
+        <div 
+          className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 
+                     text-2xl md:text-3xl font-black text-black text-center uppercase tracking-wide
+                     [text-shadow:_1px_1px_0_#fff,_-1px_-1px_0_#fff,_1px_-1px_0_#fff,_-1px_1px_0_#fff]"
+          style={{ whiteSpace: "nowrap" }}
+        >
+          {selectedClient?.name || ""}
+        </div>
+      </div>
+    </div>
+  );
+}

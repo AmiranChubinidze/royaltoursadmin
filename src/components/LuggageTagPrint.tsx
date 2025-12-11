@@ -1,9 +1,6 @@
-import luggageTagTemplate from "@/assets/luggage-tag-template.png";
+import luggageTagTemplate from "@/assets/luggage-tag-template.jpg";
 
-interface LuggageTagPrintProps {
-  clientNames: string[];
-  onComplete: () => void;
-}
+export { luggageTagTemplate };
 
 export function printLuggageTags(clientNames: string[]) {
   if (clientNames.length === 0) return;

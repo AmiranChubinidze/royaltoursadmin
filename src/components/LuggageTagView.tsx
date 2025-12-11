@@ -11,14 +11,27 @@ const printStyles = `
   .print\\:hidden { display: none !important; }
 }
 `;
+
+interface LuggageTagViewProps {
+  clients: Client[];
   selectedClientIndex: number;
   onClientChange: (index: number) => void;
-  onSavePDF?: () => void;
 }
 
 export function LuggageTagView({ clients, selectedClientIndex, onClientChange }: LuggageTagViewProps) {
   const validClients = clients.filter(c => c.name.trim());
   const selectedClient = validClients[selectedClientIndex] || validClients[0];
+
+  // Inject print styles for square 120mm format
+  useEffect(() => {
+    const styleId = "luggage-tag-print-styles";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = printStyles;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   if (validClients.length === 0) {
     return (

@@ -59,33 +59,39 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
         </div>
       )}
 
-      {/* Tag preview - this is what gets printed */}
+      {/* Tag preview - SQUARE format for airport standing display */}
       <div 
         className="luggage-tag-print-container bg-white rounded-lg shadow-sm border border-border flex flex-col items-center justify-center"
         style={{ 
-          width: "100mm", 
-          height: "150mm",
+          width: "120mm", 
+          height: "120mm",
           padding: "10mm"
         }}
       >
-        {/* Logo */}
+        {/* Logo - rotated 90 degrees clockwise to fix orientation */}
         <img 
           src={royalGeorgianLogo} 
           alt="Royal Georgian Tours" 
-          className="w-auto max-w-[80mm] max-h-[60mm] object-contain mb-6"
+          className="object-contain mb-4"
+          style={{
+            transform: "rotate(90deg)",
+            width: "60mm",
+            height: "auto",
+            maxHeight: "50mm"
+          }}
         />
         
-        {/* Client Name */}
+        {/* Client Name - bold black for airport visibility */}
         <div 
-          className="text-center uppercase leading-tight"
+          className="text-center uppercase leading-tight mt-4"
           style={{ 
             fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
-            fontSize: "28pt",
+            fontSize: "24pt",
             fontWeight: 900,
             color: "#000000",
-            letterSpacing: "2px",
+            letterSpacing: "1px",
             lineHeight: 1.2,
-            maxWidth: "85mm",
+            maxWidth: "100mm",
             wordBreak: "break-word"
           }}
         >

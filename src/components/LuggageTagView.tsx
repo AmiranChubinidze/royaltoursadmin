@@ -14,13 +14,12 @@ const printStyles = `
 
 interface LuggageTagViewProps {
   clients: Client[];
-  selectedClientIndex: number;
-  onClientChange: (index: number) => void;
 }
 
-export function LuggageTagView({ clients, selectedClientIndex, onClientChange }: LuggageTagViewProps) {
+export function LuggageTagView({ clients }: LuggageTagViewProps) {
+  // Find main guest (the one marked as main) or fallback to first client with a name
   const validClients = clients.filter(c => c.name.trim());
-  const selectedClient = validClients[selectedClientIndex] || validClients[0];
+  const mainGuest = validClients.find(c => c.isMainGuest) || validClients[0];
 
   // Inject print styles for square 120mm format
   useEffect(() => {
@@ -33,35 +32,17 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
     }
   }, []);
 
-  if (validClients.length === 0) {
+  if (!mainGuest) {
     return (
       <div className="flex items-center justify-center h-[600px] bg-muted rounded-lg">
-        <p className="text-muted-foreground">No clients available</p>
+        <p className="text-muted-foreground">No main guest selected</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col items-center">
-      {validClients.length > 1 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {validClients.map((client, index) => (
-            <button
-              key={index}
-              onClick={() => onClientChange(index)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                selectedClientIndex === index
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted hover:bg-muted/80 text-foreground"
-              }`}
-            >
-              {client.name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div 
+      <div
         id="luggage-tag-content"
         className="bg-white rounded-lg shadow-sm border border-border flex flex-col items-center justify-center"
         style={{ 
@@ -95,7 +76,7 @@ export function LuggageTagView({ clients, selectedClientIndex, onClientChange }:
             wordBreak: "break-word"
           }}
         >
-          {selectedClient?.name || ""}
+          {mainGuest.name}
         </div>
       </div>
     </div>

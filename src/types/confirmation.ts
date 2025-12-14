@@ -1,6 +1,7 @@
 export interface Client {
   name: string;
   passport: string;
+  isMainGuest?: boolean;
 }
 
 export interface KidInfo {

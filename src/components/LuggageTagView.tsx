@@ -64,10 +64,10 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
         />
         
         <div 
-          className="flex-1 flex items-center justify-center w-full"
+          className="flex-1 flex items-center justify-center w-full text-center"
         >
           <div 
-            className="text-center uppercase leading-tight"
+            className="uppercase leading-tight"
             style={{ 
               fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
               fontSize: "22pt",

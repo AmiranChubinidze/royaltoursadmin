@@ -311,7 +311,14 @@ export function Dashboard() {
                             {confirmation.arrival_date || "—"}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {confirmation.tour_source || "—"}
+                            {(() => {
+                              const payload = confirmation.raw_payload as any;
+                              const trackingNumber = payload?.trackingNumber;
+                              if (trackingNumber) {
+                                return trackingNumber;
+                              }
+                              return confirmation.tour_source || "—";
+                            })()}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {confirmation.total_days}D / {confirmation.total_nights}N

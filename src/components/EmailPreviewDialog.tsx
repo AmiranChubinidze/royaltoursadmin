@@ -47,15 +47,14 @@ Check in: ${hotel.checkIn}
 Check out: ${hotel.checkOut}
 Number of Adults: ${hotel.guestInfo.numAdults}
 Number of Kids: ${kidsInfo}
-Meal Type (BB/FB): ${hotel.meals}
-Room Category (Standard/Upgrade): ${hotel.roomType}
-Guest Name: ${hotel.clientName}
+Meal Type (BB/FB): [------]
+Room Category (Standard/Upgrade): [------]
 
 Please confirm receipt of this reservation request.
 
 Best regards,
 LLC Royal Georgian Tours
-Phone: +995 599 123 456
+Phone: +995 592 005 450
 Email: Royalgeorgiantours@gmail.com`;
 }
 

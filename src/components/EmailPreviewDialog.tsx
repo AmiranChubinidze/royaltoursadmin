@@ -107,7 +107,8 @@ export function EmailPreviewDialog({
       }
     }
 
-    const mainClient = payload.clients[0];
+    // Find main guest (the one marked as main) or fallback to first client
+    const mainClient = payload.clients.find(c => c.isMainGuest) || payload.clients[0];
     // Calculate numAdults from clients count if guestInfo not specified
     const guestInfo = payload.guestInfo || { 
       numAdults: payload.clients.length || 1, 

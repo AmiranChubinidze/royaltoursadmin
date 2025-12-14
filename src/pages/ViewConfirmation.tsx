@@ -32,7 +32,7 @@ export default function ViewConfirmation() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"letter" | "tag">("letter");
-  const [selectedTagClientIndex, setSelectedTagClientIndex] = useState(0);
+  
   
   const { data: confirmation, isLoading, error } = useConfirmation(id);
   const deleteMutation = useDeleteConfirmation();
@@ -148,8 +148,6 @@ export default function ViewConfirmation() {
       ) : (
         <LuggageTagView
           clients={(confirmation?.raw_payload as ConfirmationPayload)?.clients || []}
-          selectedClientIndex={selectedTagClientIndex}
-          onClientChange={setSelectedTagClientIndex}
         />
       )}
 

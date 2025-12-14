@@ -340,8 +340,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
   
-  // Luggage tag - only one client can be selected at a time
-  const [luggageTagSelectedIndex, setLuggageTagSelectedIndex] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "own-company",
@@ -437,12 +435,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       ...prev,
       clients: prev.clients.filter((_, i) => i !== index),
     }));
-    // Reset luggage tag selection if removed client was selected
-    if (luggageTagSelectedIndex === index) {
-      setLuggageTagSelectedIndex(null);
-    } else if (luggageTagSelectedIndex !== null && luggageTagSelectedIndex > index) {
-      setLuggageTagSelectedIndex(luggageTagSelectedIndex - 1);
-    }
   };
 
   const addDay = () => {
@@ -790,7 +782,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                     <tr className="bg-muted/50 border-b border-border">
                       <th className="text-left text-sm font-medium text-foreground px-4 py-3">Full name</th>
                       <th className="text-left text-sm font-medium text-foreground px-4 py-3">Passport number</th>
-                      <th className="text-center text-sm font-medium text-foreground px-2 py-3" title="Print luggage tag">Tag</th>
+                      <th className="text-center text-sm font-medium text-foreground px-2 py-3" title="Main Guest">Main</th>
                       <th className="w-10"></th>
                     </tr>
                   </thead>
@@ -817,11 +809,18 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                         </td>
                         <td className="px-2 py-2 text-center">
                           <Checkbox
-                            checked={luggageTagSelectedIndex === index}
+                            checked={client.isMainGuest === true}
                             onCheckedChange={(checked) => {
-                              setLuggageTagSelectedIndex(checked ? index : null);
+                              // Only one client can be main guest
+                              setFormData(prev => ({
+                                ...prev,
+                                clients: prev.clients.map((c, i) => ({
+                                  ...c,
+                                  isMainGuest: i === index ? !!checked : false
+                                }))
+                              }));
                             }}
-                            disabled={!client.name.trim() || (luggageTagSelectedIndex !== null && luggageTagSelectedIndex !== index)}
+                            disabled={!client.name.trim()}
                           />
                         </td>
                         <td className="px-2 py-2">

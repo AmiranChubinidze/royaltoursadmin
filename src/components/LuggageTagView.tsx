@@ -44,11 +44,11 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
     <div className="flex flex-col items-center">
       <div
         id="luggage-tag-content"
-        className="bg-white rounded-lg shadow-sm border border-border flex flex-col items-center justify-center"
+        className="bg-white rounded-lg shadow-sm border border-border flex flex-col items-center"
         style={{ 
           width: "120mm", 
           height: "120mm",
-          padding: "8mm"
+          padding: "6mm"
         }}
       >
         <img 
@@ -57,26 +57,30 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
           className="object-contain"
           style={{
             transform: "rotate(90deg)",
-            width: "85mm",
+            width: "100mm",
             height: "auto",
-            maxHeight: "70mm"
+            maxHeight: "80mm"
           }}
         />
         
         <div 
-          className="text-center uppercase leading-tight mt-2"
-          style={{ 
-            fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
-            fontSize: "22pt",
-            fontWeight: 900,
-            color: "#000000",
-            letterSpacing: "1px",
-            lineHeight: 1.2,
-            maxWidth: "105mm",
-            wordBreak: "break-word"
-          }}
+          className="flex-1 flex items-center justify-center w-full"
         >
-          {mainGuest.name}
+          <div 
+            className="text-center uppercase leading-tight"
+            style={{ 
+              fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
+              fontSize: "22pt",
+              fontWeight: 900,
+              color: "#000000",
+              letterSpacing: "1px",
+              lineHeight: 1.2,
+              maxWidth: "105mm",
+              wordBreak: "break-word"
+            }}
+          >
+            {mainGuest.name}
+          </div>
         </div>
       </div>
     </div>

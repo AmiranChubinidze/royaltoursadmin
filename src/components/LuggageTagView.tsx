@@ -44,30 +44,29 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
     <div className="flex flex-col items-center">
       <div
         id="luggage-tag-content"
-        className="bg-white rounded-lg shadow-sm border border-border flex flex-col items-center"
+        className="bg-white rounded-lg shadow-sm border border-border relative overflow-visible"
         style={{ 
           width: "120mm", 
-          height: "120mm",
-          padding: "6mm"
+          height: "120mm"
         }}
       >
         <img 
           src={royalGeorgianLogo} 
           alt="Royal Georgian Tours" 
-          className="object-contain"
+          className="object-contain absolute left-1/2"
           style={{
-            transform: "rotate(90deg)",
+            transform: "translateX(-50%) rotate(90deg)",
             width: "100mm",
             height: "auto",
-            maxHeight: "80mm"
+            top: "-10mm"
           }}
         />
         
         <div 
-          className="flex-1 flex items-center justify-center w-full text-center"
+          className="absolute inset-0 flex items-center justify-center"
         >
           <div 
-            className="uppercase leading-tight"
+            className="uppercase leading-tight text-center"
             style={{ 
               fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
               fontSize: "22pt",
@@ -76,7 +75,8 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
               letterSpacing: "1px",
               lineHeight: 1.2,
               maxWidth: "105mm",
-              wordBreak: "break-word"
+              wordBreak: "break-word",
+              padding: "0 6mm"
             }}
           >
             {mainGuest.name}

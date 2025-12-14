@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import royalGeorgianLogo from "@/assets/royal-georgian-logo.jpg";
+import royalGeorgianLogo from "@/assets/royal-georgian-logo-new.png";
 import { Client } from "@/types/confirmation";
 
 const printStyles = `
@@ -55,8 +55,8 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
           alt="Royal Georgian Tours" 
           className="object-contain absolute left-1/2"
           style={{
-            transform: "translateX(-50%) rotate(90deg)",
-            width: "100mm",
+            transform: "translateX(-50%)",
+            width: "50mm",
             height: "auto",
             top: "-10mm"
           }}

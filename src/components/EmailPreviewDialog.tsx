@@ -15,7 +15,7 @@ import { Mail, Send } from "lucide-react";
 import { ConfirmationPayload, GuestInfo } from "@/types/confirmation";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-
+import { parse, addDays, format } from "date-fns";
 interface HotelEmailData {
   hotelName: string;
   hotelEmail: string;
@@ -108,7 +108,12 @@ export function EmailPreviewDialog({
     }
 
     const mainClient = payload.clients[0];
-    const guestInfo = payload.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [] };
+    // Calculate numAdults from clients count if guestInfo not specified
+    const guestInfo = payload.guestInfo || { 
+      numAdults: payload.clients.length || 1, 
+      numKids: 0, 
+      kidsAges: [] 
+    };
 
     const hotelList: HotelEmailData[] = [];
     const bodies: Record<string, string> = {};
@@ -117,12 +122,21 @@ export function EmailPreviewDialog({
     for (const [hotelName, dates] of hotelMap.entries()) {
       const hotelEmail = hotelEmailMap[hotelName];
       if (hotelEmail) {
+        // Calculate actual check-out (day after last night at hotel)
+        let actualCheckOut = dates.checkOut;
+        try {
+          const checkOutDate = parse(dates.checkOut, "dd/MM/yyyy", new Date());
+          actualCheckOut = format(addDays(checkOutDate, 1), "dd/MM/yyyy");
+        } catch (e) {
+          console.error("Error parsing check-out date:", e);
+        }
+
         const hotelData: HotelEmailData = {
           hotelName,
           hotelEmail,
           clientName: mainClient?.name || "Guest",
           checkIn: dates.checkIn,
-          checkOut: dates.checkOut,
+          checkOut: actualCheckOut,
           roomType: dates.roomType,
           meals: dates.meals,
           guestInfo,

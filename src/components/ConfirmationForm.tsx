@@ -35,7 +35,7 @@ import {
   KidInfo,
 } from "@/types/confirmation";
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
-import { useSavedHotels, SavedHotel } from "@/hooks/useSavedData";
+import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSavedData";
 import { toast } from "@/hooks/use-toast";
 
 interface ConfirmationFormProps {
@@ -335,6 +335,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   const navigate = useNavigate();
   const createMutation = useCreateConfirmation();
   const { data: savedHotels = [] } = useSavedHotels();
+  const createHotelMutation = useCreateSavedHotel();
 
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
@@ -497,6 +498,57 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     return [];
   };
 
+  // Auto-save custom hotels with their activities
+  const saveCustomHotels = (itinerary: typeof formData.itinerary) => {
+    // Build map of custom hotels → unique activities
+    const customHotelsMap = new Map<string, Set<string>>();
+    
+    for (const day of itinerary) {
+      const hotelName = day.hotel?.trim();
+      const activity = day.route?.trim();
+      
+      // Skip if no hotel name or no activity
+      if (!hotelName || !activity) continue;
+      
+      // Check if hotel already exists in saved hotels (case-insensitive)
+      const existsInSaved = savedHotels.some(
+        h => h.name.toLowerCase() === hotelName.toLowerCase()
+      );
+      if (existsInSaved) continue;
+      
+      // Add to custom hotels map
+      const key = hotelName.toLowerCase();
+      if (!customHotelsMap.has(key)) {
+        customHotelsMap.set(key, new Set());
+      }
+      customHotelsMap.get(key)!.add(activity);
+    }
+    
+    // Create new hotels
+    let createdCount = 0;
+    for (const [lowerName, activitiesSet] of customHotelsMap.entries()) {
+      // Find the original casing from itinerary
+      const originalName = itinerary.find(
+        d => d.hotel?.trim().toLowerCase() === lowerName
+      )?.hotel?.trim() || lowerName;
+      
+      createHotelMutation.mutate({
+        name: originalName,
+        email: null,
+        address: null,
+        activities: Array.from(activitiesSet),
+      });
+      createdCount++;
+    }
+    
+    if (createdCount > 0) {
+      toast({
+        description: `${createdCount} new hotel${createdCount > 1 ? 's' : ''} saved`,
+        duration: 2000,
+      });
+    }
+  };
+
   const handleSubmit = async () => {
     const filteredData = {
       ...formData,
@@ -520,6 +572,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         services: filteredData.services,
         notes: filteredData.notes,
       });
+
+      // Save custom hotels with activities
+      saveCustomHotels(filteredData.itinerary);
 
       toast({
         title: "Confirmation created",

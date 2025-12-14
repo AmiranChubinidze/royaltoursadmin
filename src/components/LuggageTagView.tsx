@@ -56,7 +56,7 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
           className="object-contain absolute left-1/2"
           style={{
             transform: "translateX(-50%)",
-            width: "60mm",
+            width: "80mm",
             height: "auto",
             top: "-10mm"
           }}

@@ -7,23 +7,45 @@ const PRINT_BODY_CLASS = "printing-luggage-tag";
 
 const printStyles = `
 @media print {
-  @page { size: 120mm 120mm; margin: 0; }
-
-  body.${PRINT_BODY_CLASS} * { visibility: hidden; }
-  body.${PRINT_BODY_CLASS} #luggage-tag-content,
-  body.${PRINT_BODY_CLASS} #luggage-tag-content * { visibility: visible; }
-
-  body.${PRINT_BODY_CLASS} #luggage-tag-content {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 120mm !important;
-    height: 120mm !important;
-    transform: rotate(90deg);
-    transform-origin: center center;
+  @page { 
+    size: 120mm 120mm; 
+    margin: 0 !important; 
   }
 
-  body.${PRINT_BODY_CLASS} .print\\:hidden { display: none !important; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 120mm !important;
+    height: 120mm !important;
+    overflow: hidden !important;
+  }
+
+  body.${PRINT_BODY_CLASS} * { 
+    visibility: hidden !important; 
+  }
+  
+  body.${PRINT_BODY_CLASS} #luggage-tag-content,
+  body.${PRINT_BODY_CLASS} #luggage-tag-content * { 
+    visibility: visible !important; 
+  }
+
+  body.${PRINT_BODY_CLASS} #luggage-tag-content {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 120mm !important;
+    height: 120mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: rotate(90deg) !important;
+    transform-origin: center center !important;
+    background: #fff !important;
+    overflow: hidden !important;
+  }
+
+  body.${PRINT_BODY_CLASS} .print\\:hidden { 
+    display: none !important; 
+  }
 }
 `;
 

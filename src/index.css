@@ -182,7 +182,7 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm 10mm;
+    margin: 10mm 8mm;
   }
 
   * {
@@ -196,24 +196,17 @@
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
-    font-size: 11px !important;
+    font-size: 10px !important;
   }
 
-  /* Hide everything except the letter */
+  /* Only hide elements with explicit print:hidden class */
   .print\\:hidden,
-  .no-print,
-  nav,
-  header:not(.confirmation-letter-print header),
-  footer:not(.confirmation-letter-print footer),
-  button,
-  .print-hidden {
+  .no-print {
     display: none !important;
   }
 
-  /* Reset all containers */
-  .container,
-  .mx-auto,
-  [class*="max-w-"] {
+  /* Reset container for print */
+  .container {
     max-width: 100% !important;
     width: 100% !important;
     padding: 0 !important;
@@ -226,6 +219,7 @@
     margin: 0 !important;
     background: #fff !important;
     width: 100% !important;
+    display: block !important;
   }
 
   /* Main letter styles */
@@ -233,11 +227,17 @@
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 4mm !important;
+    padding: 2mm !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
     font-size: 10px !important;
+    display: block !important;
+  }
+
+  /* Ensure header inside letter is visible */
+  .confirmation-letter-print header {
+    display: flex !important;
   }
 
   /* Typography adjustments for print */
@@ -258,7 +258,7 @@
 
   .confirmation-letter-print th,
   .confirmation-letter-print td {
-    padding: 3px 5px !important;
+    padding: 2px 4px !important;
     font-size: 9px !important;
     word-wrap: break-word !important;
   }
@@ -266,8 +266,7 @@
   /* Prevent page breaks inside sections */
   .print-break-avoid,
   .confirmation-letter-print section,
-  .confirmation-letter-print table,
-  .confirmation-letter-print tr {
+  .confirmation-letter-print table {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
@@ -295,12 +294,12 @@
 
   /* Reduce spacing */
   .confirmation-letter-print section {
-    margin-bottom: 8px !important;
+    margin-bottom: 6px !important;
   }
 
-  /* Signature section */
+  /* Signature image */
   .confirmation-letter-print img {
-    max-width: 150px !important;
+    max-width: 130px !important;
     height: auto !important;
   }
 }

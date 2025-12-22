@@ -8,16 +8,17 @@ const PRINT_BODY_CLASS = "printing-luggage-tag";
 const printStyles = `
 @media print {
   @page { 
-    size: 120mm 120mm; 
+    size: A4 portrait; 
     margin: 0 !important; 
   }
 
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    width: 120mm !important;
-    height: 120mm !important;
+    width: 210mm !important;
+    height: 297mm !important;
     overflow: hidden !important;
+    background: #fff !important;
   }
 
   body.${PRINT_BODY_CLASS} * { 
@@ -31,16 +32,26 @@ const printStyles = `
 
   body.${PRINT_BODY_CLASS} #luggage-tag-content {
     position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 120mm !important;
-    height: 120mm !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 200mm !important;
+    height: 200mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    transform: rotate(90deg) !important;
+    transform: translate(-50%, -50%) rotate(90deg) !important;
     transform-origin: center center !important;
     background: #fff !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+  }
+
+  body.${PRINT_BODY_CLASS} #luggage-tag-content img {
+    width: 140mm !important;
+    height: auto !important;
+    top: -20mm !important;
+  }
+
+  body.${PRINT_BODY_CLASS} #luggage-tag-content .guest-name-print {
+    font-size: 40pt !important;
   }
 
   body.${PRINT_BODY_CLASS} .print\\:hidden { 
@@ -124,7 +135,7 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
 
         <div className="absolute inset-0 flex items-center justify-center">
           <div
-            className="uppercase leading-tight text-center"
+            className="uppercase leading-tight text-center guest-name-print"
             style={{
               fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
               fontSize: "22pt",

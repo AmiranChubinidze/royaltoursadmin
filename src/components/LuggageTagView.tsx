@@ -21,8 +21,13 @@ const printStyles = `
     background: #fff !important;
   }
 
-  body.${PRINT_BODY_CLASS} * { 
-    visibility: hidden !important; 
+  body.${PRINT_BODY_CLASS},
+  body.${PRINT_BODY_CLASS} > *,
+  body.${PRINT_BODY_CLASS} .container { 
+    visibility: hidden !important;
+    overflow: hidden !important;
+    height: auto !important;
+    max-height: 297mm !important;
   }
   
   body.${PRINT_BODY_CLASS} #luggage-tag-content,
@@ -34,8 +39,8 @@ const printStyles = `
     position: fixed !important;
     top: 50% !important;
     left: 50% !important;
-    width: 200mm !important;
-    height: 200mm !important;
+    width: 180mm !important;
+    height: 180mm !important;
     margin: 0 !important;
     padding: 0 !important;
     transform: translate(-50%, -50%) rotate(90deg) !important;
@@ -45,16 +50,19 @@ const printStyles = `
   }
 
   body.${PRINT_BODY_CLASS} #luggage-tag-content img {
-    width: 140mm !important;
+    width: 120mm !important;
     height: auto !important;
-    top: -20mm !important;
+    top: -15mm !important;
   }
 
   body.${PRINT_BODY_CLASS} #luggage-tag-content .guest-name-print {
-    font-size: 40pt !important;
+    font-size: 32pt !important;
+    white-space: nowrap !important;
+    max-width: none !important;
   }
 
-  body.${PRINT_BODY_CLASS} .print\\:hidden { 
+  body.${PRINT_BODY_CLASS} .print\\:hidden,
+  body.${PRINT_BODY_CLASS} .confirmation-letter-wrapper > *:not(#luggage-tag-content) { 
     display: none !important; 
   }
 }

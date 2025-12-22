@@ -342,7 +342,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
-    tourSource: initialData?.tourSource || "own-company",
+    tourSource: initialData?.tourSource || "direct",
     trackingNumber: initialData?.trackingNumber || "",
     clients: initialData?.clients || [{ name: "", passport: "" }],
     guestInfo: initialData?.guestInfo || { numAdults: 1, numKids: 0, kidsAges: [] },
@@ -624,7 +624,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                       setFormData(prev => ({ 
                         ...prev, 
                         tourSource: value,
-                        trackingNumber: value === "own-company" ? "" : prev.trackingNumber
+                        trackingNumber: value === "direct" ? "" : prev.trackingNumber
                       }));
                     }}
                   >
@@ -632,7 +632,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="own-company">Own tour company</SelectItem>
+                      <SelectItem value="direct">Direct</SelectItem>
                       <SelectItem value="partner-agency">Partner agency</SelectItem>
                     </SelectContent>
                   </Select>

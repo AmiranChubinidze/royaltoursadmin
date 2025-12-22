@@ -21,15 +21,21 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
   const validClients = clients.filter(c => c.name.trim());
   const mainGuest = validClients.find(c => c.isMainGuest) || validClients[0];
 
-  // Inject print styles for square 120mm format
+  // Inject print styles for square 120mm format and clean up on unmount
   useEffect(() => {
     const styleId = "luggage-tag-print-styles";
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement("style");
-      style.id = styleId;
-      style.textContent = printStyles;
-      document.head.appendChild(style);
-    }
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = printStyles;
+    document.head.appendChild(style);
+
+    // Cleanup: remove the style when component unmounts
+    return () => {
+      const existingStyle = document.getElementById(styleId);
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
   }, []);
 
   if (!mainGuest) {

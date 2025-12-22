@@ -25,6 +25,7 @@ import {
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import { ConfirmationPayload } from "@/types/confirmation";
 import { format } from "date-fns";
+import html2canvas from "html2canvas";
 
 export default function ViewConfirmation() {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +33,7 @@ export default function ViewConfirmation() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"letter" | "tag">("letter");
+  const [isSaving, setIsSaving] = useState(false);
   
   
   const { data: confirmation, isLoading, error } = useConfirmation(id);
@@ -49,14 +51,57 @@ export default function ViewConfirmation() {
     }
   }, [searchParams, setSearchParams]);
 
-  const handlePrintOrSave = () => {
-    // If older luggage-tag print styles are still hanging around, remove them
-    if (viewMode === "letter") {
-      document.body.classList.remove("printing-luggage-tag");
-      document
-        .querySelectorAll("style#luggage-tag-print-styles")
-        .forEach((el) => el.remove());
+  const handleSaveTag = async () => {
+    const tagElement = document.getElementById("luggage-tag-content");
+    if (!tagElement) {
+      toast({ title: "Error", description: "Could not find luggage tag element", variant: "destructive" });
+      return;
     }
+
+    setIsSaving(true);
+    try {
+      const canvas = await html2canvas(tagElement, {
+        scale: 3, // High resolution
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        logging: false,
+      });
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          toast({ title: "Error", description: "Failed to generate image", variant: "destructive" });
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `luggage-tag-${confirmation?.confirmation_code || "tag"}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        toast({ title: "Saved!", description: "Luggage tag image downloaded." });
+      }, "image/png");
+    } catch (err) {
+      console.error("Error saving tag:", err);
+      toast({ title: "Error", description: "Failed to save image", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePrintOrSave = () => {
+    if (viewMode === "tag") {
+      handleSaveTag();
+      return;
+    }
+
+    // Letter mode: print
+    document.body.classList.remove("printing-luggage-tag");
+    document
+      .querySelectorAll("style#luggage-tag-print-styles")
+      .forEach((el) => el.remove());
 
     window.print();
   };
@@ -129,8 +174,8 @@ export default function ViewConfirmation() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handlePrintOrSave}>
-            {viewMode === "tag" ? <><Download className="mr-2 h-4 w-4" />Save</> : <><Printer className="mr-2 h-4 w-4" />Print</>}
+          <Button variant="outline" onClick={handlePrintOrSave} disabled={isSaving}>
+            {viewMode === "tag" ? <><Download className="mr-2 h-4 w-4" />{isSaving ? "Saving..." : "Save"}</> : <><Printer className="mr-2 h-4 w-4" />Print</>}
           </Button>
           <Button variant="outline" onClick={() => navigate(`/confirmation/${id}/edit`)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
           <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}><Copy className="mr-2 h-4 w-4" />Duplicate</Button>

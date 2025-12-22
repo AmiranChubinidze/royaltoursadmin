@@ -102,7 +102,7 @@ export default function ViewConfirmation() {
   const editedDate = wasEdited ? format(new Date(confirmation.updated_at), "dd/MM/yyyy") : null;
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 print:p-0 print:m-0 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 print:hidden">
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={() => navigate("/")}>
@@ -143,13 +143,15 @@ export default function ViewConfirmation() {
         </div>
       </div>
 
-      {viewMode === "letter" ? (
-        <ConfirmationLetter confirmation={confirmation} />
-      ) : (
-        <LuggageTagView
-          clients={(confirmation?.raw_payload as ConfirmationPayload)?.clients || []}
-        />
-      )}
+      <div className="confirmation-letter-wrapper">
+        {viewMode === "letter" ? (
+          <ConfirmationLetter confirmation={confirmation} />
+        ) : (
+          <LuggageTagView
+            clients={(confirmation?.raw_payload as ConfirmationPayload)?.clients || []}
+          />
+        )}
+      </div>
 
       {confirmation?.raw_payload && (
         <EmailPreviewDialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen} payload={confirmation.raw_payload as ConfirmationPayload} confirmationCode={confirmation.confirmation_code} />

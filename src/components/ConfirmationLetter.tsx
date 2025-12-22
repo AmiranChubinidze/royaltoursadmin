@@ -15,7 +15,7 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
 
   return (
     <div 
-      className="confirmation-letter-print bg-white max-w-[960px] mx-auto rounded-[10px] p-[22px_26px] print:max-w-full print:mx-0 print:p-0 print:rounded-none print:shadow-none"
+      className="confirmation-letter-print bg-white max-w-[960px] mx-auto rounded-[10px] p-[22px_26px] print:max-w-full print:mx-0 print:p-[3mm] print:rounded-none print:shadow-none"
       style={{ 
         fontFamily: '"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif',
         boxShadow: '0 6px 24px rgba(0, 0, 0, 0.04)',
@@ -23,38 +23,38 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
       }}
     >
       {/* Header */}
-      <header className="flex justify-between gap-5 pb-2.5 mb-1.5 print-break-avoid">
+      <header className="flex justify-between gap-3 pb-1.5 mb-1 print-break-avoid print:gap-2 print:pb-1 print:mb-0.5">
         <div>
           {/* CONFIRMED Title */}
           <div 
-            className="text-[50px] font-[800] text-[#2f5597] print:text-[42px]"
+            className="text-[50px] font-[800] text-[#2f5597] print:text-[28px] print:leading-tight"
             style={{ letterSpacing: '0.08em' }}
           >
             CONFIRMED
           </div>
           {/* Meta Row */}
           <div 
-            className="meta-box-print grid gap-x-2.5 gap-y-1 items-center mt-0.5 border border-[#dfe3eb] rounded-lg p-[6px_8px] bg-[#f4f6fb]"
+            className="meta-box-print grid gap-x-2 gap-y-0.5 items-center mt-0.5 border border-[#dfe3eb] rounded-lg p-[6px_8px] bg-[#f4f6fb] print:p-[3px_5px] print:gap-x-1.5 print:gap-y-0 print:mt-0"
             style={{ gridTemplateColumns: 'auto auto' }}
           >
-            <div className="text-xs text-[#6b7280]" style={{ letterSpacing: '0.05em' }}>
+            <div className="text-xs text-[#6b7280] print:text-[8px]" style={{ letterSpacing: '0.05em' }}>
               CONFIRMATION NUMBER
             </div>
-            <div className="text-xl font-bold text-[#1c1f26] print:text-lg">
+            <div className="text-xl font-bold text-[#1c1f26] print:text-sm">
               {confirmation.confirmation_code}
             </div>
-            <div className="text-xs text-[#6b7280]" style={{ letterSpacing: '0.05em' }}>
+            <div className="text-xs text-[#6b7280] print:text-[8px]" style={{ letterSpacing: '0.05em' }}>
               CONFIRMATION DATE
             </div>
-            <div className="text-lg font-bold text-[#1c1f26] print:text-base">
+            <div className="text-lg font-bold text-[#1c1f26] print:text-xs">
               {confirmation.confirmation_date}
             </div>
             {trackingNumber && trackingNumber.trim() !== "" && (
               <>
-                <div className="text-xs text-[#6b7280]" style={{ letterSpacing: '0.05em' }}>
+                <div className="text-xs text-[#6b7280] print:text-[8px]" style={{ letterSpacing: '0.05em' }}>
                   TRACKING NUMBER
                 </div>
-                <div className="text-lg font-bold text-[#1c1f26] print:text-base">
+                <div className="text-lg font-bold text-[#1c1f26] print:text-xs">
                   {trackingNumber}
                 </div>
               </>
@@ -63,12 +63,12 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
         </div>
         
         {/* Company Block */}
-        <div className="text-right mt-[70px] print:mt-[50px]" style={{ lineHeight: 1.4 }}>
-          <div className="font-[800] text-lg print:text-base">LLC Royal Georgian Tours</div>
-          <div className="text-[#6b7280] print:text-sm">ID: 404515208</div>
-          <div className="print:text-sm">+995 557 141 357</div>
-          <div className="print:text-sm">+995 592 005 450</div>
-          <div className="font-bold print:text-sm">Royalgeorgiantours@gmail.com</div>
+        <div className="text-right mt-[70px] print:mt-[30px]" style={{ lineHeight: 1.4 }}>
+          <div className="font-[800] text-lg print:text-[11px] print:leading-tight">LLC Royal Georgian Tours</div>
+          <div className="text-[#6b7280] print:text-[9px]">ID: 404515208</div>
+          <div className="print:text-[9px]">+995 557 141 357</div>
+          <div className="print:text-[9px]">+995 592 005 450</div>
+          <div className="font-bold print:text-[9px]">Royalgeorgiantours@gmail.com</div>
         </div>
       </header>
 
@@ -185,18 +185,18 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
       </section>
 
       {/* Services and Signature Section */}
-      <div className="flex gap-4 items-start mt-[18px] mb-[22px] print:mt-3 print:mb-0 print-break-avoid">
+      <div className="flex gap-4 items-start mt-[18px] mb-[22px] print:mt-2 print:mb-0 print:gap-2 print-break-avoid">
         {/* Services Box */}
-        <section className="border border-[#dfe3eb] rounded-lg bg-white overflow-hidden flex-[0_0_50%] max-w-[50%]" style={{ lineHeight: 1.6 }}>
-          <div className="services-header-print bg-[#2f5597] text-white p-[8px_12px] font-bold text-sm uppercase rounded-t-lg print:text-xs print:p-1.5">
+        <section className="border border-[#dfe3eb] rounded-lg bg-white overflow-hidden flex-[0_0_55%] max-w-[55%] print:flex-[0_0_60%] print:max-w-[60%]" style={{ lineHeight: 1.6 }}>
+          <div className="services-header-print bg-[#2f5597] text-white p-[8px_12px] font-bold text-sm uppercase rounded-t-lg print:text-[9px] print:p-1">
             SERVICES
           </div>
-          <div className="p-[10px_12px_12px_12px] bg-white print:p-2">
-            <div className="mb-2 text-sm print:text-xs print:mb-1">
+          <div className="p-[10px_12px_12px_12px] bg-white print:p-1.5 print:leading-tight">
+            <div className="mb-2 text-sm print:text-[9px] print:mb-0.5">
               Total number of days: <strong>{confirmation.total_days ?? "--"}</strong>{" "}
               Total number of nights: <strong>{confirmation.total_nights ?? "--"}</strong>
             </div>
-            <ul className="m-0 ml-4 p-0 text-sm space-y-0.5 print:text-xs print:ml-3 print:space-y-0">
+            <ul className="m-0 ml-4 p-0 text-sm space-y-0.5 print:text-[8px] print:ml-2.5 print:space-y-0 print:leading-snug">
               <li>Each adult: INTERNET PACKAGE</li>
               <li>Driver working hours: From 10:00 to 19:00</li>
               <li className="font-bold text-[#1b3c78]">Any changes in reservation can be subject to extra charge</li>
@@ -207,12 +207,12 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
         </section>
 
         {/* Signature Section */}
-        <section className="flex-[0_0_50%] flex justify-center items-center text-center">
+        <section className="flex-[0_0_45%] flex justify-center items-center text-center print:flex-[0_0_40%]">
           <div>
             <img
               src={signatureStamp}
               alt="Signature and Stamp"
-              className="max-w-[220px] h-auto block mx-auto print:max-w-[180px]"
+              className="max-w-[220px] h-auto block mx-auto print:max-w-[120px]"
             />
           </div>
         </section>

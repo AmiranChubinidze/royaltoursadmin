@@ -180,7 +180,7 @@
 
 /* Print styles for A4 */
 @media print {
-  /* Remove browser headers/footers (URL, page number, date) by using 0 margin */
+  /* Remove browser headers/footers by using 0 margin on @page */
   @page {
     size: A4 portrait;
     margin: 0;
@@ -216,7 +216,7 @@
 
   /* Confirmation letter wrapper - provides page margins */
   .confirmation-letter-wrapper {
-    padding: 12mm 14mm !important;
+    padding: 8mm 10mm 10mm 10mm !important;
     margin: 0 !important;
     background: #fff !important;
     width: 100% !important;
@@ -257,13 +257,13 @@
     width: 100% !important;
     table-layout: fixed !important;
     border-collapse: collapse !important;
-    font-size: 9px !important;
+    font-size: 11px !important;
   }
 
   .confirmation-letter-print th,
   .confirmation-letter-print td {
-    padding: 2px 4px !important;
-    font-size: 9px !important;
+    padding: 4px 6px !important;
+    font-size: 11px !important;
     word-wrap: break-word !important;
   }
 
@@ -296,9 +296,9 @@
     background-color: #f3f6fc !important;
   }
 
-  /* Reduce spacing */
+  /* Reduce spacing between sections */
   .confirmation-letter-print section {
-    margin-bottom: 6px !important;
+    margin-bottom: 10px !important;
   }
 
   /* Signature image */

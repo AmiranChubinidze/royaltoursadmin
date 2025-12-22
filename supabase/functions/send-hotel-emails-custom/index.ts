@@ -82,6 +82,17 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
+  // Validate that GMAIL_USER is a valid email address
+  if (!isValidEmail(gmailUser)) {
+    console.error("GMAIL_USER is not a valid email address:", gmailUser);
+    return new Response(
+      JSON.stringify({ error: "GMAIL_USER secret must be a valid email address (e.g., yourname@gmail.com)" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  let client: SMTPClient | null = null;
+
   try {
     const { emails, confirmationCode }: SendEmailRequest = await req.json();
 
@@ -115,7 +126,7 @@ const handler = async (req: Request): Promise<Response> => {
     const sanitizedCode = sanitizeString(confirmationCode, 50);
     console.log(`Processing ${emails.length} custom emails for confirmation ${sanitizedCode}`);
 
-    const client = new SMTPClient({
+    client = new SMTPClient({
       connection: {
         hostname: "smtp.gmail.com",
         port: 465,
@@ -152,7 +163,10 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    await client.close();
+    // Only close if client was created
+    if (client) {
+      await client.close();
+    }
 
     const successCount = results.filter(r => r.success).length;
     console.log(`Completed: ${successCount}/${emails.length} emails sent successfully`);
@@ -166,6 +180,15 @@ const handler = async (req: Request): Promise<Response> => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    // Safely close client if it exists
+    if (client) {
+      try {
+        await client.close();
+      } catch (closeError) {
+        console.error("Error closing SMTP client:", closeError);
+      }
+    }
+    
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("Error in send-hotel-emails-custom function:", errorMessage);
     return new Response(

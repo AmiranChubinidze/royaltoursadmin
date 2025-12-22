@@ -79,10 +79,11 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
     <div className="flex flex-col items-center">
       <div
         id="luggage-tag-content"
-        className="bg-white rounded-lg shadow-sm border border-border relative overflow-visible"
+        className="bg-white relative overflow-hidden"
         style={{
           width: "120mm",
           height: "120mm",
+          borderRadius: 0,
         }}
       >
         <img

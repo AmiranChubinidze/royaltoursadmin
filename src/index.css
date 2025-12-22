@@ -180,9 +180,10 @@
 
 /* Print styles for A4 */
 @media print {
+  /* Remove browser headers/footers (URL, page number, date) by using 0 margin */
   @page {
     size: A4 portrait;
-    margin: 10mm 8mm;
+    margin: 0;
   }
 
   * {
@@ -196,7 +197,7 @@
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
-    font-size: 10px !important;
+    font-size: 11px !important;
   }
 
   /* Only hide elements with explicit print:hidden class */
@@ -215,11 +216,13 @@
 
   /* Confirmation letter wrapper */
   .confirmation-letter-wrapper {
-    padding: 0 !important;
+    padding: 10mm 12mm !important;
     margin: 0 !important;
     background: #fff !important;
     width: 100% !important;
+    height: 100% !important;
     display: block !important;
+    box-sizing: border-box !important;
   }
 
   /* Main letter styles */
@@ -227,11 +230,12 @@
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 2mm !important;
+    padding: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    border: none !important;
     background: #fff !important;
-    font-size: 10px !important;
+    font-size: 11px !important;
     display: block !important;
   }
 

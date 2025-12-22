@@ -50,6 +50,14 @@ export default function ViewConfirmation() {
   }, [searchParams, setSearchParams]);
 
   const handlePrintOrSave = () => {
+    // If older luggage-tag print styles are still hanging around, remove them
+    if (viewMode === "letter") {
+      document.body.classList.remove("printing-luggage-tag");
+      document
+        .querySelectorAll("style#luggage-tag-print-styles")
+        .forEach((el) => el.remove());
+    }
+
     window.print();
   };
 

@@ -19,6 +19,8 @@ const printStyles = `
     left: 0;
     width: 120mm !important;
     height: 120mm !important;
+    transform: rotate(90deg);
+    transform-origin: center center;
   }
 
   body.${PRINT_BODY_CLASS} .print\\:hidden { display: none !important; }

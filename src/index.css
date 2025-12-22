@@ -197,7 +197,7 @@
     background: #fff !important;
     margin: 0 !important;
     padding: 0 !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
   }
 
   /* Only hide elements with explicit print:hidden class */
@@ -214,13 +214,13 @@
     margin: 0 !important;
   }
 
-  /* Confirmation letter wrapper */
+  /* Confirmation letter wrapper - provides page margins */
   .confirmation-letter-wrapper {
-    padding: 10mm 12mm !important;
+    padding: 12mm 14mm !important;
     margin: 0 !important;
     background: #fff !important;
     width: 100% !important;
-    height: 100% !important;
+    min-height: 100% !important;
     display: block !important;
     box-sizing: border-box !important;
   }
@@ -235,7 +235,7 @@
     box-shadow: none !important;
     border: none !important;
     background: #fff !important;
-    font-size: 11px !important;
+    font-size: 12px !important;
     display: block !important;
   }
 

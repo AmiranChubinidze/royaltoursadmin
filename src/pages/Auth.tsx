@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, ArrowLeft } from "lucide-react";
+import rtgLogoRound from "@/assets/rtg-logo-round.png";
 
 type AuthMode = "login" | "signup" | "forgot-password";
 
@@ -118,11 +119,20 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">
-            Confirmation System
-          </CardTitle>
-          <CardDescription>{getTitle()}</CardDescription>
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <img 
+              src={rtgLogoRound} 
+              alt="Royal Georgian Tours" 
+              className="h-24 w-auto object-contain"
+            />
+          </div>
+          <div>
+            <CardTitle className="text-xl font-bold text-primary">
+              Royal Georgian Tours
+            </CardTitle>
+            <CardDescription className="mt-1">{getTitle()}</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           {pendingApproval && (

@@ -36,8 +36,8 @@ import {
   useDuplicateConfirmation,
 } from "@/hooks/useConfirmations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { COMPANY_INFO } from "@/types/confirmation";
 import { useAuth } from "@/hooks/useAuth";
+import rtgLogoFull from "@/assets/rtg-logo-full.png";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -117,9 +117,16 @@ export function Dashboard() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{COMPANY_INFO.name}</h1>
-            <p className="text-muted-foreground mt-1">Tour Confirmation Management</p>
+          <div className="flex items-center gap-4">
+            <img 
+              src={rtgLogoFull} 
+              alt="Royal Georgian Tours" 
+              className="h-20 w-auto object-contain"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Royal Georgian Tours</h1>
+              <p className="text-muted-foreground text-sm">Tour Confirmation Management</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate("/saved-data")}>

@@ -84,21 +84,25 @@ export function Dashboard() {
         c.main_client_name?.toLowerCase().includes(searchLower) ||
         c.tour_source?.toLowerCase().includes(searchLower);
 
-      // Month filter
+      // Month filter (based on arrival date)
       let matchesMonth = true;
-      if (filterMonth === "this-month") {
-        const date = new Date(c.created_at);
-        const now = new Date();
-        matchesMonth =
-          date.getMonth() === now.getMonth() &&
-          date.getFullYear() === now.getFullYear();
-      } else if (filterMonth === "last-month") {
-        const date = new Date(c.created_at);
-        const now = new Date();
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        matchesMonth =
-          date.getMonth() === lastMonth.getMonth() &&
-          date.getFullYear() === lastMonth.getFullYear();
+      if (filterMonth === "this-month" || filterMonth === "last-month") {
+        const arrivalDate = parseArrivalDate(c.arrival_date);
+        if (!arrivalDate) {
+          matchesMonth = false;
+        } else {
+          const now = new Date();
+          if (filterMonth === "this-month") {
+            matchesMonth =
+              arrivalDate.getMonth() === now.getMonth() &&
+              arrivalDate.getFullYear() === now.getFullYear();
+          } else {
+            const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            matchesMonth =
+              arrivalDate.getMonth() === lastMonth.getMonth() &&
+              arrivalDate.getFullYear() === lastMonth.getFullYear();
+          }
+        }
       }
       // For "all" and "custom", we don't filter by month (custom uses date range)
 

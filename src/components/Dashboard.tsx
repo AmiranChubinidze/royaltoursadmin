@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import {
   useConfirmations,
   useDeleteConfirmation,
@@ -40,7 +41,7 @@ import rtgLogoFull from "@/assets/rtg-logo-full.png";
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isAdmin, canEdit } = useUserRole();
+  const { isAdmin, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
@@ -172,10 +173,12 @@ export function Dashboard() {
               <p className="text-muted-foreground text-sm">Tour Confirmation Management</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate("/saved-data")}>
-              Saved Data
-            </Button>
+          <div className="flex gap-2 items-center">
+            {canEdit && (
+              <Button variant="outline" onClick={() => navigate("/saved-data")}>
+                Saved Data
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="outline" onClick={() => navigate("/admin")}>
                 <Shield className="h-4 w-4 mr-2" />
@@ -189,7 +192,17 @@ export function Dashboard() {
               </Button>
             )}
             <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <span className="text-sm text-muted-foreground">{user?.email}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">{user?.email}</span>
+                {role && (
+                  <Badge 
+                    variant={role === "admin" ? "default" : role === "worker" ? "secondary" : "outline"}
+                    className="text-xs capitalize"
+                  >
+                    {role}
+                  </Badge>
+                )}
+              </div>
               <Button variant="ghost" size="icon" onClick={signOut} title="Sign Out">
                 <LogOut className="h-5 w-5" />
               </Button>

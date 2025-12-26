@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { EditableRoute } from "@/components/EditableRoute";
 import Index from "./pages/Index";
 import NewConfirmation from "./pages/NewConfirmation";
 import EditConfirmation from "./pages/EditConfirmation";
@@ -24,11 +25,11 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/new" element={<ProtectedRoute><NewConfirmation /></ProtectedRoute>} />
+          <Route path="/new" element={<ProtectedRoute><EditableRoute><NewConfirmation /></EditableRoute></ProtectedRoute>} />
           <Route path="/saved-data" element={<ProtectedRoute><SavedData /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           <Route path="/confirmation/:id" element={<ProtectedRoute><ViewConfirmation /></ProtectedRoute>} />
-          <Route path="/confirmation/:id/edit" element={<ProtectedRoute><EditConfirmation /></ProtectedRoute>} />
+          <Route path="/confirmation/:id/edit" element={<ProtectedRoute><EditableRoute><EditConfirmation /></EditableRoute></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -26,13 +26,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon } from "lucide-react";
 import {
   useConfirmations,
@@ -92,20 +85,21 @@ export function Dashboard() {
 
       // Month filter
       let matchesMonth = true;
-      if (filterMonth !== "all") {
+      if (filterMonth === "this-month") {
         const date = new Date(c.created_at);
         const now = new Date();
-        if (filterMonth === "this-month") {
-          matchesMonth =
-            date.getMonth() === now.getMonth() &&
-            date.getFullYear() === now.getFullYear();
-        } else if (filterMonth === "last-month") {
-          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          matchesMonth =
-            date.getMonth() === lastMonth.getMonth() &&
-            date.getFullYear() === lastMonth.getFullYear();
-        }
+        matchesMonth =
+          date.getMonth() === now.getMonth() &&
+          date.getFullYear() === now.getFullYear();
+      } else if (filterMonth === "last-month") {
+        const date = new Date(c.created_at);
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        matchesMonth =
+          date.getMonth() === lastMonth.getMonth() &&
+          date.getFullYear() === lastMonth.getFullYear();
       }
+      // For "all" and "custom", we don't filter by month (custom uses date range)
 
       // Date range filter (based on arrival date)
       let matchesDateRange = true;
@@ -276,64 +270,79 @@ export function Dashboard() {
                   className="pl-10"
                 />
               </div>
-              <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All time</SelectItem>
-                  <SelectItem value="this-month">This month</SelectItem>
-                  <SelectItem value="last-month">Last month</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              {/* Date From Filter */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[150px] justify-start text-left font-normal",
-                      !dateFrom && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "From date"}
+                  <Button variant="outline" className="w-[180px] justify-between">
+                    <span>
+                      {filterMonth === "all" && !dateFrom && !dateTo && "All time"}
+                      {filterMonth === "this-month" && "This month"}
+                      {filterMonth === "last-month" && "Last month"}
+                      {filterMonth === "custom" && (dateFrom || dateTo) && "Custom range"}
+                    </span>
+                    <CalendarIcon className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFrom}
-                    onSelect={setDateFrom}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-              
-              {/* Date To Filter */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[150px] justify-start text-left font-normal",
-                      !dateTo && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateTo ? format(dateTo, "dd/MM/yyyy") : "To date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateTo}
-                    onSelect={setDateTo}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
+                  <div className="p-2 space-y-1">
+                    <Button
+                      variant={filterMonth === "all" && !dateFrom && !dateTo ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => { setFilterMonth("all"); setDateFrom(undefined); setDateTo(undefined); }}
+                    >
+                      All time
+                    </Button>
+                    <Button
+                      variant={filterMonth === "this-month" ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => { setFilterMonth("this-month"); setDateFrom(undefined); setDateTo(undefined); }}
+                    >
+                      This month
+                    </Button>
+                    <Button
+                      variant={filterMonth === "last-month" ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => { setFilterMonth("last-month"); setDateFrom(undefined); setDateTo(undefined); }}
+                    >
+                      Last month
+                    </Button>
+                  </div>
+                  <div className="border-t px-2 py-2">
+                    <p className="text-xs text-muted-foreground mb-2">Custom range</p>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-xs h-8">
+                            {dateFrom ? format(dateFrom, "dd/MM/yy") : "From"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dateFrom}
+                            onSelect={(date) => { setDateFrom(date); setFilterMonth("custom"); }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-xs h-8">
+                            {dateTo ? format(dateTo, "dd/MM/yy") : "To"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={dateTo}
+                            onSelect={(date) => { setDateTo(date); setFilterMonth("custom"); }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
                 </PopoverContent>
               </Popover>
               {hasActiveFilters && (

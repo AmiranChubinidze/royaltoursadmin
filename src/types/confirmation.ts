@@ -87,7 +87,7 @@ export const TOUR_SOURCES = [
   "Viator",
   "GetYourGuide",
   "TripAdvisor",
-  "Direct Booking",
+  "Direct",
   "Travel Agent",
   "Other",
 ];

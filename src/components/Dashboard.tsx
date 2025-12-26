@@ -86,7 +86,7 @@ export function Dashboard() {
 
       // Month filter (based on arrival date)
       let matchesMonth = true;
-      if (filterMonth === "this-month" || filterMonth === "last-month") {
+      if (filterMonth === "this-month" || filterMonth === "last-month" || filterMonth === "next-month") {
         const arrivalDate = parseArrivalDate(c.arrival_date);
         if (!arrivalDate) {
           matchesMonth = false;
@@ -96,11 +96,16 @@ export function Dashboard() {
             matchesMonth =
               arrivalDate.getMonth() === now.getMonth() &&
               arrivalDate.getFullYear() === now.getFullYear();
-          } else {
+          } else if (filterMonth === "last-month") {
             const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
             matchesMonth =
               arrivalDate.getMonth() === lastMonth.getMonth() &&
               arrivalDate.getFullYear() === lastMonth.getFullYear();
+          } else if (filterMonth === "next-month") {
+            const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            matchesMonth =
+              arrivalDate.getMonth() === nextMonth.getMonth() &&
+              arrivalDate.getFullYear() === nextMonth.getFullYear();
           }
         }
       }
@@ -238,17 +243,18 @@ export function Dashboard() {
                   <FileText className="h-6 w-6 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">This Month</p>
+                  <p className="text-sm text-muted-foreground">This Month Arrivals</p>
                   <p className="text-2xl font-bold text-foreground">
                     {isLoading ? (
                       <Skeleton className="h-8 w-16" />
                     ) : (
                       confirmations?.filter((c) => {
-                        const date = new Date(c.created_at);
+                        const arrivalDate = parseArrivalDate(c.arrival_date);
+                        if (!arrivalDate) return false;
                         const now = new Date();
                         return (
-                          date.getMonth() === now.getMonth() &&
-                          date.getFullYear() === now.getFullYear()
+                          arrivalDate.getMonth() === now.getMonth() &&
+                          arrivalDate.getFullYear() === now.getFullYear()
                         );
                       }).length || 0
                     )}
@@ -294,6 +300,7 @@ export function Dashboard() {
                       {filterMonth === "all" && !dateFrom && !dateTo && "All time"}
                       {filterMonth === "this-month" && "This month"}
                       {filterMonth === "last-month" && "Last month"}
+                      {filterMonth === "next-month" && "Next month"}
                       {filterMonth === "custom" && (dateFrom || dateTo) && "Custom range"}
                     </span>
                     <CalendarIcon className="h-4 w-4 opacity-50" />
@@ -321,6 +328,13 @@ export function Dashboard() {
                       onClick={() => { setFilterMonth("last-month"); setDateFrom(undefined); setDateTo(undefined); }}
                     >
                       Last month
+                    </Button>
+                    <Button
+                      variant={filterMonth === "next-month" ? "secondary" : "ghost"}
+                      className="w-full justify-start text-sm"
+                      onClick={() => { setFilterMonth("next-month"); setDateFrom(undefined); setDateTo(undefined); }}
+                    >
+                      Next month
                     </Button>
                   </div>
                   <div className="border-t px-2 py-2">

@@ -43,6 +43,14 @@ export function Dashboard() {
   const { user, signOut } = useAuth();
   const { isAdmin, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
+  
+  // Admin "View as" feature
+  const [viewAsRole, setViewAsRole] = useState<string | null>(null);
+  
+  // Effective role (for "View as" feature)
+  const effectiveRole = viewAsRole || role;
+  const effectiveCanEdit = viewAsRole ? (viewAsRole === "admin" || viewAsRole === "worker") : canEdit;
+  const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
 
@@ -183,18 +191,56 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            {canEdit && (
+            {effectiveCanEdit && (
               <Button variant="outline" onClick={() => navigate("/saved-data")}>
                 Saved Data
               </Button>
             )}
             {isAdmin && (
-              <Button variant="outline" onClick={() => navigate("/admin")}>
-                <Shield className="h-4 w-4 mr-2" />
-                Admin
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => navigate("/admin")}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Eye className="h-4 w-4 mr-2" />
+                      {viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-40 p-1" align="end">
+                    <div className="space-y-1">
+                      <Button
+                        variant={viewAsRole === null ? "secondary" : "ghost"}
+                        size="sm"
+                        className="w-full justify-start text-sm"
+                        onClick={() => setViewAsRole(null)}
+                      >
+                        My Role ({role})
+                      </Button>
+                      <Button
+                        variant={viewAsRole === "worker" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="w-full justify-start text-sm"
+                        onClick={() => setViewAsRole("worker")}
+                      >
+                        Worker
+                      </Button>
+                      <Button
+                        variant={viewAsRole === "visitor" ? "secondary" : "ghost"}
+                        size="sm"
+                        className="w-full justify-start text-sm"
+                        onClick={() => setViewAsRole("visitor")}
+                      >
+                        Visitor
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </>
             )}
-            {canEdit && (
+            {effectiveCanEdit && (
               <Button onClick={() => navigate("/new")} size="lg">
                 <Plus className="h-5 w-5 mr-2" />
                 New Confirmation
@@ -209,6 +255,11 @@ export function Dashboard() {
                     className="text-xs capitalize"
                   >
                     {role}
+                  </Badge>
+                )}
+                {viewAsRole && (
+                  <Badge variant="outline" className="text-xs">
+                    → {viewAsRole}
                   </Badge>
                 )}
               </div>
@@ -268,10 +319,10 @@ export function Dashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Quick Actions</p>
                 <p className="text-lg font-medium text-foreground mt-1">
-                  {canEdit ? "Create new tour" : "View-only access"}
+                  {effectiveCanEdit ? "Create new tour" : "View-only access"}
                 </p>
               </div>
-              {canEdit && (
+              {effectiveCanEdit && (
                 <Button variant="outline" onClick={() => navigate("/new")}>
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -414,7 +465,7 @@ export function Dashboard() {
                     ? "Try adjusting your search or filters"
                     : "Create your first tour confirmation letter"}
                 </p>
-                {!hasActiveFilters && canEdit && (
+                {!hasActiveFilters && effectiveCanEdit && (
                   <Button onClick={() => navigate("/new")}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
@@ -450,7 +501,7 @@ export function Dashboard() {
                           <TableCell className="font-mono font-semibold text-primary">
                             <div className="flex items-center gap-2">
                               {confirmation.confirmation_code}
-                              {wasEdited && (
+                              {wasEdited && !effectiveIsVisitor && (
                                 <span className="text-xs text-muted-foreground font-normal">
                                   (edited)
                                 </span>
@@ -489,7 +540,7 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {canEdit && (
+                            {effectiveCanEdit && (
                               <>
                                 <Button
                                   variant="ghost"

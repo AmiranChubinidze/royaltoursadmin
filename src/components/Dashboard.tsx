@@ -1,8 +1,12 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { format, parse, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -29,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon } from "lucide-react";
 import {
   useConfirmations,
   useDeleteConfirmation,
@@ -49,6 +53,8 @@ export function Dashboard() {
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMonth, setFilterMonth] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   const handleDuplicate = async (id: string) => {
     const result = await duplicateMutation.mutateAsync(id);
@@ -59,11 +65,21 @@ export function Dashboard() {
     await deleteMutation.mutateAsync(id);
   };
 
-  // Filter confirmations
+  // Parse arrival date helper (dd/mm/yyyy format)
+  const parseArrivalDate = (dateStr: string | null): Date | null => {
+    if (!dateStr) return null;
+    try {
+      return parse(dateStr, "dd/MM/yyyy", new Date());
+    } catch {
+      return null;
+    }
+  };
+
+  // Filter and sort confirmations
   const filteredConfirmations = useMemo(() => {
     if (!confirmations) return [];
 
-    return confirmations.filter((c) => {
+    const filtered = confirmations.filter((c) => {
       // Search filter
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
@@ -89,16 +105,48 @@ export function Dashboard() {
         }
       }
 
-      return matchesSearch && matchesMonth;
+      // Date range filter (based on arrival date)
+      let matchesDateRange = true;
+      if (dateFrom || dateTo) {
+        const arrivalDate = parseArrivalDate(c.arrival_date);
+        if (arrivalDate) {
+          const arrivalDay = startOfDay(arrivalDate);
+          if (dateFrom && dateTo) {
+            matchesDateRange =
+              (isAfter(arrivalDay, startOfDay(dateFrom)) || isEqual(arrivalDay, startOfDay(dateFrom))) &&
+              (isBefore(arrivalDay, startOfDay(dateTo)) || isEqual(arrivalDay, startOfDay(dateTo)));
+          } else if (dateFrom) {
+            matchesDateRange = isAfter(arrivalDay, startOfDay(dateFrom)) || isEqual(arrivalDay, startOfDay(dateFrom));
+          } else if (dateTo) {
+            matchesDateRange = isBefore(arrivalDay, startOfDay(dateTo)) || isEqual(arrivalDay, startOfDay(dateTo));
+          }
+        } else {
+          matchesDateRange = false; // No arrival date, exclude from date filter
+        }
+      }
+
+      return matchesSearch && matchesMonth && matchesDateRange;
     });
-  }, [confirmations, searchQuery, filterMonth]);
+
+    // Sort by arrival date (recent to old)
+    return filtered.sort((a, b) => {
+      const dateA = parseArrivalDate(a.arrival_date);
+      const dateB = parseArrivalDate(b.arrival_date);
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1; // No date goes to end
+      if (!dateB) return -1;
+      return dateB.getTime() - dateA.getTime(); // Recent first
+    });
+  }, [confirmations, searchQuery, filterMonth, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setSearchQuery("");
     setFilterMonth("all");
+    setDateFrom(undefined);
+    setDateTo(undefined);
   };
 
-  const hasActiveFilters = searchQuery || filterMonth !== "all";
+  const hasActiveFilters = searchQuery || filterMonth !== "all" || dateFrom || dateTo;
 
   if (error) {
     return (
@@ -222,7 +270,7 @@ export function Dashboard() {
               </div>
               <Select value={filterMonth} onValueChange={setFilterMonth}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by date" />
+                  <SelectValue placeholder="Filter by period" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All time</SelectItem>
@@ -230,6 +278,56 @@ export function Dashboard() {
                   <SelectItem value="last-month">Last month</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* Date From Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[150px] justify-start text-left font-normal",
+                      !dateFrom && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "From date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={setDateFrom}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              {/* Date To Filter */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[150px] justify-start text-left font-normal",
+                      !dateTo && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateTo ? format(dateTo, "dd/MM/yyyy") : "To date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={setDateTo}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
                   <X className="h-4 w-4 mr-1" />

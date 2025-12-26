@@ -13,16 +13,30 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
+
+type AppRole = "admin" | "worker" | "visitor";
 
 interface Profile {
   id: string;
   email: string;
   approved: boolean;
   created_at: string;
+}
+
+interface UserRole {
+  user_id: string;
+  role: AppRole;
 }
 
 const AdminPanel = () => {
@@ -63,6 +77,27 @@ const AdminPanel = () => {
     enabled: isAdmin === true,
   });
 
+  // Fetch all user roles
+  const { data: userRoles } = useQuery({
+    queryKey: ["admin-user-roles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+      
+      if (error) throw error;
+      return data as UserRole[];
+    },
+    enabled: isAdmin === true,
+  });
+
+  // Get role for a specific user
+  const getUserRole = (userId: string): AppRole | null => {
+    if (!userRoles) return null;
+    const userRole = userRoles.find(r => r.user_id === userId);
+    return userRole?.role as AppRole || null;
+  };
+
   const approveMutation = useMutation({
     mutationFn: async ({ userId, userEmail }: { userId: string; userEmail: string }) => {
       // Update approval status
@@ -73,6 +108,16 @@ const AdminPanel = () => {
       
       if (error) throw error;
 
+      // Assign 'visitor' role to the newly approved user
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({ user_id: userId, role: "visitor" }, { onConflict: "user_id,role" });
+
+      if (roleError) {
+        console.error("Error assigning visitor role:", roleError);
+        // Don't fail the approval, just log the error
+      }
+
       // Send notification email to user
       await supabase.functions.invoke("user-approval", {
         body: { action: "notify-approved", userEmail },
@@ -80,6 +125,7 @@ const AdminPanel = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
       toast({ title: "User approved", description: "User has been approved and notified via email." });
     },
     onError: (error: Error) => {
@@ -122,6 +168,39 @@ const AdminPanel = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+
+  const changeRoleMutation = useMutation({
+    mutationFn: async ({ userId, newRole }: { userId: string; newRole: AppRole }) => {
+      // First delete existing role for this user
+      await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+      
+      // Then insert new role
+      const { error } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: newRole });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-user-roles"] });
+      toast({ title: "Role updated", description: "User role has been changed." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const getRoleBadgeVariant = (role: AppRole | null) => {
+    switch (role) {
+      case "admin": return "default";
+      case "worker": return "secondary";
+      case "visitor": return "outline";
+      default: return "outline";
+    }
+  };
 
   // Show loading while checking admin status
   if (isAdminLoading) {
@@ -298,36 +377,69 @@ const AdminPanel = () => {
                     <TableRow className="bg-muted/50">
                       <TableHead>Email</TableHead>
                       <TableHead>Joined</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Role</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {approvedUsers.map((profile) => (
-                      <TableRow key={profile.id}>
-                        <TableCell className="font-medium">{profile.email}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(profile.created_at), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="default" className="bg-emerald-500">Approved</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {profile.id !== user?.id && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => revokeMutation.mutate(profile.id)}
-                              disabled={revokeMutation.isPending}
-                            >
-                              <Ban className="h-4 w-4 mr-1" />
-                              Revoke
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {approvedUsers.map((profile) => {
+                      const currentRole = getUserRole(profile.id);
+                      const isCurrentUser = profile.id === user?.id;
+                      
+                      return (
+                        <TableRow key={profile.id}>
+                          <TableCell className="font-medium">{profile.email}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {format(new Date(profile.created_at), "MMM d, yyyy")}
+                          </TableCell>
+                          <TableCell>
+                            {isCurrentUser ? (
+                              <Badge variant={getRoleBadgeVariant(currentRole)}>
+                                {currentRole || "No role"}
+                              </Badge>
+                            ) : (
+                              <Select
+                                value={currentRole || ""}
+                                onValueChange={(value) => 
+                                  changeRoleMutation.mutate({ 
+                                    userId: profile.id, 
+                                    newRole: value as AppRole 
+                                  })
+                                }
+                                disabled={changeRoleMutation.isPending}
+                              >
+                                <SelectTrigger className="w-[120px]">
+                                  <SelectValue placeholder="Select role">
+                                    <Badge variant={getRoleBadgeVariant(currentRole)}>
+                                      {currentRole || "No role"}
+                                    </Badge>
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="worker">Worker</SelectItem>
+                                  <SelectItem value="visitor">Visitor</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {!isCurrentUser && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => revokeMutation.mutate(profile.id)}
+                                disabled={revokeMutation.isPending}
+                              >
+                                <Ban className="h-4 w-4 mr-1" />
+                                Revoke
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

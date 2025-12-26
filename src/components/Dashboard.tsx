@@ -41,11 +41,13 @@ import {
 } from "@/hooks/useConfirmations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
 import rtgLogoFull from "@/assets/rtg-logo-full.png";
 
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { isAdmin, canEdit } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
@@ -180,16 +182,18 @@ export function Dashboard() {
             <Button variant="outline" onClick={() => navigate("/saved-data")}>
               Saved Data
             </Button>
-            {user?.email === "am1ko.ch4b1n1dze@gmail.com" && (
+            {isAdmin && (
               <Button variant="outline" onClick={() => navigate("/admin")}>
                 <Shield className="h-4 w-4 mr-2" />
                 Admin
               </Button>
             )}
-            <Button onClick={() => navigate("/new")} size="lg">
-              <Plus className="h-5 w-5 mr-2" />
-              New Confirmation
-            </Button>
+            {canEdit && (
+              <Button onClick={() => navigate("/new")} size="lg">
+                <Plus className="h-5 w-5 mr-2" />
+                New Confirmation
+              </Button>
+            )}
             <div className="flex items-center gap-2 pl-2 border-l border-border">
               <span className="text-sm text-muted-foreground">{user?.email}</span>
               <Button variant="ghost" size="icon" onClick={signOut} title="Sign Out">
@@ -246,11 +250,15 @@ export function Dashboard() {
             <CardContent className="pt-6 flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Quick Actions</p>
-                <p className="text-lg font-medium text-foreground mt-1">Create new tour</p>
+                <p className="text-lg font-medium text-foreground mt-1">
+                  {canEdit ? "Create new tour" : "View-only access"}
+                </p>
               </div>
-              <Button variant="outline" onClick={() => navigate("/new")}>
-                <Plus className="h-4 w-4" />
-              </Button>
+              {canEdit && (
+                <Button variant="outline" onClick={() => navigate("/new")}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -366,7 +374,7 @@ export function Dashboard() {
                     ? "Try adjusting your search or filters"
                     : "Create your first tour confirmation letter"}
                 </p>
-                {!hasActiveFilters && (
+                {!hasActiveFilters && canEdit && (
                   <Button onClick={() => navigate("/new")}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
@@ -441,56 +449,60 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() =>
-                                navigate(`/confirmation/${confirmation.id}/edit`)
-                              }
-                              title="Edit"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDuplicate(confirmation.id)}
-                              disabled={duplicateMutation.isPending}
-                              title="Duplicate"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
+                            {canEdit && (
+                              <>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="text-destructive hover:text-destructive"
-                                  title="Delete"
+                                  onClick={() =>
+                                    navigate(`/confirmation/${confirmation.id}/edit`)
+                                  }
+                                  title="Edit"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Edit className="h-4 w-4" />
                                 </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete confirmation{" "}
-                                    <strong>{confirmation.confirmation_code}</strong>? This
-                                    action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(confirmation.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDuplicate(confirmation.id)}
+                                  disabled={duplicateMutation.isPending}
+                                  title="Duplicate"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-destructive hover:text-destructive"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete confirmation{" "}
+                                        <strong>{confirmation.confirmation_code}</strong>? This
+                                        action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDelete(confirmation.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Delete
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </>
+                            )}
                           </div>
                           </TableCell>
                         </TableRow>

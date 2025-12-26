@@ -159,6 +159,18 @@ Deno.serve(async (req) => {
         return new Response("Error approving user", { status: 500 });
       }
 
+      // Assign 'visitor' role to the newly approved user
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({ user_id: userId, role: "visitor" }, { onConflict: "user_id,role" });
+
+      if (roleError) {
+        console.error("Error assigning visitor role:", roleError);
+        // Don't fail the approval, just log the error
+      } else {
+        console.log(`Assigned 'visitor' role to user ${userId}`);
+      }
+
       // Send notification email to user
       if (profile?.email && gmailUser && gmailPassword) {
         try {

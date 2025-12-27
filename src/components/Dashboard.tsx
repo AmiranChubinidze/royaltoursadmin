@@ -50,11 +50,13 @@ export function Dashboard() {
   // Effective role (for "View as" feature - only affects UI display, not actual permissions)
   const effectiveRole = viewAsRole || role;
   const effectiveCanEdit = viewAsRole ? (viewAsRole === "admin" || viewAsRole === "worker") : canEdit;
-  const effectiveIsVisitor = viewAsRole ? (viewAsRole === "visitor" || viewAsRole === "booking") : (role === "visitor" || role === "booking");
+  const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
+  const effectiveIsBooking = viewAsRole ? viewAsRole === "booking" : role === "booking";
+  const effectiveCanManageConfirmations = effectiveCanEdit; // Only admin/worker can edit, duplicate, create, delete, send emails
   
   // Actual permissions - admin always has full access regardless of "View as" setting
   const actualCanEdit = canEdit;
-  const actualIsVisitor = role === "visitor" || role === "booking";
+  const actualIsVisitor = role === "visitor";
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
 
@@ -195,7 +197,7 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            {effectiveCanEdit && (
+            {effectiveCanManageConfirmations && (
               <Button variant="outline" onClick={() => navigate("/saved-data")}>
                 Saved Data
               </Button>
@@ -255,7 +257,7 @@ export function Dashboard() {
                 </PopoverContent>
               </Popover>
             )}
-            {effectiveCanEdit && (
+            {effectiveCanManageConfirmations && (
               <Button onClick={() => navigate("/new")} size="lg">
                 <Plus className="h-5 w-5 mr-2" />
                 New Confirmation
@@ -334,10 +336,10 @@ export function Dashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Quick Actions</p>
                 <p className="text-lg font-medium text-foreground mt-1">
-                  {effectiveCanEdit ? "Create new tour" : "View-only access"}
+                  {effectiveCanManageConfirmations ? "Create new tour" : effectiveIsBooking ? "Manage payments" : "View-only access"}
                 </p>
               </div>
-              {effectiveCanEdit && (
+              {effectiveCanManageConfirmations && (
                 <Button variant="outline" onClick={() => navigate("/new")}>
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -480,7 +482,7 @@ export function Dashboard() {
                     ? "Try adjusting your search or filters"
                     : "Create your first tour confirmation letter"}
                 </p>
-                {!hasActiveFilters && effectiveCanEdit && (
+                {!hasActiveFilters && effectiveCanManageConfirmations && (
                   <Button onClick={() => navigate("/new")}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
@@ -560,7 +562,7 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {!effectiveIsVisitor && (
+                            {(effectiveIsBooking || effectiveCanManageConfirmations) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -570,7 +572,7 @@ export function Dashboard() {
                                 <Paperclip className="h-4 w-4" />
                               </Button>
                             )}
-                            {effectiveCanEdit && (
+                            {effectiveCanManageConfirmations && (
                               <>
                                 <Button
                                   variant="ghost"

@@ -181,6 +181,47 @@ export const useMarkAsPaid = () => {
   });
 };
 
+export const useUnmarkAsPaid = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (confirmationId: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("confirmations")
+        .update({
+          is_paid: false,
+          paid_at: null,
+          paid_by: null,
+        })
+        .eq("id", confirmationId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation"] });
+      toast({
+        title: "Unmarked as Paid",
+        description: "This confirmation has been unmarked as paid.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to unmark as paid",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+};
+
 export const useGetAttachmentUrl = () => {
   return async (filePath: string) => {
     const { data } = await supabase.storage

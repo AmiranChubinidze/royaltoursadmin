@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,7 @@ import {
   useUploadAttachment, 
   useDeleteAttachment, 
   useMarkAsPaid,
+  useUnmarkAsPaid,
   useGetAttachmentUrl,
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -38,7 +39,10 @@ export default function ConfirmationAttachments() {
   const uploadMutation = useUploadAttachment();
   const deleteMutation = useDeleteAttachment();
   const markPaidMutation = useMarkAsPaid();
+  const unmarkPaidMutation = useUnmarkAsPaid();
   const getAttachmentUrl = useGetAttachmentUrl();
+  
+  const isAdmin = role === "admin";
   
   const [isDragging, setIsDragging] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -388,6 +392,56 @@ export default function ConfirmationAttachments() {
               </AlertDialog>
               <p className="text-center text-sm text-emerald-700 dark:text-emerald-400 mt-3">
                 {attachments?.length} document{attachments?.length !== 1 ? "s" : ""} attached
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Unmark as Paid Button - Only for admin when already paid */}
+        {isAdmin && isPaid && (
+          <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-900">
+            <CardContent className="pt-6">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline"
+                    className="w-full h-12 text-amber-700 border-amber-300 hover:bg-amber-100 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-950"
+                    disabled={unmarkPaidMutation.isPending}
+                  >
+                    {unmarkPaidMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Unmark as Paid
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Revert Payment Status</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to unmark <strong>{confirmation.confirmation_code}</strong> as paid? 
+                      This will set the confirmation back to pending status.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => unmarkPaidMutation.mutate(id!)}
+                      className="bg-amber-500 text-white hover:bg-amber-600"
+                    >
+                      Unmark as Paid
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              <p className="text-center text-xs text-muted-foreground mt-3">
+                Admin only action
               </p>
             </CardContent>
           </Card>

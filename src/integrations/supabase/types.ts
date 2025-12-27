@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      confirmation_attachments: {
+        Row: {
+          confirmation_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          uploaded_at: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          confirmation_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          confirmation_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "confirmation_attachments_confirmation_id_fkey"
+            columns: ["confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "confirmations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       confirmations: {
         Row: {
           arrival_date: string | null
@@ -23,7 +61,10 @@ export type Database = {
           date_code: string
           departure_date: string | null
           id: string
+          is_paid: boolean | null
           main_client_name: string | null
+          paid_at: string | null
+          paid_by: string | null
           raw_payload: Json | null
           total_days: number | null
           total_nights: number | null
@@ -38,7 +79,10 @@ export type Database = {
           date_code: string
           departure_date?: string | null
           id?: string
+          is_paid?: boolean | null
           main_client_name?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           raw_payload?: Json | null
           total_days?: number | null
           total_nights?: number | null
@@ -53,7 +97,10 @@ export type Database = {
           date_code?: string
           departure_date?: string | null
           id?: string
+          is_paid?: boolean | null
           main_client_name?: string | null
+          paid_at?: string | null
+          paid_by?: string | null
           raw_payload?: Json | null
           total_days?: number | null
           total_nights?: number | null

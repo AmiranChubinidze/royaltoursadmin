@@ -195,56 +195,59 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            {actualCanEdit && (
+            {effectiveCanEdit && (
               <Button variant="outline" onClick={() => navigate("/saved-data")}>
                 Saved Data
               </Button>
             )}
-            {isAdmin && (
-              <>
-                <Button variant="outline" onClick={() => navigate("/admin")}>
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin
-                </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4 mr-2" />
-                      {viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-40 p-1" align="end">
-                    <div className="space-y-1">
-                      <Button
-                        variant={viewAsRole === null ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start text-sm"
-                        onClick={() => setViewAsRole(null)}
-                      >
-                        My Role ({role})
-                      </Button>
-                      <Button
-                        variant={viewAsRole === "worker" ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start text-sm"
-                        onClick={() => setViewAsRole("worker")}
-                      >
-                        Worker
-                      </Button>
-                      <Button
-                        variant={viewAsRole === "visitor" ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start text-sm"
-                        onClick={() => setViewAsRole("visitor")}
-                      >
-                        Visitor
-                      </Button>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </>
+            {isAdmin && !viewAsRole && (
+              <Button variant="outline" onClick={() => navigate("/admin")}>
+                <Shield className="h-4 w-4 mr-2" />
+                Admin
+              </Button>
             )}
-            {actualCanEdit && (
+            {isAdmin && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant={viewAsRole ? "secondary" : "outline"} 
+                    size="icon"
+                    title={viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40 p-1" align="end">
+                  <div className="space-y-1">
+                    <Button
+                      variant={viewAsRole === null ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start text-sm"
+                      onClick={() => setViewAsRole(null)}
+                    >
+                      My Role ({role})
+                    </Button>
+                    <Button
+                      variant={viewAsRole === "worker" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start text-sm"
+                      onClick={() => setViewAsRole("worker")}
+                    >
+                      Worker
+                    </Button>
+                    <Button
+                      variant={viewAsRole === "visitor" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start text-sm"
+                      onClick={() => setViewAsRole("visitor")}
+                    >
+                      Visitor
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+            {effectiveCanEdit && (
               <Button onClick={() => navigate("/new")} size="lg">
                 <Plus className="h-5 w-5 mr-2" />
                 New Confirmation
@@ -326,7 +329,7 @@ export function Dashboard() {
                   {effectiveCanEdit ? "Create new tour" : "View-only access"}
                 </p>
               </div>
-              {actualCanEdit && (
+              {effectiveCanEdit && (
                 <Button variant="outline" onClick={() => navigate("/new")}>
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -469,7 +472,7 @@ export function Dashboard() {
                     ? "Try adjusting your search or filters"
                     : "Create your first tour confirmation letter"}
                 </p>
-                {!hasActiveFilters && actualCanEdit && (
+                {!hasActiveFilters && effectiveCanEdit && (
                   <Button onClick={() => navigate("/new")}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
@@ -544,7 +547,7 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {actualCanEdit && (
+                            {effectiveCanEdit && (
                               <>
                                 <Button
                                   variant="ghost"

@@ -50,11 +50,11 @@ export function Dashboard() {
   // Effective role (for "View as" feature - only affects UI display, not actual permissions)
   const effectiveRole = viewAsRole || role;
   const effectiveCanEdit = viewAsRole ? (viewAsRole === "admin" || viewAsRole === "worker") : canEdit;
-  const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
+  const effectiveIsVisitor = viewAsRole ? (viewAsRole === "visitor" || viewAsRole === "booking") : (role === "visitor" || role === "booking");
   
   // Actual permissions - admin always has full access regardless of "View as" setting
   const actualCanEdit = canEdit;
-  const actualIsVisitor = role === "visitor";
+  const actualIsVisitor = role === "visitor" || role === "booking";
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
 
@@ -242,6 +242,14 @@ export function Dashboard() {
                       onClick={() => setViewAsRole("visitor")}
                     >
                       Visitor
+                    </Button>
+                    <Button
+                      variant={viewAsRole === "booking" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start text-sm"
+                      onClick={() => setViewAsRole("booking")}
+                    >
+                      Booking
                     </Button>
                   </div>
                 </PopoverContent>

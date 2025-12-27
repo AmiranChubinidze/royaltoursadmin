@@ -25,7 +25,7 @@ import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban } from "lucide-reac
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
-type AppRole = "admin" | "worker" | "visitor";
+type AppRole = "admin" | "worker" | "visitor" | "booking";
 
 interface Profile {
   id: string;
@@ -198,6 +198,7 @@ const AdminPanel = () => {
       case "admin": return "default";
       case "worker": return "secondary";
       case "visitor": return "outline";
+      case "booking": return "outline";
       default: return "outline";
     }
   };
@@ -419,6 +420,7 @@ const AdminPanel = () => {
                                   <SelectItem value="admin">Admin</SelectItem>
                                   <SelectItem value="worker">Worker</SelectItem>
                                   <SelectItem value="visitor">Visitor</SelectItem>
+                                  <SelectItem value="booking">Booking</SelectItem>
                                 </SelectContent>
                               </Select>
                             )}

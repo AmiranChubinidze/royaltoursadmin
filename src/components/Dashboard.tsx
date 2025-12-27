@@ -47,10 +47,14 @@ export function Dashboard() {
   // Admin "View as" feature
   const [viewAsRole, setViewAsRole] = useState<string | null>(null);
   
-  // Effective role (for "View as" feature)
+  // Effective role (for "View as" feature - only affects UI display, not actual permissions)
   const effectiveRole = viewAsRole || role;
   const effectiveCanEdit = viewAsRole ? (viewAsRole === "admin" || viewAsRole === "worker") : canEdit;
   const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
+  
+  // Actual permissions - admin always has full access regardless of "View as" setting
+  const actualCanEdit = canEdit;
+  const actualIsVisitor = role === "visitor";
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
 
@@ -191,7 +195,7 @@ export function Dashboard() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            {effectiveCanEdit && (
+            {actualCanEdit && (
               <Button variant="outline" onClick={() => navigate("/saved-data")}>
                 Saved Data
               </Button>
@@ -240,7 +244,7 @@ export function Dashboard() {
                 </Popover>
               </>
             )}
-            {effectiveCanEdit && (
+            {actualCanEdit && (
               <Button onClick={() => navigate("/new")} size="lg">
                 <Plus className="h-5 w-5 mr-2" />
                 New Confirmation
@@ -322,7 +326,7 @@ export function Dashboard() {
                   {effectiveCanEdit ? "Create new tour" : "View-only access"}
                 </p>
               </div>
-              {effectiveCanEdit && (
+              {actualCanEdit && (
                 <Button variant="outline" onClick={() => navigate("/new")}>
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -465,7 +469,7 @@ export function Dashboard() {
                     ? "Try adjusting your search or filters"
                     : "Create your first tour confirmation letter"}
                 </p>
-                {!hasActiveFilters && effectiveCanEdit && (
+                {!hasActiveFilters && actualCanEdit && (
                   <Button onClick={() => navigate("/new")}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
@@ -540,7 +544,7 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {effectiveCanEdit && (
+                            {actualCanEdit && (
                               <>
                                 <Button
                                   variant="ghost"

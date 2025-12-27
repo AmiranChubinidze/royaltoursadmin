@@ -43,17 +43,19 @@ export default function ConfirmationAttachments() {
   const getAttachmentUrl = useGetAttachmentUrl();
   
   const isAdmin = role === "admin";
+  const isWorker = role === "worker";
   
   const [isDragging, setIsDragging] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   
-  const canEdit = role === "admin" || role === "booking";
-  const isWorkerView = role === "worker";
+  const canUpload = role === "admin" || role === "booking";
+  const canDelete = role === "admin" || role === "worker";
+  const isBookingView = role === "booking";
   
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    if (canEdit) setIsDragging(true);
-  }, [canEdit]);
+    if (canUpload) setIsDragging(true);
+  }, [canUpload]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -64,7 +66,7 @@ export default function ConfirmationAttachments() {
     e.preventDefault();
     setIsDragging(false);
     
-    if (!canEdit || !id) return;
+    if (!canUpload || !id) return;
     
     const files = Array.from(e.dataTransfer.files);
     const pdfFiles = files.filter(f => f.type === "application/pdf");
@@ -72,10 +74,10 @@ export default function ConfirmationAttachments() {
     pdfFiles.forEach(file => {
       uploadMutation.mutate({ confirmationId: id, file });
     });
-  }, [canEdit, id, uploadMutation]);
+  }, [canUpload, id, uploadMutation]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!canEdit || !id || !e.target.files) return;
+    if (!canUpload || !id || !e.target.files) return;
     
     const files = Array.from(e.target.files);
     files.forEach(file => {
@@ -83,7 +85,7 @@ export default function ConfirmationAttachments() {
     });
     
     e.target.value = "";
-  }, [canEdit, id, uploadMutation]);
+  }, [canUpload, id, uploadMutation]);
 
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
     setDownloadingId(attachmentId);
@@ -199,21 +201,21 @@ export default function ConfirmationAttachments() {
           </CardHeader>
         </Card>
 
-        {/* Attachments List */}
+        {/* Invoices List */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <FileText className="h-5 w-5 text-primary" />
-              Attached Documents
+              Invoices
               {attachments && attachments.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {attachments.length}
                 </Badge>
               )}
             </CardTitle>
-            {isWorkerView && (
+            {isWorker && (
               <CardDescription>
-                View-only access. Contact booking team to upload documents.
+                View-only access. Contact booking team to upload invoices.
               </CardDescription>
             )}
           </CardHeader>
@@ -255,7 +257,7 @@ export default function ConfirmationAttachments() {
                           <Download className="h-4 w-4" />
                         )}
                       </Button>
-                      {canEdit && (
+                      {canDelete && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -269,7 +271,7 @@ export default function ConfirmationAttachments() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Attachment</AlertDialogTitle>
+                              <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
                               <AlertDialogDescription>
                                 Are you sure you want to delete "{attachment.file_name}"? This action cannot be undone.
                               </AlertDialogDescription>
@@ -297,15 +299,15 @@ export default function ConfirmationAttachments() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>No documents attached yet</p>
-                {canEdit && <p className="text-sm mt-1">Upload PDFs below to get started</p>}
+                <p>No invoices attached yet</p>
+                {canUpload && <p className="text-sm mt-1">Upload PDF invoices below to get started</p>}
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Upload Area - Only for booking/admin */}
-        {canEdit && (
+        {canUpload && (
           <Card className="mb-6">
             <CardContent className="pt-6">
               <label
@@ -327,7 +329,7 @@ export default function ConfirmationAttachments() {
                   <p className="mb-2 text-sm text-foreground">
                     <span className="font-semibold">Click to upload</span> or drag and drop
                   </p>
-                  <p className="text-xs text-muted-foreground">PDF files only</p>
+                  <p className="text-xs text-muted-foreground">PDF invoices only</p>
                 </div>
                 <input
                   type="file"
@@ -348,8 +350,8 @@ export default function ConfirmationAttachments() {
           </Card>
         )}
 
-        {/* Mark as Paid Button - Only for booking/admin when there are attachments */}
-        {canEdit && hasAttachments && !isPaid && (
+        {/* Mark as Paid Button - Only for booking/admin when there are invoices */}
+        {canUpload && hasAttachments && !isPaid && (
           <Card className="border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-900">
             <CardContent className="pt-6">
               <AlertDialog>
@@ -391,7 +393,7 @@ export default function ConfirmationAttachments() {
                 </AlertDialogContent>
               </AlertDialog>
               <p className="text-center text-sm text-emerald-700 dark:text-emerald-400 mt-3">
-                {attachments?.length} document{attachments?.length !== 1 ? "s" : ""} attached
+                {attachments?.length} invoice{attachments?.length !== 1 ? "s" : ""} attached
               </p>
             </CardContent>
           </Card>

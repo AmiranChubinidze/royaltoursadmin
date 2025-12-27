@@ -567,7 +567,7 @@ export function Dashboard() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => navigate(`/confirmation/${confirmation.id}/attachments`)}
-                                title="Attachments"
+                                title="Invoices"
                               >
                                 <Paperclip className="h-4 w-4" />
                               </Button>

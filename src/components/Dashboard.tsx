@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   useConfirmations,
@@ -515,6 +515,11 @@ export function Dashboard() {
                         >
                           <TableCell className="font-mono font-semibold text-primary">
                             <div className="flex items-center gap-2">
+                              {(confirmation as any).is_paid && (
+                                <span title="Paid">
+                                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                                </span>
+                              )}
                               {confirmation.confirmation_code}
                               {wasEdited && !effectiveIsVisitor && (
                                 <span className="text-xs text-muted-foreground font-normal">
@@ -555,6 +560,16 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {!effectiveIsVisitor && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => navigate(`/confirmation/${confirmation.id}/attachments`)}
+                                title="Attachments"
+                              >
+                                <Paperclip className="h-4 w-4" />
+                              </Button>
+                            )}
                             {effectiveCanEdit && (
                               <>
                                 <Button

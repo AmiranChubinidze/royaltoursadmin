@@ -60,12 +60,14 @@ export type Database = {
           created_at: string
           date_code: string
           departure_date: string | null
+          hotels_emailed: string[] | null
           id: string
           is_paid: boolean | null
           main_client_name: string | null
           paid_at: string | null
           paid_by: string | null
           raw_payload: Json | null
+          status: string
           total_days: number | null
           total_nights: number | null
           tour_source: string | null
@@ -78,12 +80,14 @@ export type Database = {
           created_at?: string
           date_code: string
           departure_date?: string | null
+          hotels_emailed?: string[] | null
           id?: string
           is_paid?: boolean | null
           main_client_name?: string | null
           paid_at?: string | null
           paid_by?: string | null
           raw_payload?: Json | null
+          status?: string
           total_days?: number | null
           total_nights?: number | null
           tour_source?: string | null
@@ -96,12 +100,14 @@ export type Database = {
           created_at?: string
           date_code?: string
           departure_date?: string | null
+          hotels_emailed?: string[] | null
           id?: string
           is_paid?: boolean | null
           main_client_name?: string | null
           paid_at?: string | null
           paid_by?: string | null
           raw_payload?: Json | null
+          status?: string
           total_days?: number | null
           total_nights?: number | null
           tour_source?: string | null

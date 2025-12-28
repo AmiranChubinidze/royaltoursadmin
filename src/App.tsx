@@ -15,6 +15,7 @@ import SavedData from "./pages/SavedData";
 import AdminPanel from "./pages/AdminPanel";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import CreateBookingRequest from "./pages/CreateBookingRequest";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/confirmation/:id" element={<ProtectedRoute><ViewConfirmation /></ProtectedRoute>} />
           <Route path="/confirmation/:id/edit" element={<ProtectedRoute><EditableRoute><EditConfirmation /></EditableRoute></ProtectedRoute>} />
           <Route path="/confirmation/:id/attachments" element={<ProtectedRoute><BookingRoute><ConfirmationAttachments /></BookingRoute></ProtectedRoute>} />
+          <Route path="/create-booking-request" element={<ProtectedRoute><BookingRoute><CreateBookingRequest /></BookingRoute></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

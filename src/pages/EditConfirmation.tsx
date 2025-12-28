@@ -78,7 +78,7 @@ function generateItineraryFromBookings(hotelBookings: HotelBooking[]): Itinerary
       route: "",
       hotel: hotelForNight?.hotelName || "",
       roomType: hotelForNight?.roomCategory || "",
-      meals: hotelForNight?.mealType === "FB" ? "YES" : "BB",
+      meals: "YES", // Always YES for driver
     });
 
     currentDate = datePlusDays(currentDate, 1);
@@ -156,22 +156,25 @@ export default function EditConfirmation() {
       departureDate = formatDateDDMMYYYY(new Date(Math.max(...allCheckOuts.map((d) => d.getTime()))));
     }
 
-    // Use guest counts from first booking as default
-    if (hotelBookings[0]) {
-      numAdults = hotelBookings[0].numAdults || 1;
-      numKids = hotelBookings[0].numKids || 0;
-    }
-
-    console.log("Draft completion - Generated itinerary:", generatedItinerary);
+    // Use max guest counts from hotel bookings
+    numAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 1);
+    numKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
   }
+
+  // Generate empty client fields if needed (based on total guests)
+  const totalGuests = numAdults + numKids;
+  const generateEmptyClients = () => Array.from({ length: Math.max(1, totalGuests) }, () => ({ name: "", passport: "" }));
+
+  // Check if existing clients have any filled data
+  const hasFilledClients = payload?.clients?.some(c => c.name.trim() !== "" || c.passport.trim() !== "");
 
   // Determine initial data - use generated data for drafts with hotel bookings
   const initialData: Partial<ConfirmationFormData> = {
     tourSource: confirmation.tour_source || payload?.tourSource || "",
     trackingNumber: payload?.trackingNumber || "",
-    clients: payload?.clients?.length > 0 
+    clients: hasFilledClients 
       ? payload.clients 
-      : [{ name: "", passport: "" }],
+      : (hasHotelBookings ? generateEmptyClients() : [{ name: "", passport: "" }]),
     guestInfo: payload?.guestInfo || { 
       numAdults: hasHotelBookings ? numAdults : 1, 
       numKids: hasHotelBookings ? numKids : 0, 
@@ -187,7 +190,7 @@ export default function EditConfirmation() {
       ? generatedItinerary
       : (payload?.itinerary?.length > 0 
           ? payload.itinerary 
-          : [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "" }]),
+          : [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "YES" }]),
     services: payload?.services || "",
     notes: payload?.notes || "",
   };

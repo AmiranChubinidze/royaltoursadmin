@@ -1,8 +1,88 @@
-import { Confirmation, ConfirmationPayload } from "@/types/confirmation";
+import { Confirmation, ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
 import signatureStamp from "@/assets/signature-stamp.jpg";
 
 interface ConfirmationLetterProps {
   confirmation: Confirmation;
+}
+
+// Helper to parse DD/MM/YYYY dates
+function parseDateDDMMYYYY(value: string): Date | null {
+  if (!value) return null;
+  const parts = value.split(/[\/\-]/);
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
+  const d = new Date(yyyy, mm - 1, dd);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateDDMMYYYY(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function datePlusDays(date: Date, days: number): Date {
+  const d = new Date(date.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+// Generate itinerary from hotelBookings data for display
+function generateItineraryFromBookings(hotelBookings: HotelBooking[]): ItineraryDay[] {
+  if (!hotelBookings || hotelBookings.length === 0) return [];
+
+  // Sort bookings by check-in date
+  const sortedBookings = [...hotelBookings].sort((a, b) => {
+    const dateA = parseDateDDMMYYYY(a.checkIn);
+    const dateB = parseDateDDMMYYYY(b.checkIn);
+    if (!dateA || !dateB) return 0;
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  // Find the earliest check-in and latest check-out
+  const allCheckIns = sortedBookings.map((b) => parseDateDDMMYYYY(b.checkIn)).filter((d): d is Date => d !== null);
+  const allCheckOuts = sortedBookings.map((b) => parseDateDDMMYYYY(b.checkOut)).filter((d): d is Date => d !== null);
+
+  if (allCheckIns.length === 0 || allCheckOuts.length === 0) return [];
+
+  const earliestCheckIn = new Date(Math.min(...allCheckIns.map((d) => d.getTime())));
+  const latestCheckOut = new Date(Math.max(...allCheckOuts.map((d) => d.getTime())));
+
+  // Generate itinerary days
+  const itinerary: ItineraryDay[] = [];
+  let currentDate = new Date(earliestCheckIn);
+
+  while (currentDate < latestCheckOut) {
+    const dateStr = formatDateDDMMYYYY(currentDate);
+
+    // Find which hotel covers this night
+    let hotelForNight: HotelBooking | undefined;
+    for (const booking of sortedBookings) {
+      const checkIn = parseDateDDMMYYYY(booking.checkIn);
+      const checkOut = parseDateDDMMYYYY(booking.checkOut);
+      if (checkIn && checkOut) {
+        // Check if currentDate is >= checkIn and < checkOut
+        if (currentDate >= checkIn && currentDate < checkOut) {
+          hotelForNight = booking;
+          break;
+        }
+      }
+    }
+
+    itinerary.push({
+      date: dateStr,
+      day: "",
+      route: "",
+      hotel: hotelForNight?.hotelName || "",
+      roomType: hotelForNight?.roomCategory || "",
+      meals: hotelForNight?.mealType === "FB" ? "YES" : "BB",
+    });
+
+    currentDate = datePlusDays(currentDate, 1);
+  }
+
+  return itinerary;
 }
 
 export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
@@ -10,8 +90,15 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
   const clients = payload?.clients || [];
   const arrival = payload?.arrival || { date: "", time: "", flight: "", from: "" };
   const departure = payload?.departure || { date: "", time: "", flight: "", to: "" };
-  const itinerary = payload?.itinerary || [];
   const trackingNumber = payload?.trackingNumber;
+  
+  // For drafts with hotelBookings but no itinerary, generate it on-the-fly
+  const hotelBookings = payload?.hotelBookings;
+  let itinerary = payload?.itinerary || [];
+  
+  if (itinerary.length === 0 && hotelBookings && hotelBookings.length > 0) {
+    itinerary = generateItineraryFromBookings(hotelBookings);
+  }
 
   return (
     <div 

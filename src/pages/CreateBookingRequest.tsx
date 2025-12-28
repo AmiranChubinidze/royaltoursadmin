@@ -162,6 +162,24 @@ export default function CreateBookingRequest() {
         ? formatDateDDMMYYYY(new Date(Math.max(...checkOutDates.map((d) => d.getTime()))))
         : null;
 
+      // Calculate total days and nights from earliest check-in to latest check-out
+      let totalDays = 1;
+      let totalNights = 0;
+      if (checkInDates.length > 0 && checkOutDates.length > 0) {
+        const earliestDate = new Date(Math.min(...checkInDates.map((d) => d.getTime())));
+        const latestDate = new Date(Math.max(...checkOutDates.map((d) => d.getTime())));
+        const diffTime = latestDate.getTime() - earliestDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        totalNights = diffDays;
+        totalDays = diffDays + 1;
+      }
+
+      // Calculate total guests from all hotel bookings and create empty client fields
+      const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
+      const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
+      const totalGuests = totalAdults + totalKids;
+      const emptyClients = Array.from({ length: totalGuests }, () => ({ name: "", passport: "" }));
+
       const { error: insertError } = await supabase
         .from("confirmations")
         .insert([{
@@ -172,9 +190,12 @@ export default function CreateBookingRequest() {
           hotels_emailed: hotelNames,
           arrival_date: earliestCheckIn,
           departure_date: latestCheckOut,
+          total_days: totalDays,
+          total_nights: totalNights,
           raw_payload: {
             hotelBookings: hotelBookings,
-            clients: [],
+            clients: emptyClients,
+            guestInfo: { numAdults: totalAdults, numKids: totalKids, kidsAges: [] },
             arrival: { date: earliestCheckIn || "", time: "", flight: "", from: "" },
             departure: { date: latestCheckOut || "", time: "", flight: "", to: "" },
             itinerary: [],

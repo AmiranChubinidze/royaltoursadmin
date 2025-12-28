@@ -76,7 +76,7 @@ function generateItineraryFromBookings(hotelBookings: HotelBooking[]): Itinerary
       route: "",
       hotel: hotelForNight?.hotelName || "",
       roomType: hotelForNight?.roomCategory || "",
-      meals: hotelForNight?.mealType === "FB" ? "YES" : "BB",
+      meals: "YES", // Always YES for driver
     });
 
     currentDate = datePlusDays(currentDate, 1);

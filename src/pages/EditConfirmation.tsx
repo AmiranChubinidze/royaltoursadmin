@@ -1,15 +1,98 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ConfirmationForm } from "@/components/ConfirmationForm";
 import { useConfirmation, useUpdateConfirmation } from "@/hooks/useConfirmations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { ConfirmationFormData, ConfirmationPayload } from "@/types/confirmation";
+import { ConfirmationFormData, ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
 import { toast } from "@/hooks/use-toast";
+
+// Helper to parse DD/MM/YYYY dates
+function parseDateDDMMYYYY(value: string): Date | null {
+  if (!value) return null;
+  const parts = value.split(/[\/\-]/);
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
+  const d = new Date(yyyy, mm - 1, dd);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateDDMMYYYY(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function datePlusDays(date: Date, days: number): Date {
+  const d = new Date(date.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+// Generate itinerary from hotelBookings data
+function generateItineraryFromBookings(hotelBookings: HotelBooking[]): ItineraryDay[] {
+  if (!hotelBookings || hotelBookings.length === 0) return [];
+
+  // Sort bookings by check-in date
+  const sortedBookings = [...hotelBookings].sort((a, b) => {
+    const dateA = parseDateDDMMYYYY(a.checkIn);
+    const dateB = parseDateDDMMYYYY(b.checkIn);
+    if (!dateA || !dateB) return 0;
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  // Find the earliest check-in and latest check-out
+  const allCheckIns = sortedBookings.map((b) => parseDateDDMMYYYY(b.checkIn)).filter((d): d is Date => d !== null);
+  const allCheckOuts = sortedBookings.map((b) => parseDateDDMMYYYY(b.checkOut)).filter((d): d is Date => d !== null);
+
+  if (allCheckIns.length === 0 || allCheckOuts.length === 0) return [];
+
+  const earliestCheckIn = new Date(Math.min(...allCheckIns.map((d) => d.getTime())));
+  const latestCheckOut = new Date(Math.max(...allCheckOuts.map((d) => d.getTime())));
+
+  // Generate itinerary days
+  const itinerary: ItineraryDay[] = [];
+  let currentDate = new Date(earliestCheckIn);
+
+  while (currentDate < latestCheckOut) {
+    const dateStr = formatDateDDMMYYYY(currentDate);
+
+    // Find which hotel covers this night
+    let hotelForNight: HotelBooking | undefined;
+    for (const booking of sortedBookings) {
+      const checkIn = parseDateDDMMYYYY(booking.checkIn);
+      const checkOut = parseDateDDMMYYYY(booking.checkOut);
+      if (checkIn && checkOut) {
+        // Check if currentDate is >= checkIn and < checkOut
+        if (currentDate >= checkIn && currentDate < checkOut) {
+          hotelForNight = booking;
+          break;
+        }
+      }
+    }
+
+    itinerary.push({
+      date: dateStr,
+      day: "",
+      route: "",
+      hotel: hotelForNight?.hotelName || "",
+      roomType: hotelForNight?.roomCategory || "",
+      meals: hotelForNight?.mealType === "FB" ? "YES" : "BB",
+    });
+
+    currentDate = datePlusDays(currentDate, 1);
+  }
+
+  return itinerary;
+}
 
 export default function EditConfirmation() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isCompletingDraft = searchParams.get("complete") === "true";
+  
   const { data: confirmation, isLoading, error } = useConfirmation(id);
   const updateMutation = useUpdateConfirmation();
 
@@ -42,21 +125,74 @@ export default function EditConfirmation() {
   }
 
   const payload = confirmation.raw_payload as ConfirmationPayload;
+  const isDraft = confirmation.status === "draft";
+  const hotelBookings = payload?.hotelBookings as HotelBooking[] | undefined;
+
+  // For draft completions, auto-generate itinerary from hotel bookings
+  let generatedItinerary: ItineraryDay[] = [];
+  let arrivalDate = "";
+  let departureDate = "";
+  let numAdults = 1;
+  let numKids = 0;
+
+  if (isDraft && hotelBookings && hotelBookings.length > 0) {
+    generatedItinerary = generateItineraryFromBookings(hotelBookings);
+    
+    // Calculate arrival/departure from hotel bookings
+    const allCheckIns = hotelBookings
+      .map((b) => parseDateDDMMYYYY(b.checkIn))
+      .filter((d): d is Date => d !== null);
+    const allCheckOuts = hotelBookings
+      .map((b) => parseDateDDMMYYYY(b.checkOut))
+      .filter((d): d is Date => d !== null);
+
+    if (allCheckIns.length > 0) {
+      arrivalDate = formatDateDDMMYYYY(new Date(Math.min(...allCheckIns.map((d) => d.getTime()))));
+    }
+    if (allCheckOuts.length > 0) {
+      departureDate = formatDateDDMMYYYY(new Date(Math.max(...allCheckOuts.map((d) => d.getTime()))));
+    }
+
+    // Use guest counts from first booking as default
+    if (hotelBookings[0]) {
+      numAdults = hotelBookings[0].numAdults || 1;
+      numKids = hotelBookings[0].numKids || 0;
+    }
+  }
+
+  // Determine initial data
+  const useGeneratedData = isDraft && hotelBookings && hotelBookings.length > 0;
 
   const initialData: Partial<ConfirmationFormData> = {
-    tourSource: confirmation.tour_source || "",
+    tourSource: confirmation.tour_source || payload?.tourSource || "",
     trackingNumber: payload?.trackingNumber || "",
-    clients: payload?.clients || [{ name: "", passport: "" }],
-    arrival: payload?.arrival || { date: "", time: "", flight: "", from: "" },
-    departure: payload?.departure || { date: "", time: "", flight: "", to: "" },
-    itinerary: payload?.itinerary || [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "" }],
+    clients: payload?.clients?.length > 0 
+      ? payload.clients 
+      : [{ name: "", passport: "" }],
+    guestInfo: payload?.guestInfo || { 
+      numAdults: useGeneratedData ? numAdults : 1, 
+      numKids: useGeneratedData ? numKids : 0, 
+      kidsAges: [] 
+    },
+    arrival: useGeneratedData 
+      ? { date: arrivalDate, time: "", flight: "", from: "" }
+      : (payload?.arrival || { date: "", time: "", flight: "", from: "" }),
+    departure: useGeneratedData
+      ? { date: departureDate, time: "", flight: "", to: "" }
+      : (payload?.departure || { date: "", time: "", flight: "", to: "" }),
+    itinerary: useGeneratedData && generatedItinerary.length > 0
+      ? generatedItinerary
+      : (payload?.itinerary?.length > 0 
+          ? payload.itinerary 
+          : [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "" }]),
     services: payload?.services || "",
     notes: payload?.notes || "",
   };
 
   const handleSubmit = async (data: ConfirmationFormData) => {
     try {
-      await updateMutation.mutateAsync({
+      // When completing a draft, change status to confirmed
+      const updatePayload: any = {
         id: confirmation.id,
         payload: {
           clients: data.clients,
@@ -67,12 +203,24 @@ export default function EditConfirmation() {
           services: data.services,
           notes: data.notes,
           tourSource: data.tourSource,
+          guestInfo: data.guestInfo,
+          // Keep hotelBookings for reference
+          hotelBookings: hotelBookings,
         },
-      });
+      };
+
+      // If completing a draft, update the status
+      if (isDraft && isCompletingDraft) {
+        updatePayload.status = "confirmed";
+      }
+
+      await updateMutation.mutateAsync(updatePayload);
 
       toast({
-        title: "Confirmation updated",
-        description: "Your changes have been saved.",
+        title: isDraft && isCompletingDraft ? "Draft completed" : "Confirmation updated",
+        description: isDraft && isCompletingDraft 
+          ? "The draft has been converted to a confirmed booking."
+          : "Your changes have been saved.",
       });
 
       navigate(`/confirmation/${confirmation.id}`);

@@ -530,6 +530,11 @@ export function Dashboard() {
                         >
                           <TableCell className="font-mono font-semibold text-primary">
                             <div className="flex items-center gap-2">
+                              {confirmation.status === 'draft' && (
+                                <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 text-xs">
+                                  Draft
+                                </Badge>
+                              )}
                               {(confirmation as any).is_paid && (
                                 <span title="Paid">
                                   <CheckCircle className="h-4 w-4 text-emerald-500" />

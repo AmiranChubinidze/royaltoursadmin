@@ -62,6 +62,8 @@ export interface Confirmation {
   raw_payload: ConfirmationPayload;
   created_at: string;
   updated_at: string;
+  status: string;
+  hotels_emailed: string[] | null;
 }
 
 export interface ConfirmationFormData {

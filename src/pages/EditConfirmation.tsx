@@ -135,7 +135,10 @@ export default function EditConfirmation() {
   let numAdults = 1;
   let numKids = 0;
 
-  if (isDraft && hotelBookings && hotelBookings.length > 0) {
+  // Check if we have hotel bookings data to generate from
+  const hasHotelBookings = isDraft && hotelBookings && hotelBookings.length > 0;
+
+  if (hasHotelBookings) {
     generatedItinerary = generateItineraryFromBookings(hotelBookings);
     
     // Calculate arrival/departure from hotel bookings
@@ -158,11 +161,11 @@ export default function EditConfirmation() {
       numAdults = hotelBookings[0].numAdults || 1;
       numKids = hotelBookings[0].numKids || 0;
     }
+
+    console.log("Draft completion - Generated itinerary:", generatedItinerary);
   }
 
-  // Determine initial data
-  const useGeneratedData = isDraft && hotelBookings && hotelBookings.length > 0;
-
+  // Determine initial data - use generated data for drafts with hotel bookings
   const initialData: Partial<ConfirmationFormData> = {
     tourSource: confirmation.tour_source || payload?.tourSource || "",
     trackingNumber: payload?.trackingNumber || "",
@@ -170,17 +173,17 @@ export default function EditConfirmation() {
       ? payload.clients 
       : [{ name: "", passport: "" }],
     guestInfo: payload?.guestInfo || { 
-      numAdults: useGeneratedData ? numAdults : 1, 
-      numKids: useGeneratedData ? numKids : 0, 
+      numAdults: hasHotelBookings ? numAdults : 1, 
+      numKids: hasHotelBookings ? numKids : 0, 
       kidsAges: [] 
     },
-    arrival: useGeneratedData 
+    arrival: hasHotelBookings 
       ? { date: arrivalDate, time: "", flight: "", from: "" }
       : (payload?.arrival || { date: "", time: "", flight: "", from: "" }),
-    departure: useGeneratedData
+    departure: hasHotelBookings
       ? { date: departureDate, time: "", flight: "", to: "" }
       : (payload?.departure || { date: "", time: "", flight: "", to: "" }),
-    itinerary: useGeneratedData && generatedItinerary.length > 0
+    itinerary: hasHotelBookings && generatedItinerary.length > 0
       ? generatedItinerary
       : (payload?.itinerary?.length > 0 
           ? payload.itinerary 
@@ -188,6 +191,16 @@ export default function EditConfirmation() {
     services: payload?.services || "",
     notes: payload?.notes || "",
   };
+
+  // Debug logging for draft completion
+  if (isDraft && isCompletingDraft) {
+    console.log("Completing draft:", {
+      hasHotelBookings,
+      hotelBookings,
+      generatedItinerary,
+      initialData,
+    });
+  }
 
   const handleSubmit = async (data: ConfirmationFormData) => {
     try {

@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle, Mail } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   useConfirmations,
@@ -592,6 +592,19 @@ export function Dashboard() {
                             )}
                             {effectiveCanManageConfirmations && (
                               <>
+                                {confirmation.status === 'draft' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      navigate(`/confirmation/${confirmation.id}/edit?complete=true`)
+                                    }
+                                    title="Complete Draft"
+                                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                  >
+                                    <ClipboardCheck className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"

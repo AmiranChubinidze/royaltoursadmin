@@ -116,32 +116,51 @@ export function useUpdateConfirmation() {
     mutationFn: async ({
       id,
       payload,
+      status,
     }: {
       id: string;
       payload: ConfirmationPayload & { tourSource?: string };
+      status?: string;
     }) => {
       const arrivalDate = payload.arrival.date;
       const departureDate = payload.departure.date;
 
-      // Regenerate code if arrival date changed
-      const confirmationCode = await generateConfirmationCode(arrivalDate, id);
+      // Regenerate code if arrival date changed or if completing a draft
+      // For draft completion, generate a proper confirmation code (not DRAFT-xxx)
+      let confirmationCode: string;
+      
+      if (status === "confirmed") {
+        // When completing a draft, always generate a new proper confirmation code
+        confirmationCode = await generateConfirmationCode(arrivalDate);
+      } else {
+        // Normal update - regenerate if needed
+        confirmationCode = await generateConfirmationCode(arrivalDate, id);
+      }
+      
       const dateCode = getDateCode(arrivalDate);
       const { days, nights } = calculateDaysAndNights(arrivalDate, departureDate);
       const mainClientName = getMainClientName(payload.clients);
 
+      const updateData: any = {
+        confirmation_code: confirmationCode,
+        date_code: dateCode,
+        main_client_name: mainClientName,
+        tour_source: payload.tourSource || null,
+        arrival_date: arrivalDate,
+        departure_date: departureDate,
+        total_days: days,
+        total_nights: nights,
+        raw_payload: toJson(payload),
+      };
+
+      // Add status if provided (for draft completion)
+      if (status) {
+        updateData.status = status;
+      }
+
       const { data, error } = await supabase
         .from("confirmations")
-        .update({
-          confirmation_code: confirmationCode,
-          date_code: dateCode,
-          main_client_name: mainClientName,
-          tour_source: payload.tourSource || null,
-          arrival_date: arrivalDate,
-          departure_date: departureDate,
-          total_days: days,
-          total_nights: nights,
-          raw_payload: toJson(payload),
-        })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();
@@ -152,10 +171,6 @@ export function useUpdateConfirmation() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
       queryClient.invalidateQueries({ queryKey: ["confirmation", data.id] });
-      toast({
-        title: "Success",
-        description: "Confirmation updated successfully",
-      });
     },
     onError: (error) => {
       toast({

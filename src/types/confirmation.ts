@@ -37,6 +37,19 @@ export interface DepartureInfo {
   to: string;
 }
 
+// Hotel booking info for draft confirmations (booking request flow)
+export interface HotelBooking {
+  hotelId: string;
+  hotelName: string;
+  hotelEmail: string;
+  checkIn: string;
+  checkOut: string;
+  numAdults: number;
+  numKids: number;
+  mealType: "BB" | "FB";
+  roomCategory: "Standard" | "Upgrade";
+}
+
 export interface ConfirmationPayload {
   clients: Client[];
   arrival: ArrivalInfo;
@@ -46,6 +59,9 @@ export interface ConfirmationPayload {
   trackingNumber?: string;
   services?: string;
   notes?: string;
+  tourSource?: string;
+  // For draft confirmations from booking requests
+  hotelBookings?: HotelBooking[];
 }
 
 export interface Confirmation {

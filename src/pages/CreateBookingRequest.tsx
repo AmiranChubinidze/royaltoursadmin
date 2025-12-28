@@ -102,12 +102,12 @@ export default function CreateBookingRequest() {
     try {
       const selectedHotelsList = hotels.filter((h) => selectedHotels.has(h.id));
       
-      // Prepare email data for each hotel
+      // Prepare email data for each hotel (matching edge function expected format)
       const emailsToSend = selectedHotelsList.map((hotel) => ({
-        to: hotel.email,
+        hotelName: hotel.name,
+        hotelEmail: hotel.email,
         subject: `Reservation Request - Royal Georgian Tours`,
         body: emailBody,
-        hotelName: hotel.name,
       }));
 
       // Send emails using the edge function

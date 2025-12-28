@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   useConfirmations,
@@ -336,14 +336,27 @@ export function Dashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Quick Actions</p>
                 <p className="text-lg font-medium text-foreground mt-1">
-                  {effectiveCanManageConfirmations ? "Create new tour" : effectiveIsBooking ? "Manage payments" : "View-only access"}
+                  {effectiveCanManageConfirmations ? "Create new tour" : effectiveIsBooking ? "Send booking requests" : "View-only access"}
                 </p>
               </div>
-              {effectiveCanManageConfirmations && (
-                <Button variant="outline" onClick={() => navigate("/new")}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              )}
+              <div className="flex gap-2">
+                {effectiveIsBooking && !effectiveCanManageConfirmations && (
+                  <Button variant="outline" onClick={() => navigate("/create-booking-request")}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Booking Request
+                  </Button>
+                )}
+                {effectiveCanManageConfirmations && (
+                  <>
+                    <Button variant="outline" onClick={() => navigate("/create-booking-request")}>
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" onClick={() => navigate("/new")}>
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

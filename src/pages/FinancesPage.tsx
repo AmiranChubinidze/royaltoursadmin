@@ -700,7 +700,7 @@ export default function FinancesPage() {
                                 <Badge variant="outline">Hotel</Badge>
                               </TableCell>
                               <TableCell>
-                                {format(parseISO(expense.expense_date), "MMM d, yyyy")}
+                                {format(parseISO(expense.expense_date), "dd/MM/yy")}
                               </TableCell>
                               <TableCell className="text-right font-semibold text-red-600">
                                 ${Number(expense.amount).toLocaleString()}
@@ -751,7 +751,7 @@ export default function FinancesPage() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {format(parseISO(expense.expense_date), "MMM d, yyyy")}
+                                {format(parseISO(expense.expense_date), "dd/MM/yy")}
                               </TableCell>
                               <TableCell className="text-right font-semibold text-red-600">
                                 ${Number(expense.amount).toLocaleString()}

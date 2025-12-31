@@ -618,15 +618,6 @@ export function Dashboard() {
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDuplicate(confirmation.id)}
-                                  disabled={duplicateMutation.isPending}
-                                  title="Duplicate"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button

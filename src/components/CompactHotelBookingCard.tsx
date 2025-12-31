@@ -70,8 +70,8 @@ const DatePicker = ({
             isLinked && "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
           )}
         >
-          {isLinked && <Link2 className="h-3 w-3 mr-1 shrink-0 text-primary" />}
-          {!value && <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />}
+          {!value && isLinked && <Link2 className="h-3 w-3 mr-1 shrink-0 text-primary" />}
+          {!value && !isLinked && <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />}
           <span className="truncate">{value || placeholder}</span>
         </Button>
       </PopoverTrigger>

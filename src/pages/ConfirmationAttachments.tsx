@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +19,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useConfirmation } from "@/hooks/useConfirmations";
 import { 
   useConfirmationAttachments, 
@@ -48,6 +57,12 @@ export default function ConfirmationAttachments() {
   const [isDragging, setIsDragging] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   
+  // Upload dialog state
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [invoiceName, setInvoiceName] = useState("");
+  const [invoiceAmount, setInvoiceAmount] = useState("");
+  
   const canUpload = role === "admin" || role === "booking";
   const canDelete = role === "admin" || role === "worker";
   const isBookingView = role === "booking";
@@ -69,23 +84,45 @@ export default function ConfirmationAttachments() {
     if (!canUpload || !id) return;
     
     const files = Array.from(e.dataTransfer.files);
-    const pdfFiles = files.filter(f => f.type === "application/pdf");
+    const pdfFile = files.find(f => f.type === "application/pdf");
     
-    pdfFiles.forEach(file => {
-      uploadMutation.mutate({ confirmationId: id, file });
-    });
-  }, [canUpload, id, uploadMutation]);
+    if (pdfFile) {
+      setPendingFile(pdfFile);
+      setInvoiceName(pdfFile.name.replace(/\.pdf$/i, ""));
+      setInvoiceAmount("");
+      setUploadDialogOpen(true);
+    }
+  }, [canUpload, id]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (!canUpload || !id || !e.target.files) return;
     
-    const files = Array.from(e.target.files);
-    files.forEach(file => {
-      uploadMutation.mutate({ confirmationId: id, file });
-    });
+    const file = e.target.files[0];
+    if (file) {
+      setPendingFile(file);
+      setInvoiceName(file.name.replace(/\.pdf$/i, ""));
+      setInvoiceAmount("");
+      setUploadDialogOpen(true);
+    }
     
     e.target.value = "";
-  }, [canUpload, id, uploadMutation]);
+  }, [canUpload, id]);
+
+  const handleUploadConfirm = useCallback(() => {
+    if (!pendingFile || !id) return;
+    
+    uploadMutation.mutate({
+      confirmationId: id,
+      file: pendingFile,
+      customName: invoiceName,
+      amount: invoiceAmount ? parseFloat(invoiceAmount) : undefined,
+    });
+    
+    setUploadDialogOpen(false);
+    setPendingFile(null);
+    setInvoiceName("");
+    setInvoiceAmount("");
+  }, [pendingFile, id, invoiceName, invoiceAmount, uploadMutation]);
 
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
     setDownloadingId(attachmentId);
@@ -448,6 +485,68 @@ export default function ConfirmationAttachments() {
             </CardContent>
           </Card>
         )}
+
+        {/* Upload Invoice Dialog */}
+        <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            setUploadDialogOpen(false);
+            setPendingFile(null);
+            setInvoiceName("");
+            setInvoiceAmount("");
+          }
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Invoice</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="invoice-name">Invoice Name</Label>
+                <Input
+                  id="invoice-name"
+                  value={invoiceName}
+                  onChange={(e) => setInvoiceName(e.target.value)}
+                  placeholder="e.g. Hotel Marriott - Room 204"
+                />
+                <p className="text-xs text-muted-foreground">.pdf will be added automatically</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invoice-amount">Amount Paid ($)</Label>
+                <Input
+                  id="invoice-amount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={invoiceAmount}
+                  onChange={(e) => setInvoiceAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground">This will be recorded as a hotel expense</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUploadConfirm}
+                disabled={uploadMutation.isPending || !invoiceName.trim()}
+              >
+                {uploadMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

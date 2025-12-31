@@ -38,10 +38,14 @@ export const useUploadAttachment = () => {
   return useMutation({
     mutationFn: async ({ 
       confirmationId, 
-      file 
+      file,
+      customName,
+      amount,
     }: { 
       confirmationId: string; 
       file: File;
+      customName?: string;
+      amount?: number;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -56,12 +60,14 @@ export const useUploadAttachment = () => {
 
       if (uploadError) throw uploadError;
 
-      // Create database record
+      // Create database record with custom name if provided
+      const displayName = customName?.trim() ? `${customName.trim()}.pdf` : file.name;
+      
       const { data, error } = await supabase
         .from("confirmation_attachments")
         .insert({
           confirmation_id: confirmationId,
-          file_name: file.name,
+          file_name: displayName,
           file_path: fileName,
           file_size: file.size,
           uploaded_by: user.id,
@@ -70,15 +76,37 @@ export const useUploadAttachment = () => {
         .single();
 
       if (error) throw error;
+
+      // Create expense if amount is provided
+      if (amount && amount > 0) {
+        const { error: expenseError } = await supabase
+          .from("expenses")
+          .insert({
+            confirmation_id: confirmationId,
+            expense_type: "hotel",
+            description: `Invoice: ${displayName}`,
+            amount: amount,
+            expense_date: new Date().toISOString().split('T')[0],
+            created_by: user.id,
+          });
+        
+        if (expenseError) {
+          console.error("Failed to create expense:", expenseError);
+        }
+      }
+
       return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ 
         queryKey: ["confirmation-attachments", variables.confirmationId] 
       });
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
       toast({
-        title: "File uploaded",
-        description: "The PDF has been attached successfully.",
+        title: "Invoice uploaded",
+        description: variables.amount 
+          ? `Invoice uploaded and $${variables.amount} expense recorded.`
+          : "The invoice has been attached successfully.",
       });
     },
     onError: (error: Error) => {

@@ -606,16 +606,18 @@ export function Dashboard() {
                                     <ClipboardCheck className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() =>
-                                    navigate(`/confirmation/${confirmation.id}/edit`)
-                                  }
-                                  title="Edit"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                                {confirmation.status !== 'draft' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() =>
+                                      navigate(`/confirmation/${confirmation.id}/edit`)
+                                    }
+                                    title="Edit"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"

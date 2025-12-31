@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, X, Link2, GripVertical } from "lucide-react";
+import { CalendarIcon, X, Link2, GripVertical, Hotel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parse, isValid } from "date-fns";
 import { useSortable } from "@dnd-kit/sortable";
@@ -63,13 +63,15 @@ const DatePicker = ({
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-start text-left font-normal h-9 text-sm border-border/60 bg-background/50",
-            !value && "text-muted-foreground",
-            isLinked && "border-primary/40 bg-primary/5"
+            "w-full justify-start text-left font-medium h-10 text-sm",
+            "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30",
+            "transition-all duration-200",
+            !value && "text-muted-foreground font-normal",
+            isLinked && "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
           )}
         >
-          {isLinked && <Link2 className="h-3 w-3 mr-1.5 text-primary" />}
-          <CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+          {isLinked && <Link2 className="h-3.5 w-3.5 mr-2 text-primary" />}
+          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
           {value || placeholder}
         </Button>
       </PopoverTrigger>
@@ -137,178 +139,192 @@ export const CompactHotelBookingCard = ({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "p-4 min-w-[220px] w-[220px] flex-shrink-0 relative transition-all duration-200",
-        "bg-gradient-to-b from-card to-card/80 border-border/50",
-        "hover:border-primary/30 hover:shadow-md",
-        isDragging && "opacity-50 shadow-xl scale-105 z-50 border-primary"
+        "p-0 min-w-[240px] w-[240px] flex-shrink-0 relative overflow-hidden",
+        "bg-card border-border/60 shadow-md",
+        "transition-all duration-300 ease-out",
+        "hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5",
+        isDragging && "opacity-90 shadow-2xl scale-[1.02] z-50 border-primary ring-2 ring-primary/20"
       )}
     >
-      {/* Header with drag handle */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-border/30">
+      {/* Gradient Header */}
+      <div className="bg-gradient-to-r from-primary to-primary/80 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-muted/50 transition-colors"
+            className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-white/20 transition-colors"
           >
-            <GripVertical className="h-4 w-4 text-muted-foreground" />
+            <GripVertical className="h-4 w-4 text-primary-foreground/80" />
           </button>
-          <span className="text-xs font-semibold text-primary/80 uppercase tracking-wide">
-            Stop {index + 1}
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-xs font-bold text-primary-foreground">{index + 1}</span>
+            </div>
+            <span className="text-sm font-semibold text-primary-foreground tracking-wide">
+              Stop
+            </span>
+          </div>
         </div>
         {canRemove && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            className="h-7 w-7 text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/20"
             onClick={onRemove}
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-4 w-4" />
           </Button>
         )}
       </div>
 
-      {/* Hotel Name */}
-      <div className="mb-3">
-        <Input
-          list={`hotels-${index}`}
-          value={booking.hotelName}
-          onChange={(e) => handleHotelSelect(e.target.value)}
-          placeholder="Select hotel..."
-          className="h-9 text-sm font-medium bg-background/50 border-border/60 focus:border-primary/50"
-        />
-        <datalist id={`hotels-${index}`}>
-          {savedHotels.map((hotel) => (
-            <option key={hotel.name} value={hotel.name} />
-          ))}
-        </datalist>
-      </div>
-
-      {/* Dates */}
-      <div className="space-y-2 mb-4">
+      <div className="p-4 space-y-4">
+        {/* Hotel Name */}
         <div>
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1 block">
-            Check-in
+          <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+            Hotel
           </Label>
-          <DatePicker
-            value={booking.checkIn}
-            onChange={(val) => updateField("checkIn", val)}
-            placeholder="Select date"
-            isLinked={isCheckInLinked}
-          />
+          <div className="relative">
+            <Hotel className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              list={`hotels-${index}`}
+              value={booking.hotelName}
+              onChange={(e) => handleHotelSelect(e.target.value)}
+              placeholder="Select hotel..."
+              className="pl-10 h-10 text-sm font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+          <datalist id={`hotels-${index}`}>
+            {savedHotels.map((hotel) => (
+              <option key={hotel.name} value={hotel.name} />
+            ))}
+          </datalist>
         </div>
-        <div>
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1 block">
-            Check-out
-          </Label>
-          <DatePicker
-            value={booking.checkOut}
-            onChange={(val) => updateField("checkOut", val)}
-            placeholder="Select date"
-          />
-        </div>
-      </div>
 
-      {/* Guests */}
-      <div className="flex gap-2 mb-4">
-        <div className="flex-1">
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1 block">
-            Adults
-          </Label>
-          <Input
-            type="number"
-            min={1}
-            value={booking.numAdults}
-            onChange={(e) => updateField("numAdults", parseInt(e.target.value) || 1)}
-            className="h-8 text-sm text-center bg-background/50 border-border/60"
-          />
-        </div>
-        <div className="flex-1">
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1 block">
-            Kids
-          </Label>
-          <Input
-            type="number"
-            min={0}
-            value={booking.numKids}
-            onChange={(e) => updateField("numKids", parseInt(e.target.value) || 0)}
-            className="h-8 text-sm text-center bg-background/50 border-border/60"
-          />
-        </div>
-      </div>
-
-      {/* Meal & Room Toggles */}
-      <div className="space-y-3">
-        <div>
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1.5 block">
-            Meal Plan
-          </Label>
-          <div className="flex gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={booking.mealType === "BB" ? "default" : "outline"}
-              className={cn(
-                "flex-1 h-7 text-xs font-medium transition-all",
-                booking.mealType === "BB" 
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "bg-background/50 border-border/60 hover:bg-muted/50"
-              )}
-              onClick={() => updateField("mealType", "BB")}
-            >
-              BB
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={booking.mealType === "FB" ? "default" : "outline"}
-              className={cn(
-                "flex-1 h-7 text-xs font-medium transition-all",
-                booking.mealType === "FB" 
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "bg-background/50 border-border/60 hover:bg-muted/50"
-              )}
-              onClick={() => updateField("mealType", "FB")}
-            >
-              FB
-            </Button>
+        {/* Dates */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              Check-in
+            </Label>
+            <DatePicker
+              value={booking.checkIn}
+              onChange={(val) => updateField("checkIn", val)}
+              placeholder="Date"
+              isLinked={isCheckInLinked}
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              Check-out
+            </Label>
+            <DatePicker
+              value={booking.checkOut}
+              onChange={(val) => updateField("checkOut", val)}
+              placeholder="Date"
+            />
           </div>
         </div>
 
-        <div>
-          <Label className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1.5 block">
-            Room Type
-          </Label>
-          <div className="flex gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={booking.roomCategory === "Standard" ? "default" : "outline"}
-              className={cn(
-                "flex-1 h-7 text-xs font-medium transition-all",
-                booking.roomCategory === "Standard" 
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "bg-background/50 border-border/60 hover:bg-muted/50"
-              )}
-              onClick={() => updateField("roomCategory", "Standard")}
-            >
-              Standard
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={booking.roomCategory === "Upgrade" ? "default" : "outline"}
-              className={cn(
-                "flex-1 h-7 text-xs font-medium transition-all",
-                booking.roomCategory === "Upgrade" 
-                  ? "bg-primary text-primary-foreground shadow-sm" 
-                  : "bg-background/50 border-border/60 hover:bg-muted/50"
-              )}
-              onClick={() => updateField("roomCategory", "Upgrade")}
-            >
-              Upgrade
-            </Button>
+        {/* Guests */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              Adults
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              value={booking.numAdults}
+              onChange={(e) => updateField("numAdults", parseInt(e.target.value) || 1)}
+              className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              Kids
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              value={booking.numKids}
+              onChange={(e) => updateField("numKids", parseInt(e.target.value) || 0)}
+              className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Meal & Room Toggles */}
+        <div className="space-y-3 pt-1">
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+              Meal Plan
+            </Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={booking.mealType === "BB" ? "default" : "outline"}
+                className={cn(
+                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                  booking.mealType === "BB" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                )}
+                onClick={() => updateField("mealType", "BB")}
+              >
+                B&B
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={booking.mealType === "FB" ? "default" : "outline"}
+                className={cn(
+                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                  booking.mealType === "FB" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                )}
+                onClick={() => updateField("mealType", "FB")}
+              >
+                Full Board
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+              Room Type
+            </Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={booking.roomCategory === "Standard" ? "default" : "outline"}
+                className={cn(
+                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                  booking.roomCategory === "Standard" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                )}
+                onClick={() => updateField("roomCategory", "Standard")}
+              >
+                Standard
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={booking.roomCategory === "Upgrade" ? "default" : "outline"}
+                className={cn(
+                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                  booking.roomCategory === "Upgrade" 
+                    ? "bg-primary text-primary-foreground shadow-md" 
+                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                )}
+                onClick={() => updateField("roomCategory", "Upgrade")}
+              >
+                Upgrade
+              </Button>
+            </div>
           </div>
         </div>
       </div>

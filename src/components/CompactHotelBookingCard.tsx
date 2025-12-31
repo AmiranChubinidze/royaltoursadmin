@@ -71,7 +71,7 @@ const DatePicker = ({
           )}
         >
           {isLinked && <Link2 className="h-3 w-3 mr-1 shrink-0 text-primary" />}
-          <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />
+          {!value && <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />}
           <span className="truncate">{value || placeholder}</span>
         </Button>
       </PopoverTrigger>

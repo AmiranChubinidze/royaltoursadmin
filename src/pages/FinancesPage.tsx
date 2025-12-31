@@ -108,6 +108,12 @@ export default function FinancesPage() {
     confirmation_id: null,
   });
 
+  // Confirmation dialog state for unmarking
+  const [unmarkConfirm, setUnmarkConfirm] = useState<{
+    type: "client" | "hotels";
+    id: string;
+  } | null>(null);
+
   const isLoading = confirmationsLoading || expensesLoading;
 
   // Calculate income from confirmations with price
@@ -522,7 +528,11 @@ export default function FinancesPage() {
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleClientPaid(income.id, income.clientPaid);
+                                  if (income.clientPaid) {
+                                    setUnmarkConfirm({ type: "client", id: income.id });
+                                  } else {
+                                    toggleClientPaid(income.id, false);
+                                  }
                                 }}
                                 title={income.clientPaid ? "Client has paid - Click to mark unpaid" : "Pending payment - Click to mark as received"}
                                 className={cn(
@@ -545,7 +555,11 @@ export default function FinancesPage() {
                                 size="icon"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  toggleHotelsPaid(income.id, income.hotelsPaid);
+                                  if (income.hotelsPaid) {
+                                    setUnmarkConfirm({ type: "hotels", id: income.id });
+                                  } else {
+                                    toggleHotelsPaid(income.id, false);
+                                  }
                                 }}
                                 title={income.hotelsPaid ? "Hotels paid - Click to mark unpaid" : "Hotels unpaid - Click to mark as paid"}
                                 className={cn(
@@ -814,6 +828,37 @@ export default function FinancesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Unmark Confirmation Dialog */}
+      <AlertDialog open={!!unmarkConfirm} onOpenChange={(open) => !open && setUnmarkConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {unmarkConfirm?.type === "client" 
+                ? "This will mark this confirmation as not received from the client."
+                : "This will mark the hotels as unpaid for this confirmation."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (unmarkConfirm) {
+                  if (unmarkConfirm.type === "client") {
+                    toggleClientPaid(unmarkConfirm.id, true);
+                  } else {
+                    toggleHotelsPaid(unmarkConfirm.id, true);
+                  }
+                  setUnmarkConfirm(null);
+                }
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

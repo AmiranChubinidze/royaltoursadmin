@@ -585,12 +585,23 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {confirmation.client_paid && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-emerald-600 cursor-default"
+                                title="Payment Received"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
                             {(effectiveIsBooking || effectiveCanManageConfirmations) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => navigate(`/confirmation/${confirmation.id}/attachments`)}
                                 title="Invoices"
+                                className={confirmation.is_paid ? "text-emerald-600 hover:text-emerald-700" : ""}
                               >
                                 <Paperclip className="h-4 w-4" />
                               </Button>

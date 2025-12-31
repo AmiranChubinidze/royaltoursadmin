@@ -56,7 +56,6 @@ import {
   Car,
   CircleDollarSign,
   Building2,
-  CheckCircle2,
   Circle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +75,7 @@ const EXPENSE_TYPES = [
   { value: "driver", label: "Driver", icon: Car },
   { value: "fuel", label: "Fuel" },
   { value: "hotel", label: "Hotel" },
+  { value: "hotel_expense", label: "Hotel Expenses" },
   { value: "meal", label: "Meals" },
   { value: "guide", label: "Guide Fee" },
   { value: "other", label: "Other" },
@@ -325,68 +325,65 @@ export default function FinancesPage() {
         </div>
 
         {/* Date Filter */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div>
-                <Label className="text-sm mb-1.5 block">From</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[180px] justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Start date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateFrom}
-                      onSelect={setDateFrom}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label className="text-sm mb-1.5 block">To</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-[180px] justify-start">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateTo ? format(dateTo, "MMM d, yyyy") : "End date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateTo}
-                      onSelect={setDateTo}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setDateFrom(startOfMonth(new Date()));
-                  setDateTo(endOfMonth(new Date()));
-                }}
-              >
-                This Month
+        <div className="flex flex-wrap gap-2 items-center mb-6">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFrom ? format(dateFrom, "MMM d") : "From"}
               </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setDateFrom(undefined);
-                  setDateTo(undefined);
-                }}
-              >
-                All Time
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFrom}
+                onSelect={setDateFrom}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-muted-foreground">–</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateTo ? format(dateTo, "MMM d") : "To"}
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateTo}
+                onSelect={setDateTo}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <div className="flex gap-1 ml-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                setDateFrom(startOfMonth(new Date()));
+                setDateTo(endOfMonth(new Date()));
+              }}
+            >
+              This Month
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9"
+              onClick={() => {
+                setDateFrom(undefined);
+                setDateTo(undefined);
+              }}
+            >
+              All Time
+            </Button>
+          </div>
+        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -405,10 +402,10 @@ export default function FinancesPage() {
               </div>
             </CardContent>
           </Card>
-          <Card className="border-amber-500/30 bg-amber-500/5">
+          <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-amber-500/20">
+                <div className="p-3 rounded-full bg-amber-500/10">
                   <Circle className="h-6 w-6 text-amber-500" />
                 </div>
                 <div>

@@ -66,6 +66,7 @@ export type Database = {
           main_client_name: string | null
           paid_at: string | null
           paid_by: string | null
+          price: number | null
           raw_payload: Json | null
           status: string
           total_days: number | null
@@ -86,6 +87,7 @@ export type Database = {
           main_client_name?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          price?: number | null
           raw_payload?: Json | null
           status?: string
           total_days?: number | null
@@ -106,6 +108,7 @@ export type Database = {
           main_client_name?: string | null
           paid_at?: string | null
           paid_by?: string | null
+          price?: number | null
           raw_payload?: Json | null
           status?: string
           total_days?: number | null
@@ -114,6 +117,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          confirmation_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expense_date: string
+          expense_type: string
+          id: string
+        }
+        Insert: {
+          amount: number
+          confirmation_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expense_date: string
+          expense_type: string
+          id?: string
+        }
+        Update: {
+          amount?: number
+          confirmation_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expense_date?: string
+          expense_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_confirmation_id_fkey"
+            columns: ["confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "confirmations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -198,7 +242,13 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "user" | "worker" | "visitor" | "booking"
+      app_role:
+        | "admin"
+        | "user"
+        | "worker"
+        | "visitor"
+        | "booking"
+        | "accountant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -326,7 +376,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "worker", "visitor", "booking"],
+      app_role: ["admin", "user", "worker", "visitor", "booking", "accountant"],
     },
   },
 } as const

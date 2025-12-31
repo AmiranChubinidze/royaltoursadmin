@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   useConfirmations,
@@ -41,7 +41,7 @@ import rtgLogoFull from "@/assets/rtg-logo-full.png";
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isAdmin, canEdit, role } = useUserRole();
+  const { isAdmin, isAccountant, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   
   // Admin "View as" feature
@@ -200,6 +200,12 @@ export function Dashboard() {
             {effectiveCanManageConfirmations && (
               <Button variant="outline" onClick={() => navigate("/saved-data")}>
                 Saved Data
+              </Button>
+            )}
+            {(isAdmin || isAccountant) && !viewAsRole && (
+              <Button variant="outline" onClick={() => navigate("/finances")}>
+                <DollarSign className="h-4 w-4 mr-2" />
+                Finances
               </Button>
             )}
             {isAdmin && !viewAsRole && (

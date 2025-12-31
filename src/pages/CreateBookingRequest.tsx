@@ -292,12 +292,25 @@ export default function CreateBookingRequest() {
 
       if (insertError) throw insertError;
 
+      // Only send emails to hotels with email addresses
+      const hotelsToEmail = hotelBookings.filter(b => b.hotelEmail);
+      
       const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
         body: {
-          bookings: hotelBookings.map((booking) => ({
+          hotels: hotelsToEmail.map((booking) => ({
             hotelName: booking.hotelName,
             hotelEmail: booking.hotelEmail,
-            emailBody: generateEmailBody(booking),
+            clientName: "TBD", // Will be filled in confirmation
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            roomType: booking.roomCategory,
+            meals: booking.mealType,
+            confirmationCode,
+            guestInfo: {
+              numAdults: booking.numAdults,
+              numKids: booking.numKids,
+              kidsAges: [],
+            },
           })),
           confirmationCode,
         },

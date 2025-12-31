@@ -202,12 +202,19 @@ export default function CreateBookingRequest() {
   };
 
   const handleSubmit = async () => {
-    const invalidBookings = hotelBookings.filter(
-      (b) => !b.hotelName || !b.hotelEmail || !b.checkIn || !b.checkOut
+    // Only validate bookings that have an email (hotels requiring booking)
+    const bookingsWithEmail = hotelBookings.filter(b => b.hotelEmail);
+    const invalidBookings = bookingsWithEmail.filter(
+      (b) => !b.hotelName || !b.checkIn || !b.checkOut
     );
 
+    if (bookingsWithEmail.length === 0) {
+      toast.error("Please add at least one hotel with an email address");
+      return;
+    }
+
     if (invalidBookings.length > 0) {
-      toast.error("Please fill in all hotel details including email, check-in and check-out dates");
+      toast.error("Please fill in check-in and check-out dates for all hotels");
       return;
     }
 

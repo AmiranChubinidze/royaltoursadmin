@@ -407,6 +407,7 @@ export default function CreateBookingRequest() {
                       canRemove={hotelBookings.length > 1}
                       isCheckInLinked={isCheckInLinked(index)}
                       savedHotels={savedHotels}
+                      hideGuestFields={sharedGuests.applyToAll}
                     />
                   ))}
                   

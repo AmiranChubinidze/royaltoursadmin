@@ -32,6 +32,7 @@ interface CompactHotelBookingCardProps {
   canRemove: boolean;
   isCheckInLinked?: boolean;
   savedHotels: { name: string; email: string }[];
+  hideGuestFields?: boolean;
 }
 
 const parseDateDDMMYYYY = (value: string): Date | null => {
@@ -179,6 +180,7 @@ export const CompactHotelBookingCard = ({
   canRemove,
   isCheckInLinked = false,
   savedHotels,
+  hideGuestFields = false,
 }: CompactHotelBookingCardProps) => {
   const {
     attributes,
@@ -292,8 +294,8 @@ export const CompactHotelBookingCard = ({
           </div>
         </div>
 
-        {/* Guests - only show if hotel requires booking */}
-        {booking.hotelEmail && (
+        {/* Guests - only show if hotel requires booking and not using shared guest settings */}
+        {booking.hotelEmail && !hideGuestFields && (
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">

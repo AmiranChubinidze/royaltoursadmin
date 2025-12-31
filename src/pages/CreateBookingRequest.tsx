@@ -6,10 +6,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowRight, Plus, Mail, Send, ArrowLeft } from "lucide-react";
+import { Plus, Mail, Send, ArrowLeft, Plane } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { CompactHotelBookingCard, HotelBooking } from "@/components/CompactHotelBookingCard";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 const parseDateDDMMYYYY = (value: string): Date | null => {
   if (!value) return null;
@@ -55,8 +71,9 @@ export default function CreateBookingRequest() {
   const [savedHotels, setSavedHotels] = useState<{ name: string; email: string }[]>([]);
   const [sharedGuests, setSharedGuests] = useState({ adults: 2, kids: 0, applyToAll: true });
   
-  const [hotelBookings, setHotelBookings] = useState<HotelBooking[]>([
+  const [hotelBookings, setHotelBookings] = useState<(HotelBooking & { id: string })[]>([
     {
+      id: crypto.randomUUID(),
       hotelName: "",
       hotelEmail: "",
       checkIn: "",
@@ -67,6 +84,17 @@ export default function CreateBookingRequest() {
       roomCategory: "Standard",
     },
   ]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     const fetchHotels = async () => {
@@ -82,35 +110,45 @@ export default function CreateBookingRequest() {
     fetchHotels();
   }, []);
 
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      setHotelBookings((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
   const addHotelBooking = () => {
     const lastBooking = hotelBookings[hotelBookings.length - 1];
-    const newBooking: HotelBooking = {
+    const newBooking = {
+      id: crypto.randomUUID(),
       hotelName: "",
       hotelEmail: "",
-      checkIn: lastBooking?.checkOut || "", // Auto-link from previous checkout
+      checkIn: lastBooking?.checkOut || "",
       checkOut: "",
       numAdults: sharedGuests.applyToAll ? sharedGuests.adults : 2,
       numKids: sharedGuests.applyToAll ? sharedGuests.kids : 0,
-      mealType: "BB",
-      roomCategory: "Standard",
+      mealType: "BB" as const,
+      roomCategory: "Standard" as const,
     };
     setHotelBookings([...hotelBookings, newBooking]);
   };
 
   const updateHotelBooking = (index: number, booking: HotelBooking) => {
     setHotelBookings((prev) => {
-      const updated = prev.map((b, i) => (i === index ? booking : b));
+      const updated = prev.map((b, i) => (i === index ? { ...booking, id: b.id } : b));
       
-      // Auto-link: If checkout changed and there's a next hotel
       if (booking.checkOut && index < updated.length - 1) {
         const nextHotel = updated[index + 1];
-        // Only auto-set if next hotel's check-in is empty OR matches old checkout
         if (!nextHotel.checkIn || nextHotel.checkIn === prev[index].checkOut) {
           updated[index + 1] = { ...nextHotel, checkIn: booking.checkOut };
         }
       }
 
-      // If shared guests is enabled, sync guest counts
       if (sharedGuests.applyToAll) {
         const newAdults = booking.numAdults;
         const newKids = booking.numKids;
@@ -135,7 +173,6 @@ export default function CreateBookingRequest() {
     setSharedGuests({ ...sharedGuests, applyToAll: newApplyToAll });
     
     if (newApplyToAll) {
-      // Apply current shared values to all hotels
       setHotelBookings(prev => 
         prev.map(b => ({ ...b, numAdults: sharedGuests.adults, numKids: sharedGuests.kids }))
       );
@@ -165,7 +202,6 @@ export default function CreateBookingRequest() {
   };
 
   const handleSubmit = async () => {
-    // Validate all bookings have required fields
     const invalidBookings = hotelBookings.filter(
       (b) => !b.hotelName || !b.hotelEmail || !b.checkIn || !b.checkOut
     );
@@ -178,7 +214,6 @@ export default function CreateBookingRequest() {
     setIsSubmitting(true);
 
     try {
-      // Generate confirmation code
       const today = new Date();
       const dateCode = format(today, "ddMMyy");
       
@@ -190,10 +225,8 @@ export default function CreateBookingRequest() {
       const sequenceNumber = (count || 0) + 1;
       const confirmationCode = `${dateCode}-${String(sequenceNumber).padStart(3, "0")}`;
 
-      // Get hotel names for tracking
       const hotelNames = hotelBookings.map((b) => b.hotelName);
 
-      // Calculate dates from all bookings
       const checkInDates = hotelBookings
         .map((b) => parseDateDDMMYYYY(b.checkIn))
         .filter((d): d is Date => d !== null);
@@ -208,7 +241,6 @@ export default function CreateBookingRequest() {
         ? formatDateDDMMYYYY(new Date(Math.max(...checkOutDates.map((d) => d.getTime()))))
         : null;
 
-      // Calculate total days and nights from earliest check-in to latest check-out
       let totalDays = 1;
       let totalNights = 0;
       if (checkInDates.length > 0 && checkOutDates.length > 0) {
@@ -220,11 +252,13 @@ export default function CreateBookingRequest() {
         totalDays = diffDays + 1;
       }
 
-      // Calculate total guests from all hotel bookings and create empty client fields
       const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
       const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
       const totalGuests = totalAdults + totalKids;
       const emptyClients = Array.from({ length: totalGuests }, () => ({ name: "", passport: "" }));
+
+      // Strip the id field before saving
+      const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
 
       const { error: insertError } = await supabase
         .from("confirmations")
@@ -239,7 +273,7 @@ export default function CreateBookingRequest() {
           total_days: totalDays,
           total_nights: totalNights,
           raw_payload: {
-            hotelBookings: hotelBookings,
+            hotelBookings: bookingsToSave,
             clients: emptyClients,
             guestInfo: { numAdults: totalAdults, numKids: totalKids, kidsAges: [] },
             arrival: { date: earliestCheckIn || "", time: "", flight: "", from: "" },
@@ -252,7 +286,6 @@ export default function CreateBookingRequest() {
 
       if (insertError) throw insertError;
 
-      // Send emails to hotels
       const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
         body: {
           bookings: hotelBookings.map((booking) => ({
@@ -280,135 +313,170 @@ export default function CreateBookingRequest() {
     }
   };
 
+  const validEmailCount = hotelBookings.filter(b => b.hotelName && b.hotelEmail).length;
+
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="shrink-0">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Create Booking Request</h1>
-            <p className="text-muted-foreground text-sm">Build your itinerary and send emails to hotels</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
+              <Plane className="h-7 w-7 text-primary" />
+              Create Booking Request
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Build your itinerary by adding hotels. Drag to reorder.
+            </p>
           </div>
         </div>
 
-        {/* Shared Guest Count */}
-        <Card className="mb-6">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">Guests:</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={sharedGuests.adults}
-                  onChange={(e) => updateSharedGuests('adults', parseInt(e.target.value) || 1)}
-                  className="w-16 h-8"
-                />
-                <span className="text-sm text-muted-foreground">Adults</span>
-                <Input
-                  type="number"
-                  min={0}
-                  value={sharedGuests.kids}
-                  onChange={(e) => updateSharedGuests('kids', parseInt(e.target.value) || 0)}
-                  className="w-16 h-8"
-                />
-                <span className="text-sm text-muted-foreground">Kids</span>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sharedGuests.applyToAll}
-                  onChange={toggleSharedGuests}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm">Same for all hotels</span>
-              </label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Hotel Timeline */}
-        <Card className="mb-6">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Itinerary Builder</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3 overflow-x-auto pb-4 items-start">
-              {hotelBookings.map((booking, index) => (
-                <div key={index} className="flex items-center">
-                  <CompactHotelBookingCard
-                    booking={booking}
-                    index={index}
-                    onChange={(updated) => updateHotelBooking(index, updated)}
-                    onRemove={() => removeHotelBooking(index)}
-                    canRemove={hotelBookings.length > 1}
-                    isCheckInLinked={isCheckInLinked(index)}
-                    savedHotels={savedHotels}
-                  />
-                  {index < hotelBookings.length - 1 && (
-                    <ArrowRight className="h-5 w-5 text-primary mx-2 flex-shrink-0" />
-                  )}
-                </div>
-              ))}
-              
-              {/* Add Hotel Card */}
-              <Card 
-                className="min-w-[200px] w-[200px] flex-shrink-0 border-dashed border-2 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors flex items-center justify-center"
-                onClick={addHotelBooking}
-                style={{ minHeight: '280px' }}
-              >
-                <div className="text-center text-muted-foreground">
-                  <Plus className="h-8 w-8 mx-auto mb-2" />
-                  <span className="text-sm">Add Hotel</span>
-                </div>
-              </Card>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Email Preview Accordion */}
-        <Card className="mb-6">
-          <Accordion type="single" collapsible>
-            <AccordionItem value="email-preview" className="border-none">
-              <AccordionTrigger className="px-6 py-4">
+        {/* Guest Settings Card */}
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div className="flex items-center gap-3">
+                <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                  Default Guests:
+                </Label>
                 <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  <span>Email Preview ({hotelBookings.filter(b => b.hotelName && b.hotelEmail).length} emails)</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={sharedGuests.adults}
+                    onChange={(e) => updateSharedGuests('adults', parseInt(e.target.value) || 1)}
+                    className="w-14 h-9 text-center"
+                  />
+                  <span className="text-sm text-muted-foreground">Adults</span>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {hotelBookings.filter(b => b.hotelName && b.hotelEmail).map((booking, index) => (
-                    <Card key={index} className="bg-muted/50">
-                      <CardHeader className="py-2 px-3">
-                        <CardTitle className="text-sm">{booking.hotelName}</CardTitle>
-                        <p className="text-xs text-muted-foreground">{booking.hotelEmail}</p>
-                      </CardHeader>
-                      <CardContent className="py-2 px-3">
-                        <pre className="text-xs whitespace-pre-wrap font-mono bg-background p-2 rounded">
-                          {generateEmailBody(booking)}
-                        </pre>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={sharedGuests.kids}
+                    onChange={(e) => updateSharedGuests('kids', parseInt(e.target.value) || 0)}
+                    className="w-14 h-9 text-center"
+                  />
+                  <span className="text-sm text-muted-foreground">Kids</span>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="sync-guests"
+                  checked={sharedGuests.applyToAll}
+                  onCheckedChange={toggleSharedGuests}
+                />
+                <Label htmlFor="sync-guests" className="text-sm cursor-pointer">
+                  Sync across all hotels
+                </Label>
+              </div>
+            </div>
+          </CardContent>
         </Card>
+
+        {/* Itinerary Builder */}
+        <Card className="border-border/50 shadow-sm overflow-hidden">
+          <CardHeader className="pb-4 border-b border-border/30 bg-muted/30">
+            <CardTitle className="text-lg font-semibold">Itinerary Builder</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={hotelBookings.map(b => b.id)}
+                strategy={horizontalListSortingStrategy}
+              >
+                <div className="flex gap-4 overflow-x-auto pb-4 items-stretch">
+                  {hotelBookings.map((booking, index) => (
+                    <CompactHotelBookingCard
+                      key={booking.id}
+                      id={booking.id}
+                      booking={booking}
+                      index={index}
+                      onChange={(updated) => updateHotelBooking(index, updated)}
+                      onRemove={() => removeHotelBooking(index)}
+                      canRemove={hotelBookings.length > 1}
+                      isCheckInLinked={isCheckInLinked(index)}
+                      savedHotels={savedHotels}
+                    />
+                  ))}
+                  
+                  {/* Add Hotel Card */}
+                  <Card 
+                    className="min-w-[220px] w-[220px] flex-shrink-0 border-dashed border-2 border-border/60 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center justify-center group"
+                    onClick={addHotelBooking}
+                    style={{ minHeight: '360px' }}
+                  >
+                    <div className="text-center text-muted-foreground group-hover:text-primary transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-muted/50 group-hover:bg-primary/10 flex items-center justify-center mx-auto mb-3 transition-colors">
+                        <Plus className="h-6 w-6" />
+                      </div>
+                      <span className="text-sm font-medium">Add Stop</span>
+                    </div>
+                  </Card>
+                </div>
+              </SortableContext>
+            </DndContext>
+          </CardContent>
+        </Card>
+
+        {/* Email Preview */}
+        {validEmailCount > 0 && (
+          <Card className="border-border/50 shadow-sm">
+            <Accordion type="single" collapsible defaultValue="">
+              <AccordionItem value="email-preview" className="border-none">
+                <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                  <div className="flex items-center gap-2 text-left">
+                    <Mail className="h-4 w-4 text-primary" />
+                    <span className="font-semibold">Email Preview</span>
+                    <span className="text-muted-foreground font-normal">
+                      ({validEmailCount} {validEmailCount === 1 ? 'email' : 'emails'} ready)
+                    </span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-6 pb-5">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {hotelBookings.filter(b => b.hotelName && b.hotelEmail).map((booking, index) => (
+                      <Card key={index} className="bg-muted/30 border-border/40">
+                        <CardHeader className="py-3 px-4 border-b border-border/30">
+                          <CardTitle className="text-sm font-semibold">{booking.hotelName}</CardTitle>
+                          <p className="text-xs text-muted-foreground">{booking.hotelEmail}</p>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          <pre className="text-xs whitespace-pre-wrap font-mono bg-background/80 p-3 rounded-md border border-border/30">
+                            {generateEmailBody(booking)}
+                          </pre>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </Card>
+        )}
 
         {/* Submit Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center pt-2">
           <Button
             size="lg"
             onClick={handleSubmit}
             disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
-            className="gap-2"
+            className="gap-2 px-8 shadow-lg hover:shadow-xl transition-shadow"
           >
             <Send className="h-4 w-4" />
-            {isSubmitting ? "Sending..." : `Send ${hotelBookings.filter(b => b.hotelEmail).length} Emails and Save Draft`}
+            {isSubmitting 
+              ? "Sending..." 
+              : validEmailCount > 0 
+                ? `Send ${validEmailCount} ${validEmailCount === 1 ? 'Email' : 'Emails'} & Save Draft`
+                : "Save Draft"
+            }
           </Button>
         </div>
       </div>

@@ -81,8 +81,11 @@ export interface Confirmation {
   updated_at: string;
   status: string;
   hotels_emailed: string[] | null;
-  is_paid: boolean | null;
+  is_paid: boolean | null;  // We paid hotels
   price: number | null;
+  client_paid: boolean | null;  // Client paid us
+  client_paid_at: string | null;
+  client_paid_by: string | null;
 }
 
 export interface ConfirmationFormData {

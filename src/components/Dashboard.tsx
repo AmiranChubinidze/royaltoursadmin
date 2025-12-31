@@ -202,12 +202,6 @@ export function Dashboard() {
                 Saved Data
               </Button>
             )}
-            {(isAdmin || isAccountant) && !viewAsRole && (
-              <Button variant="outline" onClick={() => navigate("/finances")}>
-                <DollarSign className="h-4 w-4 mr-2" />
-                Finances
-              </Button>
-            )}
             {isAdmin && !viewAsRole && (
               <Button variant="outline" onClick={() => navigate("/admin")}>
                 <Shield className="h-4 w-4 mr-2" />
@@ -346,6 +340,11 @@ export function Dashboard() {
                 </p>
               </div>
               <div className="flex gap-2">
+                {(isAdmin || isAccountant) && (
+                  <Button variant="outline" size="icon" onClick={() => navigate("/finances")} title="Finances">
+                    <DollarSign className="h-4 w-4" />
+                  </Button>
+                )}
                 {effectiveIsBooking && !effectiveCanManageConfirmations && (
                   <Button variant="outline" onClick={() => navigate("/create-booking-request")}>
                     <Mail className="h-4 w-4 mr-2" />
@@ -354,10 +353,10 @@ export function Dashboard() {
                 )}
                 {effectiveCanManageConfirmations && (
                   <>
-                    <Button variant="outline" onClick={() => navigate("/create-booking-request")}>
+                    <Button variant="outline" size="icon" onClick={() => navigate("/create-booking-request")} title="Booking Request">
                       <Mail className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" onClick={() => navigate("/new")}>
+                    <Button variant="outline" size="icon" onClick={() => navigate("/new")} title="New Confirmation">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </>

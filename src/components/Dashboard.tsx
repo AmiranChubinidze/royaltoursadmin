@@ -540,8 +540,8 @@ export function Dashboard() {
                                   Draft
                                 </Badge>
                               )}
-                              {(confirmation as any).is_paid && (
-                                <span title="Paid">
+                              {confirmation.client_paid && (
+                                <span title="Payment Received">
                                   <CheckCircle className="h-4 w-4 text-emerald-500" />
                                 </span>
                               )}
@@ -585,16 +585,6 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {confirmation.client_paid && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-emerald-600 cursor-default"
-                                title="Payment Received"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </Button>
-                            )}
                             {(effectiveIsBooking || effectiveCanManageConfirmations) && (
                               <Button
                                 variant="ghost"

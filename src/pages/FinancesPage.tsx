@@ -250,6 +250,8 @@ export default function FinancesPage() {
 
   // Calculate totals
   const totalIncome = incomeData.reduce((sum, i) => sum + i.price, 0);
+  const receivedIncome = incomeData.filter(i => i.clientPaid).reduce((sum, i) => sum + i.price, 0);
+  const pendingIncome = totalIncome - receivedIncome;
   const totalDriverExpenses = driverExpenses.reduce((sum, d) => sum + d.amount, 0);
   const totalManualExpenses = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const totalExpenses = totalDriverExpenses + totalManualExpenses;
@@ -379,6 +381,40 @@ export default function FinancesPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Income Status Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <Card className="border-emerald-500/30 bg-emerald-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-emerald-500/20">
+                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Received from Clients</p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {isLoading ? <Skeleton className="h-8 w-24" /> : `$${receivedIncome.toLocaleString()}`}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-amber-500/30 bg-amber-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-amber-500/20">
+                  <Circle className="h-6 w-6 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Pending from Clients</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {isLoading ? <Skeleton className="h-8 w-24" /> : `$${pendingIncome.toLocaleString()}`}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

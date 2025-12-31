@@ -193,6 +193,7 @@ export default function EditConfirmation() {
           : [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "YES" }]),
     services: payload?.services || "",
     notes: payload?.notes || "",
+    price: confirmation.price ?? payload?.price ?? null,
   };
 
   // Debug logging for draft completion
@@ -220,6 +221,7 @@ export default function EditConfirmation() {
           notes: data.notes,
           tourSource: data.tourSource,
           guestInfo: data.guestInfo,
+          price: data.price,
           // Keep hotelBookings for reference
           hotelBookings: hotelBookings,
         },

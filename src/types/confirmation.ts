@@ -60,6 +60,7 @@ export interface ConfirmationPayload {
   services?: string;
   notes?: string;
   tourSource?: string;
+  price?: number | null;
   // For draft confirmations from booking requests
   hotelBookings?: HotelBooking[];
 }
@@ -94,6 +95,7 @@ export interface ConfirmationFormData {
   itinerary: ItineraryDay[];
   services: string;
   notes: string;
+  price: number | null;
 }
 
 export const COMPANY_INFO = {

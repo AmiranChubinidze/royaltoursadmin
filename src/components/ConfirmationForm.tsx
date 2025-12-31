@@ -351,6 +351,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     itinerary: initialData?.itinerary || [{ date: "", day: "", route: "", hotel: "", roomType: "", meals: "YES" }],
     services: initialData?.services || "",
     notes: initialData?.notes || "",
+    price: initialData?.price ?? null,
   });
 
   const showTrackingNumber = formData.tourSource === "partner-agency";
@@ -563,6 +564,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         trackingNumber: filteredData.trackingNumber,
         services: filteredData.services,
         notes: filteredData.notes,
+        price: filteredData.price,
       });
 
       // Save custom hotels with activities
@@ -615,7 +617,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             <section>
               <h2 className="text-lg font-semibold text-foreground mb-4">Trip / Confirmation info</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <div>
                   <Label htmlFor="tourSource" className="text-sm font-medium mb-1.5 block">Tour source</Label>
                   <Select
@@ -636,6 +638,20 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                       <SelectItem value="partner-agency">Partner agency</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                
+                <div>
+                  <Label htmlFor="price" className="text-sm font-medium mb-1.5 block">Tour Price ($)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    placeholder="0.00"
+                    value={formData.price ?? ""}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      price: e.target.value ? parseFloat(e.target.value) : null 
+                    }))}
+                  />
                 </div>
                 
                 {showTrackingNumber && (

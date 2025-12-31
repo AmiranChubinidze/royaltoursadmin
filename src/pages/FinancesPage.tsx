@@ -109,8 +109,9 @@ export default function FinancesPage() {
     
     return confirmations
       .filter((c) => {
-        const price = (c.raw_payload as any)?.price;
-        if (!price) return false;
+        // Use the price column directly
+        const price = c.price;
+        if (!price || price <= 0) return false;
         
         // Filter by date range based on arrival_date
         if (dateFrom || dateTo) {
@@ -138,7 +139,7 @@ export default function FinancesPage() {
         client: c.main_client_name,
         arrivalDate: c.arrival_date,
         departureDate: c.departure_date,
-        price: Number((c.raw_payload as any)?.price) || 0,
+        price: Number(c.price) || 0,
         isPaid: c.is_paid,
         totalDays: c.total_days || 1,
       }));

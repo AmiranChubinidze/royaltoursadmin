@@ -63,7 +63,7 @@ export function useCreateConfirmation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: ConfirmationPayload & { tourSource?: string }) => {
+    mutationFn: async (payload: ConfirmationPayload & { tourSource?: string; price?: number | null }) => {
       const arrivalDate = payload.arrival.date;
       const departureDate = payload.departure.date;
 
@@ -85,6 +85,7 @@ export function useCreateConfirmation() {
           total_days: days,
           total_nights: nights,
           raw_payload: toJson(payload),
+          price: payload.price || null,
         })
         .select()
         .single();
@@ -119,7 +120,7 @@ export function useUpdateConfirmation() {
       status,
     }: {
       id: string;
-      payload: ConfirmationPayload & { tourSource?: string };
+      payload: ConfirmationPayload & { tourSource?: string; price?: number | null };
       status?: string;
     }) => {
       const arrivalDate = payload.arrival.date;
@@ -151,6 +152,7 @@ export function useUpdateConfirmation() {
         total_days: days,
         total_nights: nights,
         raw_payload: toJson(payload),
+        price: payload.price ?? null,
       };
 
       // Add status if provided (for draft completion)

@@ -531,7 +531,7 @@ export function Dashboard() {
                           <TableCell className="font-mono font-semibold text-primary">
                             <div className="flex items-center gap-2">
                               {confirmation.status === 'draft' && (
-                                <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 text-xs">
+                                <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 text-xs">
                                   Draft
                                 </Badge>
                               )}

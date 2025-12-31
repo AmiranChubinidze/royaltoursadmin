@@ -211,19 +211,16 @@ export const CompactHotelBookingCard = ({
     }
   };
 
-  const isTransitStop = !booking.hotelEmail;
-
   return (
     <Card
       ref={setNodeRef}
       style={style}
       className={cn(
-        "p-0 flex-shrink-0 relative overflow-hidden",
+        "p-0 min-w-[240px] w-[240px] flex-shrink-0 relative overflow-hidden",
         "bg-card border-border/60 shadow-md",
         "transition-all duration-300 ease-out",
         "hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5",
-        isDragging && "opacity-90 shadow-2xl scale-[1.02] z-50 border-primary ring-2 ring-primary/20",
-        isTransitStop ? "min-w-[180px] w-[180px]" : "min-w-[240px] w-[240px]"
+        isDragging && "opacity-90 shadow-2xl scale-[1.02] z-50 border-primary ring-2 ring-primary/20"
       )}
     >
       {/* Gradient Header */}

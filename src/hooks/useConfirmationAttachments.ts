@@ -31,6 +31,33 @@ export const useConfirmationAttachments = (confirmationId?: string) => {
   });
 };
 
+export const useAttachmentExpenses = (confirmationId?: string) => {
+  return useQuery({
+    queryKey: ["attachment-expenses", confirmationId],
+    queryFn: async () => {
+      if (!confirmationId) return {};
+      
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("attachment_id, amount")
+        .eq("confirmation_id", confirmationId)
+        .not("attachment_id", "is", null);
+
+      if (error) throw error;
+      
+      // Create a map of attachment_id -> amount
+      const expenseMap: Record<string, number> = {};
+      data?.forEach((expense) => {
+        if (expense.attachment_id) {
+          expenseMap[expense.attachment_id] = Number(expense.amount);
+        }
+      });
+      return expenseMap;
+    },
+    enabled: !!confirmationId,
+  });
+};
+
 export const useUploadAttachment = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -77,8 +104,8 @@ export const useUploadAttachment = () => {
 
       if (error) throw error;
 
-      // Create expense if amount is provided
-      if (amount && amount > 0) {
+      // Create expense if amount is provided, linked to attachment
+      if (amount && amount > 0 && data) {
         const { error: expenseError } = await supabase
           .from("expenses")
           .insert({
@@ -88,6 +115,7 @@ export const useUploadAttachment = () => {
             amount: amount,
             expense_date: new Date().toISOString().split('T')[0],
             created_by: user.id,
+            attachment_id: data.id,
           });
         
         if (expenseError) {

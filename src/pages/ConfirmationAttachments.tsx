@@ -34,6 +34,7 @@ import {
   useMarkAsPaid,
   useUnmarkAsPaid,
   useGetAttachmentUrl,
+  useAttachmentExpenses,
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ export default function ConfirmationAttachments() {
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
+  const { data: expenseMap } = useAttachmentExpenses(id);
   const uploadMutation = useUploadAttachment();
   const deleteMutation = useDeleteAttachment();
   const markPaidMutation = useMarkAsPaid();
@@ -273,12 +275,17 @@ export default function ConfirmationAttachments() {
                       <div className="p-2 rounded-md bg-destructive/10">
                         <FileText className="h-5 w-5 text-destructive" />
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium text-foreground">{attachment.file_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {formatFileSize(attachment.file_size)} • {format(new Date(attachment.uploaded_at), "MMM d, yyyy")}
                         </p>
                       </div>
+                      {expenseMap?.[attachment.id] && (
+                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                          ${expenseMap[attachment.id].toLocaleString()}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button

@@ -316,32 +316,19 @@ export default function CreateBookingRequest() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Header */}
-      <div className="bg-gradient-to-r from-primary via-primary/90 to-primary/80 text-primary-foreground">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate("/")} 
-              className="shrink-0 text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/10"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <Plane className="h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                  Create Booking Request
-                </h1>
-                <p className="text-primary-foreground/70 text-sm mt-0.5">
-                  Build your itinerary • Drag to reorder • Auto-link dates
-                </p>
-              </div>
-            </div>
-          </div>
+      {/* Minimal Header */}
+      <div className="border-b border-border/50 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate("/")} 
+            className="shrink-0 h-8 w-8"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <Plane className="h-4 w-4 text-primary" />
+          <h1 className="text-sm font-semibold">Create Booking Request</h1>
         </div>
       </div>
 

@@ -54,7 +54,13 @@ import {
   Edit,
   Trash2,
   Car,
+  CircleDollarSign,
+  Building2,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import {
   useExpenses,
@@ -81,6 +87,7 @@ export default function FinancesPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
+  const queryClient = useQueryClient();
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -140,10 +147,54 @@ export default function FinancesPage() {
         arrivalDate: c.arrival_date,
         departureDate: c.departure_date,
         price: Number(c.price) || 0,
-        isPaid: c.is_paid,
+        clientPaid: c.client_paid || false,  // Client paid us
+        hotelsPaid: c.is_paid || false,       // We paid hotels
         totalDays: c.total_days || 1,
       }));
   }, [confirmations, dateFrom, dateTo]);
+
+  // Toggle client paid status
+  const toggleClientPaid = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("confirmations")
+        .update({ 
+          client_paid: !currentStatus,
+          client_paid_at: !currentStatus ? new Date().toISOString() : null,
+        })
+        .eq("id", id);
+      
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      toast({ 
+        title: !currentStatus ? "Marked as received" : "Marked as pending",
+        description: !currentStatus ? "Client payment has been recorded." : "Payment status cleared."
+      });
+    } catch (error) {
+      toast({ title: "Error updating payment status", variant: "destructive" });
+    }
+  };
+
+  // Toggle hotels paid status
+  const toggleHotelsPaid = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("confirmations")
+        .update({ 
+          is_paid: !currentStatus,
+          paid_at: !currentStatus ? new Date().toISOString() : null,
+        })
+        .eq("id", id);
+      
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      toast({ 
+        title: !currentStatus ? "Hotels marked as paid" : "Hotels marked as unpaid",
+      });
+    } catch (error) {
+      toast({ title: "Error updating payment status", variant: "destructive" });
+    }
+  };
 
   // Calculate driver expenses (auto-calculated $50/day per confirmation)
   const driverExpenses = useMemo(() => {
@@ -421,20 +472,26 @@ export default function FinancesPage() {
                           <TableHead>Arrival</TableHead>
                           <TableHead>Days</TableHead>
                           <TableHead className="text-right">Price</TableHead>
-                          <TableHead>Status</TableHead>
+                          <TableHead className="text-center">Received</TableHead>
+                          <TableHead className="text-center">Hotels Paid</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {incomeData.map((income) => (
                           <TableRow
                             key={income.id}
-                            className="cursor-pointer hover:bg-muted/50"
-                            onClick={() => navigate(`/confirmation/${income.id}`)}
+                            className="hover:bg-muted/50"
                           >
-                            <TableCell className="font-mono text-sm">
+                            <TableCell 
+                              className="font-mono text-sm cursor-pointer"
+                              onClick={() => navigate(`/confirmation/${income.id}`)}
+                            >
                               {income.code}
                             </TableCell>
-                            <TableCell className="font-medium">
+                            <TableCell 
+                              className="font-medium cursor-pointer"
+                              onClick={() => navigate(`/confirmation/${income.id}`)}
+                            >
                               {income.client || "—"}
                             </TableCell>
                             <TableCell>{income.arrivalDate}</TableCell>
@@ -442,10 +499,51 @@ export default function FinancesPage() {
                             <TableCell className="text-right font-semibold text-emerald-600">
                               ${income.price.toLocaleString()}
                             </TableCell>
-                            <TableCell>
-                              <Badge variant={income.isPaid ? "default" : "outline"}>
-                                {income.isPaid ? "Paid" : "Pending"}
-                              </Badge>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleClientPaid(income.id, income.clientPaid);
+                                }}
+                                title={income.clientPaid ? "Client has paid - Click to mark unpaid" : "Pending payment - Click to mark as received"}
+                                className={cn(
+                                  "h-8 w-8",
+                                  income.clientPaid 
+                                    ? "text-emerald-600 hover:text-emerald-700" 
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                {income.clientPaid ? (
+                                  <CircleDollarSign className="h-5 w-5" />
+                                ) : (
+                                  <Circle className="h-5 w-5" />
+                                )}
+                              </Button>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleHotelsPaid(income.id, income.hotelsPaid);
+                                }}
+                                title={income.hotelsPaid ? "Hotels paid - Click to mark unpaid" : "Hotels unpaid - Click to mark as paid"}
+                                className={cn(
+                                  "h-8 w-8",
+                                  income.hotelsPaid 
+                                    ? "text-amber-600 hover:text-amber-700" 
+                                    : "text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                {income.hotelsPaid ? (
+                                  <Building2 className="h-5 w-5" />
+                                ) : (
+                                  <Circle className="h-5 w-5" />
+                                )}
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -454,7 +552,7 @@ export default function FinancesPage() {
                           <TableCell className="text-right text-emerald-600">
                             ${totalIncome.toLocaleString()}
                           </TableCell>
-                          <TableCell />
+                          <TableCell colSpan={2} />
                         </TableRow>
                       </TableBody>
                     </Table>

@@ -55,6 +55,9 @@ export type Database = {
       confirmations: {
         Row: {
           arrival_date: string | null
+          client_paid: boolean | null
+          client_paid_at: string | null
+          client_paid_by: string | null
           confirmation_code: string
           confirmation_date: string
           created_at: string
@@ -76,6 +79,9 @@ export type Database = {
         }
         Insert: {
           arrival_date?: string | null
+          client_paid?: boolean | null
+          client_paid_at?: string | null
+          client_paid_by?: string | null
           confirmation_code: string
           confirmation_date: string
           created_at?: string
@@ -97,6 +103,9 @@ export type Database = {
         }
         Update: {
           arrival_date?: string | null
+          client_paid?: boolean | null
+          client_paid_at?: string | null
+          client_paid_by?: string | null
           confirmation_code?: string
           confirmation_date?: string
           created_at?: string

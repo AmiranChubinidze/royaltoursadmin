@@ -352,14 +352,9 @@ export function Dashboard() {
                   </Button>
                 )}
                 {effectiveCanManageConfirmations && (
-                  <>
-                    <Button variant="outline" size="icon" onClick={() => navigate("/create-booking-request")} title="Booking Request">
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="icon" onClick={() => navigate("/new")} title="New Confirmation">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </>
+                  <Button variant="outline" size="icon" onClick={() => navigate("/create-booking-request")} title="Booking Request">
+                    <Mail className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
             </CardContent>

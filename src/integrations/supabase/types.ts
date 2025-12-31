@@ -130,6 +130,7 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          attachment_id: string | null
           confirmation_id: string | null
           created_at: string | null
           created_by: string | null
@@ -140,6 +141,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          attachment_id?: string | null
           confirmation_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -150,6 +152,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          attachment_id?: string | null
           confirmation_id?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -159,6 +162,13 @@ export type Database = {
           id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "expenses_attachment_id_fkey"
+            columns: ["attachment_id"]
+            isOneToOne: false
+            referencedRelation: "confirmation_attachments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expenses_confirmation_id_fkey"
             columns: ["confirmation_id"]

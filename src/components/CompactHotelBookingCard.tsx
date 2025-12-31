@@ -75,7 +75,7 @@ const DatePicker = ({
           {value || placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0 bg-popover border border-border shadow-lg z-50" align="start">
         <Calendar
           mode="single"
           selected={dateValue || undefined}

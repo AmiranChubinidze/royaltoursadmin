@@ -470,23 +470,26 @@ export default function CreateBookingRequest() {
           </Card>
         )}
 
-        {/* Submit Button */}
-        <div className="flex justify-center pt-4 pb-8">
-          <Button
-            size="lg"
-            onClick={handleSubmit}
-            disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
-            className="gap-3 px-10 h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
-          >
-            <Send className="h-5 w-5" />
-            {isSubmitting 
-              ? "Sending..." 
-              : validEmailCount > 0 
-                ? `Send ${validEmailCount} ${validEmailCount === 1 ? 'Email' : 'Emails'} & Save Draft`
-                : "Save Draft"
-            }
-          </Button>
-        </div>
+        {/* Spacer for floating button */}
+        <div className="h-20" />
+      </div>
+
+      {/* Floating Action Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          size="lg"
+          onClick={handleSubmit}
+          disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
+          className="gap-2 px-6 h-14 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 bg-primary hover:bg-primary/90 rounded-full"
+        >
+          <Send className="h-5 w-5" />
+          {isSubmitting 
+            ? "Sending..." 
+            : validEmailCount > 0 
+              ? `Send ${validEmailCount}`
+              : "Save"
+          }
+        </Button>
       </div>
     </div>
   );

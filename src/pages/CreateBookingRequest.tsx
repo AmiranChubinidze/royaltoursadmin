@@ -383,24 +383,9 @@ export default function CreateBookingRequest() {
           </CardContent>
         </Card>
 
-        {/* Itinerary Builder */}
-        <Card className="border-border/50 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-4 border-b border-border/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold">Itinerary Builder</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {hotelBookings.length} {hotelBookings.length === 1 ? 'stop' : 'stops'} added
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          <CardContent className="p-6">
+        {/* Itinerary Cards */}
+        <Card className="border-border/50 shadow-sm">
+          <CardContent className="p-5">
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}

@@ -292,108 +292,119 @@ export const CompactHotelBookingCard = ({
           </div>
         </div>
 
-        {/* Guests */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
-              Adults
-            </Label>
-            <Input
-              type="number"
-              min={1}
-              value={booking.numAdults}
-              onChange={(e) => updateField("numAdults", parseInt(e.target.value) || 1)}
-              className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
-            />
-          </div>
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
-              Kids
-            </Label>
-            <Input
-              type="number"
-              min={0}
-              value={booking.numKids}
-              onChange={(e) => updateField("numKids", parseInt(e.target.value) || 0)}
-              className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
-            />
-          </div>
-        </div>
-
-        {/* Meal & Room Toggles */}
-        <div className="space-y-3 pt-1">
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
-              Meal Plan
-            </Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={booking.mealType === "BB" ? "default" : "outline"}
-                className={cn(
-                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
-                  booking.mealType === "BB" 
-                    ? "bg-primary text-primary-foreground shadow-md" 
-                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
-                )}
-                onClick={() => updateField("mealType", "BB")}
-              >
-                B&B
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={booking.mealType === "FB" ? "default" : "outline"}
-                className={cn(
-                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
-                  booking.mealType === "FB" 
-                    ? "bg-primary text-primary-foreground shadow-md" 
-                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
-                )}
-                onClick={() => updateField("mealType", "FB")}
-              >
-                Full Board
-              </Button>
+        {/* Guests - only show if hotel requires booking */}
+        {booking.hotelEmail && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                Adults
+              </Label>
+              <Input
+                type="number"
+                min={1}
+                value={booking.numAdults}
+                onChange={(e) => updateField("numAdults", parseInt(e.target.value) || 1)}
+                className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
+                Kids
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                value={booking.numKids}
+                onChange={(e) => updateField("numKids", parseInt(e.target.value) || 0)}
+                className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+              />
             </div>
           </div>
+        )}
 
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
-              Room Type
-            </Label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={booking.roomCategory === "Standard" ? "default" : "outline"}
-                className={cn(
-                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
-                  booking.roomCategory === "Standard" 
-                    ? "bg-primary text-primary-foreground shadow-md" 
-                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
-                )}
-                onClick={() => updateField("roomCategory", "Standard")}
-              >
-                Standard
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={booking.roomCategory === "Upgrade" ? "default" : "outline"}
-                className={cn(
-                  "flex-1 h-9 text-sm font-semibold transition-all duration-200",
-                  booking.roomCategory === "Upgrade" 
-                    ? "bg-primary text-primary-foreground shadow-md" 
-                    : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
-                )}
-                onClick={() => updateField("roomCategory", "Upgrade")}
-              >
-                Upgrade
-              </Button>
+        {/* Meal & Room Toggles - only show if hotel requires booking */}
+        {booking.hotelEmail && (
+          <div className="space-y-3 pt-1">
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+                Meal Plan
+              </Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={booking.mealType === "BB" ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                    booking.mealType === "BB" 
+                      ? "bg-primary text-primary-foreground shadow-md" 
+                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                  )}
+                  onClick={() => updateField("mealType", "BB")}
+                >
+                  B&B
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={booking.mealType === "FB" ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                    booking.mealType === "FB" 
+                      ? "bg-primary text-primary-foreground shadow-md" 
+                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                  )}
+                  onClick={() => updateField("mealType", "FB")}
+                >
+                  Full Board
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+                Room Type
+              </Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={booking.roomCategory === "Standard" ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                    booking.roomCategory === "Standard" 
+                      ? "bg-primary text-primary-foreground shadow-md" 
+                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                  )}
+                  onClick={() => updateField("roomCategory", "Standard")}
+                >
+                  Standard
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={booking.roomCategory === "Upgrade" ? "default" : "outline"}
+                  className={cn(
+                    "flex-1 h-9 text-sm font-semibold transition-all duration-200",
+                    booking.roomCategory === "Upgrade" 
+                      ? "bg-primary text-primary-foreground shadow-md" 
+                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                  )}
+                  onClick={() => updateField("roomCategory", "Upgrade")}
+                >
+                  Upgrade
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Transit stop indicator */}
+        {!booking.hotelEmail && booking.hotelName && (
+          <div className="text-center py-4 text-muted-foreground">
+            <p className="text-xs italic">Transit stop - no booking required</p>
+          </div>
+        )}
       </div>
     </Card>
   );

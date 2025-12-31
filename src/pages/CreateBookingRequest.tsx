@@ -104,7 +104,7 @@ export default function CreateBookingRequest() {
         .order("name");
       
       if (!error && data) {
-        setSavedHotels(data.filter(h => h.email));
+        setSavedHotels(data.map(h => ({ name: h.name, email: h.email || "" })));
       }
     };
     fetchHotels();

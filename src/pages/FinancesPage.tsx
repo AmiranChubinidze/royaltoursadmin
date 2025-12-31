@@ -382,16 +382,16 @@ export default function FinancesPage() {
           </CardContent>
         </Card>
 
-        {/* Income Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <Card className="border-emerald-500/30 bg-emerald-500/5">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-emerald-500/20">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+                <div className="p-3 rounded-full bg-emerald-500/10">
+                  <TrendingUp className="h-6 w-6 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Received from Clients</p>
+                  <p className="text-sm text-muted-foreground">Total Income</p>
                   <p className="text-2xl font-bold text-emerald-600">
                     {isLoading ? <Skeleton className="h-8 w-24" /> : `$${receivedIncome.toLocaleString()}`}
                   </p>
@@ -409,25 +409,6 @@ export default function FinancesPage() {
                   <p className="text-sm text-muted-foreground">Pending from Clients</p>
                   <p className="text-2xl font-bold text-amber-600">
                     {isLoading ? <Skeleton className="h-8 w-24" /> : `$${pendingIncome.toLocaleString()}`}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-emerald-500/10">
-                  <TrendingUp className="h-6 w-6 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Income</p>
-                  <p className="text-2xl font-bold text-emerald-600">
-                    {isLoading ? <Skeleton className="h-8 w-24" /> : `$${totalIncome.toLocaleString()}`}
                   </p>
                 </div>
               </div>

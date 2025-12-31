@@ -63,16 +63,16 @@ const DatePicker = ({
         <Button
           variant="outline"
           className={cn(
-            "w-full justify-start text-left font-medium h-10 text-sm",
+            "w-full justify-start text-left font-medium h-10 text-xs px-2",
             "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30",
-            "transition-all duration-200",
+            "transition-all duration-200 overflow-hidden",
             !value && "text-muted-foreground font-normal",
             isLinked && "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
           )}
         >
-          {isLinked && <Link2 className="h-3.5 w-3.5 mr-2 text-primary" />}
-          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-          {value || placeholder}
+          {isLinked && <Link2 className="h-3 w-3 mr-1 shrink-0 text-primary" />}
+          <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />
+          <span className="truncate">{value || placeholder}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent 

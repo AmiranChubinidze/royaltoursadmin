@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, X, Link2, GripVertical, Hotel } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CalendarIcon, X, Link2, GripVertical, Hotel, ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, parse, isValid } from "date-fns";
 import { useSortable } from "@dnd-kit/sortable";
@@ -95,6 +96,75 @@ const DatePicker = ({
           initialFocus
           className="p-3 pointer-events-auto"
         />
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+const HotelSelector = ({
+  value,
+  onChange,
+  hotels,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  hotels: { name: string; email: string }[];
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "w-full justify-between h-10 text-sm font-medium",
+            "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30",
+            "transition-all duration-200",
+            !value && "text-muted-foreground font-normal"
+          )}
+        >
+          <div className="flex items-center gap-2 truncate">
+            <Hotel className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">{value || "Select hotel..."}</span>
+          </div>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent 
+        className="w-[220px] p-0 bg-popover border border-border shadow-lg z-50" 
+        align="start"
+        sideOffset={4}
+      >
+        <Command>
+          <CommandInput placeholder="Search hotels..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>No hotel found.</CommandEmpty>
+            <CommandGroup>
+              {hotels.map((hotel) => (
+                <CommandItem
+                  key={hotel.name}
+                  value={hotel.name}
+                  onSelect={(currentValue) => {
+                    onChange(currentValue);
+                    setOpen(false);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === hotel.name ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  <span className="truncate">{hotel.name}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
@@ -190,21 +260,11 @@ export const CompactHotelBookingCard = ({
           <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">
             Hotel
           </Label>
-          <div className="relative">
-            <Hotel className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              list={`hotels-${index}`}
-              value={booking.hotelName}
-              onChange={(e) => handleHotelSelect(e.target.value)}
-              placeholder="Select hotel..."
-              className="pl-10 h-10 text-sm font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
-            />
-          </div>
-          <datalist id={`hotels-${index}`}>
-            {savedHotels.map((hotel) => (
-              <option key={hotel.name} value={hotel.name} />
-            ))}
-          </datalist>
+          <HotelSelector
+            value={booking.hotelName}
+            onChange={handleHotelSelect}
+            hotels={savedHotels}
+          />
         </div>
 
         {/* Dates */}

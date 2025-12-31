@@ -51,8 +51,6 @@ import {
   TrendingUp,
   TrendingDown,
   Plus,
-  Edit,
-  Trash2,
   Car,
   CircleDollarSign,
   Building2,
@@ -253,6 +251,28 @@ export default function FinancesPage() {
       return true;
     });
   }, [expenses, dateFrom, dateTo]);
+
+  // Separate hotel expenses from other expenses
+  const hotelExpenses = useMemo(() => {
+    return filteredExpenses.filter((e) => e.expense_type === "hotel" || e.expense_type === "hotel_expense");
+  }, [filteredExpenses]);
+
+  const otherExpenses = useMemo(() => {
+    return filteredExpenses.filter((e) => e.expense_type !== "hotel" && e.expense_type !== "hotel_expense");
+  }, [filteredExpenses]);
+
+  // Helper to clean description (remove "Invoice: " prefix and ".pdf" suffix)
+  const cleanDescription = (description: string | null) => {
+    if (!description) return "—";
+    let cleaned = description;
+    if (cleaned.toLowerCase().startsWith("invoice: ")) {
+      cleaned = cleaned.slice(9);
+    }
+    if (cleaned.toLowerCase().endsWith(".pdf")) {
+      cleaned = cleaned.slice(0, -4);
+    }
+    return cleaned || "—";
+  };
 
   // Calculate totals
   const totalIncome = incomeData.reduce((sum, i) => sum + i.price, 0);
@@ -617,9 +637,8 @@ export default function FinancesPage() {
                         <TableHeader>
                           <TableRow className="bg-muted/50">
                             <TableHead>Confirmation</TableHead>
-                            <TableHead>Client</TableHead>
+                            <TableHead>Type</TableHead>
                             <TableHead>Date</TableHead>
-                            <TableHead className="text-center">Days</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -629,16 +648,17 @@ export default function FinancesPage() {
                               <TableCell className="font-mono text-sm">
                                 {expense.confirmationCode}
                               </TableCell>
-                              <TableCell>{expense.client || "—"}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">Driver</Badge>
+                              </TableCell>
                               <TableCell>{expense.date}</TableCell>
-                              <TableCell className="text-center">{expense.totalDays}</TableCell>
                               <TableCell className="text-right font-semibold text-red-600">
                                 ${expense.amount.toLocaleString()}
                               </TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/30 font-semibold">
-                            <TableCell colSpan={4}>Subtotal</TableCell>
+                            <TableCell colSpan={3}>Subtotal</TableCell>
                             <TableCell className="text-right text-red-600">
                               ${totalDriverExpenses.toLocaleString()}
                             </TableCell>
@@ -649,14 +669,64 @@ export default function FinancesPage() {
                   )}
                 </div>
 
-                {/* Manual Expenses */}
+                {/* Hotel Expenses */}
+                <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Hotel Expenses
+                  </h3>
+                  {isLoading ? (
+                    <Skeleton className="h-32 w-full" />
+                  ) : hotelExpenses.length === 0 ? (
+                    <p className="text-muted-foreground text-sm py-4">
+                      No hotel expenses recorded
+                    </p>
+                  ) : (
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead>Description</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {hotelExpenses.map((expense) => (
+                            <TableRow key={expense.id}>
+                              <TableCell>{cleanDescription(expense.description)}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline">Hotel</Badge>
+                              </TableCell>
+                              <TableCell>
+                                {format(parseISO(expense.expense_date), "MMM d, yyyy")}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold text-red-600">
+                                ${Number(expense.amount).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                          <TableRow className="bg-muted/30 font-semibold">
+                            <TableCell colSpan={3}>Subtotal</TableCell>
+                            <TableCell className="text-right text-red-600">
+                              ${hotelExpenses.reduce((sum, e) => sum + Number(e.amount), 0).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Other Expenses */}
                 <div>
                   <h3 className="text-sm font-semibold text-muted-foreground mb-3">
                     Other Expenses
                   </h3>
                   {isLoading ? (
                     <Skeleton className="h-32 w-full" />
-                  ) : filteredExpenses.length === 0 ? (
+                  ) : otherExpenses.length === 0 ? (
                     <p className="text-muted-foreground text-sm py-4">
                       No other expenses recorded
                     </p>
@@ -665,70 +735,34 @@ export default function FinancesPage() {
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/50">
-                            <TableHead>Date</TableHead>
-                            <TableHead>Type</TableHead>
                             <TableHead>Description</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Date</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredExpenses.map((expense) => (
+                          {otherExpenses.map((expense) => (
                             <TableRow key={expense.id}>
-                              <TableCell>
-                                {format(parseISO(expense.expense_date), "MMM d, yyyy")}
-                              </TableCell>
+                              <TableCell>{expense.description || "—"}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="capitalize">
                                   {expense.expense_type}
                                 </Badge>
                               </TableCell>
-                              <TableCell>{expense.description || "—"}</TableCell>
+                              <TableCell>
+                                {format(parseISO(expense.expense_date), "MMM d, yyyy")}
+                              </TableCell>
                               <TableCell className="text-right font-semibold text-red-600">
                                 ${Number(expense.amount).toLocaleString()}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleOpenExpenseDialog(expense)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button variant="ghost" size="icon">
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Are you sure you want to delete this expense?
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => handleDeleteExpense(expense.id)}
-                                        >
-                                          Delete
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
                           <TableRow className="bg-muted/30 font-semibold">
                             <TableCell colSpan={3}>Subtotal</TableCell>
                             <TableCell className="text-right text-red-600">
-                              ${totalManualExpenses.toLocaleString()}
+                              ${otherExpenses.reduce((sum, e) => sum + Number(e.amount), 0).toLocaleString()}
                             </TableCell>
-                            <TableCell />
                           </TableRow>
                         </TableBody>
                       </Table>

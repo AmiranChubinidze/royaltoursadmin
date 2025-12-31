@@ -80,6 +80,8 @@ export interface Confirmation {
   updated_at: string;
   status: string;
   hotels_emailed: string[] | null;
+  is_paid: boolean | null;
+  price: number | null;
 }
 
 export interface ConfirmationFormData {

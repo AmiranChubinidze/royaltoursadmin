@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Mail, Send, ArrowLeft, Plane } from "lucide-react";
+import { Plus, Mail, Send, ArrowLeft, Plane, Users, Sparkles } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { CompactHotelBookingCard, HotelBooking } from "@/components/CompactHotelBookingCard";
 import {
@@ -257,7 +257,6 @@ export default function CreateBookingRequest() {
       const totalGuests = totalAdults + totalKids;
       const emptyClients = Array.from({ length: totalGuests }, () => ({ name: "", passport: "" }));
 
-      // Strip the id field before saving
       const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
 
       const { error: insertError } = await supabase
@@ -316,51 +315,71 @@ export default function CreateBookingRequest() {
   const validEmailCount = hotelBookings.filter(b => b.hotelName && b.hotelEmail).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="shrink-0">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-3">
-              <Plane className="h-7 w-7 text-primary" />
-              Create Booking Request
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Build your itinerary by adding hotels. Drag to reorder.
-            </p>
+    <div className="min-h-screen bg-background">
+      {/* Hero Header */}
+      <div className="bg-gradient-to-r from-primary via-primary/90 to-primary/80 text-primary-foreground">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate("/")} 
+              className="shrink-0 text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/10"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center">
+                <Plane className="h-6 w-6" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+                  Create Booking Request
+                </h1>
+                <p className="text-primary-foreground/70 text-sm mt-0.5">
+                  Build your itinerary • Drag to reorder • Auto-link dates
+                </p>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
         {/* Guest Settings Card */}
-        <Card className="border-border/50 shadow-sm">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-              <div className="flex items-center gap-3">
-                <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                  Default Guests:
-                </Label>
+        <Card className="border-border/50 shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-muted/50 to-muted/30 px-5 py-3 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-sm">Guest Settings</span>
+            </div>
+          </div>
+          <CardContent className="py-4 px-5">
+            <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                    Adults
+                  </Label>
                   <Input
                     type="number"
                     min={1}
                     value={sharedGuests.adults}
                     onChange={(e) => updateSharedGuests('adults', parseInt(e.target.value) || 1)}
-                    className="w-14 h-9 text-center"
+                    className="w-16 h-10 text-center font-medium"
                   />
-                  <span className="text-sm text-muted-foreground">Adults</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                    Kids
+                  </Label>
                   <Input
                     type="number"
                     min={0}
                     value={sharedGuests.kids}
                     onChange={(e) => updateSharedGuests('kids', parseInt(e.target.value) || 0)}
-                    className="w-14 h-9 text-center"
+                    className="w-16 h-10 text-center font-medium"
                   />
-                  <span className="text-sm text-muted-foreground">Kids</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -369,8 +388,8 @@ export default function CreateBookingRequest() {
                   checked={sharedGuests.applyToAll}
                   onCheckedChange={toggleSharedGuests}
                 />
-                <Label htmlFor="sync-guests" className="text-sm cursor-pointer">
-                  Sync across all hotels
+                <Label htmlFor="sync-guests" className="text-sm cursor-pointer font-medium">
+                  Apply to all stops
                 </Label>
               </div>
             </div>
@@ -379,9 +398,21 @@ export default function CreateBookingRequest() {
 
         {/* Itinerary Builder */}
         <Card className="border-border/50 shadow-sm overflow-hidden">
-          <CardHeader className="pb-4 border-b border-border/30 bg-muted/30">
-            <CardTitle className="text-lg font-semibold">Itinerary Builder</CardTitle>
-          </CardHeader>
+          <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-5 py-4 border-b border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold">Itinerary Builder</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {hotelBookings.length} {hotelBookings.length === 1 ? 'stop' : 'stops'} added
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
           <CardContent className="p-6">
             <DndContext
               sensors={sensors}
@@ -392,7 +423,7 @@ export default function CreateBookingRequest() {
                 items={hotelBookings.map(b => b.id)}
                 strategy={horizontalListSortingStrategy}
               >
-                <div className="flex gap-4 overflow-x-auto pb-4 items-stretch">
+                <div className="flex gap-5 overflow-x-auto pb-4 items-stretch scrollbar-thin">
                   {hotelBookings.map((booking, index) => (
                     <CompactHotelBookingCard
                       key={booking.id}
@@ -409,15 +440,16 @@ export default function CreateBookingRequest() {
                   
                   {/* Add Hotel Card */}
                   <Card 
-                    className="min-w-[220px] w-[220px] flex-shrink-0 border-dashed border-2 border-border/60 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center justify-center group"
+                    className="min-w-[240px] w-[240px] flex-shrink-0 border-dashed border-2 border-border/60 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 flex items-center justify-center group"
                     onClick={addHotelBooking}
-                    style={{ minHeight: '360px' }}
+                    style={{ minHeight: '420px' }}
                   >
-                    <div className="text-center text-muted-foreground group-hover:text-primary transition-colors">
-                      <div className="w-12 h-12 rounded-full bg-muted/50 group-hover:bg-primary/10 flex items-center justify-center mx-auto mb-3 transition-colors">
-                        <Plus className="h-6 w-6" />
+                    <div className="text-center text-muted-foreground group-hover:text-primary transition-colors duration-300">
+                      <div className="w-14 h-14 rounded-full bg-muted/50 group-hover:bg-primary/10 flex items-center justify-center mx-auto mb-4 transition-all duration-300 group-hover:scale-110">
+                        <Plus className="h-7 w-7" />
                       </div>
-                      <span className="text-sm font-medium">Add Stop</span>
+                      <span className="text-sm font-semibold">Add Stop</span>
+                      <p className="text-xs mt-1 opacity-70">Click to add another hotel</p>
                     </div>
                   </Card>
                 </div>
@@ -428,28 +460,32 @@ export default function CreateBookingRequest() {
 
         {/* Email Preview */}
         {validEmailCount > 0 && (
-          <Card className="border-border/50 shadow-sm">
+          <Card className="border-border/50 shadow-sm overflow-hidden">
             <Accordion type="single" collapsible defaultValue="">
               <AccordionItem value="email-preview" className="border-none">
-                <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                  <div className="flex items-center gap-2 text-left">
-                    <Mail className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">Email Preview</span>
-                    <span className="text-muted-foreground font-normal">
-                      ({validEmailCount} {validEmailCount === 1 ? 'email' : 'emails'} ready)
-                    </span>
+                <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center gap-3 text-left">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Mail className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <span className="font-semibold">Email Preview</span>
+                      <span className="text-muted-foreground font-normal ml-2">
+                        {validEmailCount} {validEmailCount === 1 ? 'email' : 'emails'} ready to send
+                      </span>
+                    </div>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-6 pb-5">
+                <AccordionContent className="px-5 pb-5">
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {hotelBookings.filter(b => b.hotelName && b.hotelEmail).map((booking, index) => (
-                      <Card key={index} className="bg-muted/30 border-border/40">
-                        <CardHeader className="py-3 px-4 border-b border-border/30">
+                      <Card key={index} className="bg-muted/20 border-border/40 overflow-hidden">
+                        <CardHeader className="py-3 px-4 bg-muted/30 border-b border-border/30">
                           <CardTitle className="text-sm font-semibold">{booking.hotelName}</CardTitle>
                           <p className="text-xs text-muted-foreground">{booking.hotelEmail}</p>
                         </CardHeader>
                         <CardContent className="p-4">
-                          <pre className="text-xs whitespace-pre-wrap font-mono bg-background/80 p-3 rounded-md border border-border/30">
+                          <pre className="text-xs whitespace-pre-wrap font-mono bg-background p-3 rounded-lg border border-border/30 max-h-48 overflow-auto">
                             {generateEmailBody(booking)}
                           </pre>
                         </CardContent>
@@ -463,14 +499,14 @@ export default function CreateBookingRequest() {
         )}
 
         {/* Submit Button */}
-        <div className="flex justify-center pt-2">
+        <div className="flex justify-center pt-4 pb-8">
           <Button
             size="lg"
             onClick={handleSubmit}
             disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
-            className="gap-2 px-8 shadow-lg hover:shadow-xl transition-shadow"
+            className="gap-3 px-10 h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-5 w-5" />
             {isSubmitting 
               ? "Sending..." 
               : validEmailCount > 0 

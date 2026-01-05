@@ -161,6 +161,12 @@ export const useDeleteAttachment = () => {
       filePath: string;
       confirmationId: string;
     }) => {
+      // Delete associated expense first
+      await supabase
+        .from("expenses")
+        .delete()
+        .eq("attachment_id", attachmentId);
+
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from("confirmation-attachments")

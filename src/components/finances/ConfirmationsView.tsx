@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -229,10 +229,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
               <TableHead>Arrival</TableHead>
               <TableHead className="text-center">Days</TableHead>
               <TableHead className="text-right">Revenue</TableHead>
-              <TableHead className="text-right">Received</TableHead>
-              <TableHead className="text-right">Pending</TableHead>
               <TableHead className="text-right">Expenses</TableHead>
-              <TableHead className="text-right">Profit</TableHead>
               <TableHead className="text-center">Received?</TableHead>
               <TableHead className="text-center">Hotels Paid?</TableHead>
             </TableRow>
@@ -241,7 +238,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
             {isLoading ? (
               [...Array(5)].map((_, i) => (
                 <TableRow key={i}>
-                  {[...Array(12)].map((_, j) => (
+                  {[...Array(10)].map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-5 w-full" />
                     </TableCell>
@@ -250,7 +247,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
               ))
             ) : !confirmationRows.length ? (
               <TableRow>
-                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   No confirmations with revenue found
                 </TableCell>
               </TableRow>
@@ -276,31 +273,17 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                         <TableCell className="text-right font-medium">
                           ${row.revenueExpected.toLocaleString()}
                         </TableCell>
-                        <TableCell className="text-right text-emerald-600 font-medium">
-                          ${row.received.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right text-amber-600 font-medium">
-                          ${row.pending.toLocaleString()}
-                        </TableCell>
                         <TableCell className="text-right text-red-600 font-medium">
                           ${row.expenses.toLocaleString()}
                         </TableCell>
-                        <TableCell
-                          className={cn(
-                            "text-right font-bold",
-                            row.profit >= 0 ? "text-emerald-600" : "text-red-600"
-                          )}
-                        >
-                          ${row.profit.toLocaleString()}
-                        </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <Switch
+                          <Checkbox
                             checked={row.clientPaid}
                             onCheckedChange={() => handleToggleClientPaid(row.id, row.clientPaid)}
                           />
                         </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <Switch
+                          <Checkbox
                             checked={row.hotelsPaid}
                             onCheckedChange={() => handleToggleHotelsPaid(row.id, row.hotelsPaid)}
                           />
@@ -309,7 +292,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                     </CollapsibleTrigger>
                     <CollapsibleContent asChild>
                       <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableCell colSpan={12} className="p-0">
+                        <TableCell colSpan={10} className="p-0">
                           <div className="p-4 space-y-4">
                             {/* Summary */}
                             <div className="grid grid-cols-3 gap-4 max-w-md">

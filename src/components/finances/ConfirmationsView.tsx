@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo } from "react";
 import { format, isWithinInterval } from "date-fns";
 import {
   Table,
@@ -30,7 +30,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
-import { useTransactions, Transaction, useBulkCreateTransactions } from "@/hooks/useTransactions";
+import { useTransactions, Transaction } from "@/hooks/useTransactions";
 import { useExpenses } from "@/hooks/useExpenses";
 import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
@@ -70,9 +70,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfirmationId, setModalConfirmationId] = useState<string | undefined>();
-
-  const bulkCreateTransactions = useBulkCreateTransactions();
-  const createdDriversRef = useRef<Set<string>>(new Set());
 
   const isLoading = confirmationsLoading || transactionsLoading || expensesLoading;
 
@@ -151,53 +148,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       })
       .filter((c) => c.revenueExpected > 0); // Only show confirmations with a price
   }, [confirmations, transactions, expenses, dateFrom, dateTo]);
-
-  // Auto-create driver transactions for confirmations that don't have one
-  useEffect(() => {
-    if (!confirmations || !transactions || isLoading) return;
-
-    const missingDriverTransactions = confirmations
-      .filter((c) => {
-        // Skip if already created in this session
-        if (createdDriversRef.current.has(c.id)) return false;
-        // Skip if no price
-        if (!c.price || Number(c.price) <= 0) return false;
-        // Skip if already has driver transaction
-        const hasDriver = transactions.some(
-          (t) => t.confirmation_id === c.id && t.category === "driver"
-        );
-        return !hasDriver;
-      })
-      .map((c) => ({
-        date: c.arrival_date 
-          ? (() => {
-              const parts = c.arrival_date.split("/");
-              if (parts.length === 3) {
-                return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-              }
-              return new Date().toISOString().split("T")[0];
-            })()
-          : new Date().toISOString().split("T")[0],
-        type: "expense" as const,
-        category: "driver" as const,
-        description: `Driver - ${c.total_days || 1} days`,
-        amount: (c.total_days || 1) * DRIVER_RATE_PER_DAY,
-        is_paid: true,
-        is_auto_generated: true,
-        confirmation_id: c.id,
-        payment_method: null,
-        notes: "Auto-generated driver expense",
-      }));
-
-    if (missingDriverTransactions.length > 0) {
-      // Mark as created before API call to prevent duplicates
-      missingDriverTransactions.forEach((t) => {
-        if (t.confirmation_id) createdDriversRef.current.add(t.confirmation_id);
-      });
-      
-      bulkCreateTransactions.mutate(missingDriverTransactions);
-    }
-  }, [confirmations, transactions, isLoading, bulkCreateTransactions]);
 
   const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
     try {

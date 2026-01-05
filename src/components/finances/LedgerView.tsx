@@ -318,16 +318,16 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           </span>
         </div>
         <div className="rounded-lg border bg-card">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Date</TableHead>
-                <TableHead>Confirmation</TableHead>
-                <TableHead className="w-[90px]">Type</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="w-[100px] text-center">Status</TableHead>
+                <TableHead className="w-[90px]">Date</TableHead>
+                <TableHead className="w-[120px]">Confirmation</TableHead>
+                <TableHead className="w-[70px]">Type</TableHead>
+                <TableHead className="w-[120px]">Category</TableHead>
+                <TableHead className="w-auto">Description</TableHead>
+                <TableHead className="w-[100px] text-right">Amount</TableHead>
+                <TableHead className="w-[80px] text-center">Status</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -433,16 +433,16 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           </span>
         </div>
         <div className="rounded-lg border bg-card">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Date</TableHead>
-                <TableHead>Confirmation</TableHead>
-                <TableHead className="w-[90px]">Type</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="w-[100px] text-center">Status</TableHead>
+                <TableHead className="w-[90px]">Date</TableHead>
+                <TableHead className="w-[120px]">Confirmation</TableHead>
+                <TableHead className="w-[70px]">Type</TableHead>
+                <TableHead className="w-[120px]">Category</TableHead>
+                <TableHead className="w-auto">Description</TableHead>
+                <TableHead className="w-[100px] text-right">Amount</TableHead>
+                <TableHead className="w-[80px] text-center">Status</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>

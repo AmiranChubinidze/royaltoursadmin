@@ -308,113 +308,235 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">Date</TableHead>
-              <TableHead>Confirmation</TableHead>
-              <TableHead className="w-[90px]">Type</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="w-[100px] text-center">Status</TableHead>
-              <TableHead className="w-[50px]" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <TableRow key={i}>
-                  {[...Array(8)].map((_, j) => (
-                    <TableCell key={j}>
-                      <Skeleton className="h-5 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : !transactions?.length ? (
+      {/* Manual Transactions */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <div className="h-2 w-2 rounded-full bg-primary" />
+          <h3 className="text-sm font-medium text-foreground">Manual Transactions</h3>
+          <span className="text-xs text-muted-foreground">
+            ({transactions?.filter(t => !t.is_auto_generated).length || 0})
+          </span>
+        </div>
+        <div className="rounded-lg border bg-card">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No transactions found
-                </TableCell>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead>Confirmation</TableHead>
+                <TableHead className="w-[90px]">Type</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-[100px] text-center">Status</TableHead>
+                <TableHead className="w-[50px]" />
               </TableRow>
-            ) : (
-              transactions.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className="font-medium">
-                    {format(new Date(t.date), "MMM d")}
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                [...Array(3)].map((_, i) => (
+                  <TableRow key={i}>
+                    {[...Array(8)].map((_, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-5 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : !transactions?.filter(t => !t.is_auto_generated).length ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    No manual transactions
                   </TableCell>
-                  <TableCell>
-                    {t.confirmation?.confirmation_code || (
-                      <span className="text-muted-foreground">General</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
+                </TableRow>
+              ) : (
+                transactions.filter(t => !t.is_auto_generated).map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="font-medium">
+                      {format(new Date(t.date), "MMM d")}
+                    </TableCell>
+                    <TableCell>
+                      {t.confirmation?.confirmation_code || (
+                        <span className="text-muted-foreground">General</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          t.type === "income"
+                            ? "border-emerald-500 text-emerald-600"
+                            : "border-red-500 text-red-600"
+                        )}
+                      >
+                        {t.type === "income" ? "In" : "Out"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={cn("font-normal", getCategoryColor(t.category))}>
+                        {getCategoryLabel(t.category)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      {t.description || "—"}
+                    </TableCell>
+                    <TableCell
                       className={cn(
-                        t.type === "income"
-                          ? "border-emerald-500 text-emerald-600"
-                          : "border-red-500 text-red-600"
+                        "text-right font-medium",
+                        t.type === "income" ? "text-emerald-600" : "text-red-600"
                       )}
                     >
-                      {t.type === "income" ? "In" : "Out"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={cn("font-normal", getCategoryColor(t.category))}>
-                      {getCategoryLabel(t.category)}
-                      {t.is_auto_generated && (
-                        <Sparkles className="h-3 w-3 ml-1 inline" />
-                      )}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {t.description || "—"}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-right font-medium",
-                      t.type === "income" ? "text-emerald-600" : "text-red-600"
-                    )}
-                  >
-                    {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Switch
-                      checked={t.is_paid}
-                      onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEdit(t)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setDeleteId(t.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Switch
+                        checked={t.is_paid}
+                        onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(t)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteId(t.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Auto-Generated Transactions */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+          <h3 className="text-sm font-medium text-foreground">Auto-Calculated</h3>
+          <span className="text-xs text-muted-foreground">
+            ({transactions?.filter(t => t.is_auto_generated).length || 0})
+          </span>
+        </div>
+        <div className="rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead>Confirmation</TableHead>
+                <TableHead className="w-[90px]">Type</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-[100px] text-center">Status</TableHead>
+                <TableHead className="w-[50px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                [...Array(2)].map((_, i) => (
+                  <TableRow key={i}>
+                    {[...Array(8)].map((_, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-5 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : !transactions?.filter(t => t.is_auto_generated).length ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                    No auto-calculated transactions
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                transactions.filter(t => t.is_auto_generated).map((t) => (
+                  <TableRow key={t.id} className="hover:bg-amber-500/5">
+                    <TableCell className="font-medium">
+                      {format(new Date(t.date), "MMM d")}
+                    </TableCell>
+                    <TableCell>
+                      {t.confirmation?.confirmation_code || (
+                        <span className="text-muted-foreground">General</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          t.type === "income"
+                            ? "border-emerald-500 text-emerald-600"
+                            : "border-red-500 text-red-600"
+                        )}
+                      >
+                        {t.type === "income" ? "In" : "Out"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={cn("font-normal", getCategoryColor(t.category))}>
+                        {getCategoryLabel(t.category)}
+                        <Sparkles className="h-3 w-3 ml-1 inline text-amber-500" />
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate">
+                      {t.description || "—"}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right font-medium",
+                        t.type === "income" ? "text-emerald-600" : "text-red-600"
+                      )}
+                    >
+                      {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Switch
+                        checked={t.is_paid}
+                        onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(t)}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteId(t.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Modals */}

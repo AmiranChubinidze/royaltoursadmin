@@ -41,6 +41,8 @@ interface ConfirmationsViewProps {
 }
 
 const DRIVER_RATE_PER_DAY = 50;
+const MEALS_RATE_PER_2_ADULTS = 15;
+const MEALS_HOTELS = ["INN MARTVILI", "ORBI"];
 
 interface ConfirmationRow {
   id: string;
@@ -56,6 +58,8 @@ interface ConfirmationRow {
   clientPaid: boolean;
   hotelsPaid: boolean;
   driverExpense: number;
+  mealsExpense: number;
+  mealsNights: number;
   invoiceExpenses: { name: string; amount: number }[];
   transactions: Transaction[];
 }
@@ -106,6 +110,19 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const days = c.total_days || 1;
         const driverExpense = days * DRIVER_RATE_PER_DAY;
 
+        // Calculate meals expense for INN MARTVILI and ORBI hotels
+        const rawPayload = c.raw_payload as {
+          itinerary?: { hotel?: string }[];
+          guestInfo?: { numAdults?: number };
+        } | null;
+        const itinerary = rawPayload?.itinerary || [];
+        const numAdults = rawPayload?.guestInfo?.numAdults || 2;
+        const mealsNights = itinerary.filter((day) => {
+          const hotelName = day.hotel?.toUpperCase().trim() || "";
+          return MEALS_HOTELS.some((h) => hotelName.includes(h));
+        }).length;
+        const mealsExpense = Math.ceil(numAdults / 2) * MEALS_RATE_PER_2_ADULTS * mealsNights;
+
         // Calculate received (income transactions marked as paid)
         const received = confirmationTransactions
           .filter((t) => t.type === "income" && t.is_paid)
@@ -142,6 +159,8 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           clientPaid: c.client_paid || false,
           hotelsPaid: c.is_paid || false,
           driverExpense: actualDriverExpense,
+          mealsExpense,
+          mealsNights,
           invoiceExpenses,
           transactions: confirmationTransactions,
         };
@@ -329,6 +348,14 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                                 <Sparkles className="h-4 w-4 shrink-0" />
                                 <span>Driver: ${row.driverExpense} ({row.days} days × $50)</span>
                               </div>
+
+                              {/* Meals */}
+                              {row.mealsNights > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 shrink-0" />
+                                  <span>Meals: {row.mealsExpense} GEL ({row.mealsNights} nights × 15 GEL)</span>
+                                </div>
+                              )}
 
                               {/* Hotels */}
                               {row.invoiceExpenses.map((inv, idx) => (

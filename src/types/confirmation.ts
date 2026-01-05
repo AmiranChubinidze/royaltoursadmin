@@ -50,6 +50,8 @@ export interface HotelBooking {
   roomCategory: "Standard" | "Upgrade";
 }
 
+export type DriverType = "driver1" | "driver2";
+
 export interface ConfirmationPayload {
   clients: Client[];
   arrival: ArrivalInfo;
@@ -61,6 +63,7 @@ export interface ConfirmationPayload {
   notes?: string;
   tourSource?: string;
   price?: number | null;
+  driverType?: DriverType;
   // For draft confirmations from booking requests
   hotelBookings?: HotelBooking[];
 }
@@ -99,6 +102,7 @@ export interface ConfirmationFormData {
   services: string;
   notes: string;
   price: number | null;
+  driverType: DriverType;
 }
 
 export const COMPANY_INFO = {

@@ -14,7 +14,10 @@ import { ConfirmationsView } from "@/components/finances/ConfirmationsView";
 import { LedgerView } from "@/components/finances/LedgerView";
 import { CategoriesView } from "@/components/finances/CategoriesView";
 
-const DRIVER_RATE_PER_DAY = 50;
+const DRIVER_RATES: Record<string, number> = {
+  driver1: 50,
+  driver2: 60,
+};
 
 export default function FinancesPage() {
   const navigate = useNavigate();
@@ -98,7 +101,11 @@ export default function FinancesPage() {
         );
         return !hasDriverTransaction;
       })
-      .reduce((sum, c) => sum + (c.total_days || 1) * DRIVER_RATE_PER_DAY, 0);
+      .reduce((sum, c) => {
+        const driverType = (c.raw_payload as any)?.driverType || "driver1";
+        const driverRate = DRIVER_RATES[driverType] || 50;
+        return sum + (c.total_days || 1) * driverRate;
+      }, 0);
 
     const totalExpenses = paidExpenses + driverExpenses;
 

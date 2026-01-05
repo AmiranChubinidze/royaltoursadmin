@@ -432,10 +432,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             ({transactions?.filter(t => t.is_auto_generated).length || 0})
           </span>
         </div>
-        <div className="rounded-lg border border-dashed border-amber-500/30 bg-amber-500/5">
+        <div className="rounded-lg border bg-card">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-transparent">
+              <TableRow>
                 <TableHead className="w-[100px]">Date</TableHead>
                 <TableHead>Confirmation</TableHead>
                 <TableHead className="w-[90px]">Type</TableHead>
@@ -465,7 +465,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 </TableRow>
               ) : (
                 transactions.filter(t => t.is_auto_generated).map((t) => (
-                  <TableRow key={t.id} className="hover:bg-amber-500/5">
+                  <TableRow key={t.id}>
                     <TableCell className="font-medium">
                       {format(new Date(t.date), "MMM d")}
                     </TableCell>

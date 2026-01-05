@@ -299,7 +299,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                               <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                                 <p className="text-xs text-muted-foreground">Income</p>
                                 <p className="text-lg font-bold text-emerald-600">
-                                  ${row.received.toLocaleString()}
+                                  ${row.revenueExpected.toLocaleString()}
                                 </p>
                               </div>
                               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20">

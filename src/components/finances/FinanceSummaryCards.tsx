@@ -2,7 +2,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
-  TrendingUp,
   TrendingDown,
   DollarSign,
   Clock,
@@ -27,13 +26,6 @@ export function FinanceSummaryCards({
   isLoading = false,
 }: FinanceSummaryCardsProps) {
   const cards = [
-    {
-      label: "Revenue (Expected)",
-      value: revenueExpected,
-      icon: TrendingUp,
-      color: "text-blue-600",
-      bgColor: "bg-blue-500/10",
-    },
     {
       label: "Received (Cash In)",
       value: received,
@@ -65,7 +57,7 @@ export function FinanceSummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {cards.map((card) => (
         <Card key={card.label} className="border-border/50">
           <CardContent className="pt-5 pb-4">

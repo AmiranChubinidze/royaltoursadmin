@@ -61,6 +61,45 @@ export function useCreateBookingDraft() {
   });
 }
 
+export function useUpdateBookingDraft() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      hotel_bookings,
+      guest_info,
+      emails_sent,
+      notes,
+    }: {
+      id: string;
+      hotel_bookings?: HotelBooking[];
+      guest_info?: { numAdults: number; numKids: number };
+      emails_sent?: boolean;
+      notes?: string | null;
+    }) => {
+      const updateData: any = {};
+      if (hotel_bookings !== undefined) updateData.hotel_bookings = hotel_bookings;
+      if (guest_info !== undefined) updateData.guest_info = guest_info;
+      if (emails_sent !== undefined) updateData.emails_sent = emails_sent;
+      if (notes !== undefined) updateData.notes = notes;
+
+      const { data, error } = await supabase
+        .from("booking_drafts")
+        .update(updateData)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking-drafts"] });
+    },
+  });
+}
+
 export function useDeleteBookingDraft() {
   const queryClient = useQueryClient();
 

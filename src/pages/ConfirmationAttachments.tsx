@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, XCircle, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ import {
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
+import { TransactionModal } from "@/components/finances/TransactionModal";
 
 export default function ConfirmationAttachments() {
   const { id } = useParams<{ id: string }>();
@@ -64,6 +65,9 @@ export default function ConfirmationAttachments() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [invoiceName, setInvoiceName] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
+  
+  // Transaction modal state
+  const [transactionModalOpen, setTransactionModalOpen] = useState(false);
   
   const canUpload = role === "admin" || role === "booking";
   const canDelete = role === "admin" || role === "worker";
@@ -242,16 +246,24 @@ export default function ConfirmationAttachments() {
 
         {/* Invoices List */}
         <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileText className="h-5 w-5 text-primary" />
-              Invoices
-              {attachments && attachments.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {attachments.length}
-                </Badge>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileText className="h-5 w-5 text-primary" />
+                Invoices
+                {attachments && attachments.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {attachments.length}
+                  </Badge>
+                )}
+              </CardTitle>
+              {(isAdmin || role === "accountant") && (
+                <Button size="sm" variant="outline" onClick={() => setTransactionModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Transaction
+                </Button>
               )}
-            </CardTitle>
+            </div>
             {isWorker && (
               <CardDescription>
                 View-only access. Contact booking team to upload invoices.
@@ -350,13 +362,13 @@ export default function ConfirmationAttachments() {
           </CardContent>
         </Card>
 
-        {/* Upload Area - Only for booking/admin */}
+        {/* Upload Area - Only for booking/admin - Compact */}
         {canUpload && (
           <Card className="mb-6">
-            <CardContent className="pt-6">
+            <CardContent className="py-4">
               <label
                 className={cn(
-                  "flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-lg cursor-pointer transition-all",
+                  "flex items-center justify-center gap-3 w-full py-4 px-4 border-2 border-dashed rounded-lg cursor-pointer transition-all",
                   isDragging 
                     ? "border-primary bg-primary/5" 
                     : "border-border hover:border-primary/50 hover:bg-muted/50"
@@ -365,15 +377,13 @@ export default function ConfirmationAttachments() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
               >
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <Upload className={cn(
-                    "h-10 w-10 mb-3 transition-colors",
-                    isDragging ? "text-primary" : "text-muted-foreground"
-                  )} />
-                  <p className="mb-2 text-sm text-foreground">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-muted-foreground">PDF invoices only</p>
+                <Upload className={cn(
+                  "h-5 w-5 transition-colors shrink-0",
+                  isDragging ? "text-primary" : "text-muted-foreground"
+                )} />
+                <div className="text-sm">
+                  <span className="font-medium">Upload PDF</span>
+                  <span className="text-muted-foreground ml-1">or drag & drop</span>
                 </div>
                 <input
                   type="file"
@@ -385,7 +395,7 @@ export default function ConfirmationAttachments() {
                 />
               </label>
               {uploadMutation.isPending && (
-                <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+                <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Uploading...
                 </div>
@@ -554,6 +564,13 @@ export default function ConfirmationAttachments() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Transaction Modal */}
+        <TransactionModal
+          open={transactionModalOpen}
+          onOpenChange={setTransactionModalOpen}
+          defaultConfirmationId={id}
+        />
       </div>
     </div>
   );

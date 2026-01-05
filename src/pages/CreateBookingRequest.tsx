@@ -336,7 +336,7 @@ export default function CreateBookingRequest() {
       const totalGuests = draft.guest_info.numAdults + draft.guest_info.numKids;
       const emptyClients = Array.from({ length: totalGuests }, () => ({ name: "", passport: "" }));
 
-      const { error: insertError } = await supabase
+      const { data: insertedData, error: insertError } = await supabase
         .from("confirmations")
         .insert([{
           confirmation_code: confirmationCode,
@@ -358,15 +358,17 @@ export default function CreateBookingRequest() {
             services: "",
             notes: "",
           } as any,
-        }]);
+        }])
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
       // Delete the draft after successful transfer
       await deleteDraft.mutateAsync(draft.id);
 
-      toast.success(`Created confirmation ${confirmationCode}`);
-      navigate(`/confirmation/${confirmationCode}/edit`);
+      toast.success(`Created draft confirmation ${confirmationCode}`);
+      navigate(`/confirmation/${insertedData.id}/edit`);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to transfer to confirmation");

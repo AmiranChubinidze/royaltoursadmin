@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_drafts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          emails_sent: boolean | null
+          guest_info: Json
+          hotel_bookings: Json
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          emails_sent?: boolean | null
+          guest_info: Json
+          hotel_bookings: Json
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          emails_sent?: boolean | null
+          guest_info?: Json
+          hotel_bookings?: Json
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       confirmation_attachments: {
         Row: {
           confirmation_id: string

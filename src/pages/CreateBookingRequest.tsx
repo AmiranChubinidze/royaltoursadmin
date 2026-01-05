@@ -368,7 +368,6 @@ export default function CreateBookingRequest() {
       await deleteDraft.mutateAsync(draft.id);
 
       toast.success(`Created draft confirmation ${confirmationCode}`);
-      navigate(`/confirmation/${insertedData.id}/edit`);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Failed to transfer to confirmation");

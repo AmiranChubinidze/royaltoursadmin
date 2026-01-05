@@ -194,10 +194,10 @@ export default function ConfirmationAttachments() {
           <Button
             variant="ghost"
             className="mb-4"
-            onClick={() => navigate(`/confirmation/${id}`)}
+            onClick={() => navigate('/')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Confirmation
+            Back to Main
           </Button>
         </div>
 

@@ -50,6 +50,7 @@ const CATEGORIES: { value: string; label: string; type: TransactionType | "both"
   { value: "breakfast", label: "Breakfast", type: "expense" },
   { value: "fuel", label: "Fuel", type: "expense" },
   { value: "guide", label: "Guide", type: "expense" },
+  { value: "salary", label: "Salary", type: "expense" },
   { value: "other", label: "Other", type: "both" },
   { value: "__custom__", label: "Custom...", type: "both" },
 ];

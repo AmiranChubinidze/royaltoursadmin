@@ -70,6 +70,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   breakfast: "Breakfast",
   fuel: "Fuel",
   guide: "Guide",
+  salary: "Salary",
   other: "Other",
 };
 
@@ -81,6 +82,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   breakfast: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
   fuel: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400",
   guide: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  salary: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
   other: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
 };
 

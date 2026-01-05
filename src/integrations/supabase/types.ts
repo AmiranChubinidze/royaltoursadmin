@@ -226,6 +226,65 @@ export type Database = {
         }
         Relationships: []
       }
+      transactions: {
+        Row: {
+          amount: number
+          category: string
+          confirmation_id: string | null
+          created_at: string
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          is_auto_generated: boolean
+          is_paid: boolean
+          notes: string | null
+          payment_method: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category: string
+          confirmation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          is_auto_generated?: boolean
+          is_paid?: boolean
+          notes?: string | null
+          payment_method?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          confirmation_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          is_auto_generated?: boolean
+          is_paid?: boolean
+          notes?: string | null
+          payment_method?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_confirmation_id_fkey"
+            columns: ["confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "confirmations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

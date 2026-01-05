@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Mail, Send, ArrowLeft, Plane, Users, FileText, ArrowUpRight, Trash2 } from "lucide-react";
+import { Plus, Mail, Send, ArrowLeft, Plane, Users, FileText, ArrowUpRight, Trash2, Edit, X } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { CompactHotelBookingCard, HotelBooking } from "@/components/CompactHotelBookingCard";
-import { useBookingDrafts, useCreateBookingDraft, useDeleteBookingDraft, BookingDraft } from "@/hooks/useBookingDrafts";
+import { useBookingDrafts, useCreateBookingDraft, useDeleteBookingDraft, useUpdateBookingDraft, BookingDraft } from "@/hooks/useBookingDrafts";
 import {
   DndContext,
   closestCenter,
@@ -77,7 +77,13 @@ export default function CreateBookingRequest() {
   const { data: drafts, isLoading: draftsLoading } = useBookingDrafts();
   const createDraft = useCreateBookingDraft();
   const deleteDraft = useDeleteBookingDraft();
+  const updateDraft = useUpdateBookingDraft();
   const [sharedGuests, setSharedGuests] = useState({ adults: 2, kids: 0, applyToAll: true });
+  
+  // Editing state
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [originalHotelBookings, setOriginalHotelBookings] = useState<HotelBooking[]>([]);
+  const [sendingHotelIndex, setSendingHotelIndex] = useState<number | null>(null);
   
   const [hotelBookings, setHotelBookings] = useState<(HotelBooking & { id: string })[]>([
     {
@@ -380,8 +386,150 @@ export default function CreateBookingRequest() {
     try {
       await deleteDraft.mutateAsync(id);
       toast.success("Draft deleted");
+      // Clear editing state if we're deleting the draft we're editing
+      if (editingDraftId === id) {
+        handleCancelEdit();
+      }
     } catch (error) {
       toast.error("Failed to delete draft");
+    }
+  };
+
+  const handleEditDraft = (draft: BookingDraft) => {
+    setEditingDraftId(draft.id);
+    setOriginalHotelBookings(draft.hotel_bookings);
+    setHotelBookings(
+      draft.hotel_bookings.map((b) => ({
+        ...b,
+        id: crypto.randomUUID(),
+      }))
+    );
+    setSharedGuests({
+      adults: draft.guest_info.numAdults,
+      kids: draft.guest_info.numKids,
+      applyToAll: true,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDraftId(null);
+    setOriginalHotelBookings([]);
+    setHotelBookings([
+      {
+        id: crypto.randomUUID(),
+        hotelName: "",
+        hotelEmail: "",
+        checkIn: "",
+        checkOut: "",
+        numAdults: 2,
+        numKids: 0,
+        mealType: "BB",
+        roomCategory: "Standard",
+      },
+    ]);
+    setSharedGuests({ adults: 2, kids: 0, applyToAll: true });
+  };
+
+  const handleSaveEditedDraft = async () => {
+    if (!editingDraftId) return;
+    
+    setIsSubmitting(true);
+    try {
+      const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
+      const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
+      const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
+
+      await updateDraft.mutateAsync({
+        id: editingDraftId,
+        hotel_bookings: bookingsToSave,
+        guest_info: { numAdults: totalAdults, numKids: totalKids },
+      });
+
+      toast.success("Draft updated");
+      handleCancelEdit();
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to update draft");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isHotelModified = (index: number): boolean => {
+    if (!editingDraftId || !originalHotelBookings[index]) return false;
+    const original = originalHotelBookings[index];
+    const current = hotelBookings[index];
+    if (!current) return false;
+    
+    return (
+      original.hotelName !== current.hotelName ||
+      original.hotelEmail !== current.hotelEmail ||
+      original.checkIn !== current.checkIn ||
+      original.checkOut !== current.checkOut ||
+      original.numAdults !== current.numAdults ||
+      original.numKids !== current.numKids ||
+      original.mealType !== current.mealType ||
+      original.roomCategory !== current.roomCategory
+    );
+  };
+
+  const handleSendSingleHotel = async (index: number) => {
+    const booking = hotelBookings[index];
+    if (!booking.hotelEmail) {
+      toast.error("No email address for this hotel");
+      return;
+    }
+
+    setSendingHotelIndex(index);
+    try {
+      const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
+        body: {
+          hotels: [{
+            hotelName: booking.hotelName,
+            hotelEmail: booking.hotelEmail,
+            clientName: "TBD",
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            roomType: booking.roomCategory,
+            meals: booking.mealType,
+            confirmationCode: "PENDING",
+            guestInfo: {
+              numAdults: booking.numAdults,
+              numKids: booking.numKids,
+              kidsAges: [],
+            },
+          }],
+          confirmationCode: "PENDING",
+        },
+      });
+
+      if (emailError) {
+        toast.error(`Failed to send email: ${emailError.message}`);
+      } else {
+        toast.success(`Email sent to ${booking.hotelName}`);
+        
+        // Update the original to match current (so it's no longer "modified")
+        setOriginalHotelBookings((prev) => {
+          const updated = [...prev];
+          updated[index] = { ...booking };
+          delete (updated[index] as any).id;
+          return updated;
+        });
+
+        // Also save the draft with the updated hotel
+        if (editingDraftId) {
+          const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
+          await updateDraft.mutateAsync({
+            id: editingDraftId,
+            hotel_bookings: bookingsToSave,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to send email");
+    } finally {
+      setSendingHotelIndex(null);
     }
   };
 
@@ -401,7 +549,14 @@ export default function CreateBookingRequest() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <Plane className="h-4 w-4 text-primary" />
-          <h1 className="text-sm font-semibold">Create Booking Request</h1>
+          <h1 className="text-sm font-semibold">
+            {editingDraftId ? "Edit Booking Draft" : "Create Booking Request"}
+          </h1>
+          {editingDraftId && (
+            <Badge variant="outline" className="ml-2 border-amber-500 text-amber-600">
+              Editing
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -470,19 +625,40 @@ export default function CreateBookingRequest() {
               >
                 <div className="flex gap-5 overflow-x-auto pb-4 items-stretch scrollbar-thin">
                   {hotelBookings.map((booking, index) => (
-                    <CompactHotelBookingCard
-                      key={booking.id}
-                      id={booking.id}
-                      booking={booking}
-                      index={index}
-                      onChange={(updated) => updateHotelBooking(index, updated)}
-                      onRemove={() => removeHotelBooking(index)}
-                      canRemove={hotelBookings.length > 1}
-                      isCheckInLinked={isCheckInLinked(index)}
-                      savedHotels={savedHotels}
-                      hideGuestFields={sharedGuests.applyToAll}
-                    />
+                    <div key={booking.id} className="flex flex-col">
+                      <CompactHotelBookingCard
+                        id={booking.id}
+                        booking={booking}
+                        index={index}
+                        onChange={(updated) => updateHotelBooking(index, updated)}
+                        onRemove={() => removeHotelBooking(index)}
+                        canRemove={hotelBookings.length > 1}
+                        isCheckInLinked={isCheckInLinked(index)}
+                        savedHotels={savedHotels}
+                        hideGuestFields={sharedGuests.applyToAll}
+                      />
+                      {/* Send button for modified hotels while editing */}
+                      {editingDraftId && isHotelModified(index) && booking.hotelEmail && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSendSingleHotel(index)}
+                          disabled={sendingHotelIndex === index}
+                          className="mt-2 gap-1.5 border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                        >
+                          <Send className="h-3 w-3" />
+                          {sendingHotelIndex === index ? "Sending..." : "Send Update"}
+                        </Button>
+                      )}
+                      {editingDraftId && !isHotelModified(index) && originalHotelBookings[index] && (
+                        <Badge variant="outline" className="mt-2 justify-center border-emerald-500 text-emerald-600">
+                          <Mail className="h-3 w-3 mr-1" />
+                          Sent
+                        </Badge>
+                      )}
+                    </div>
                   ))}
+                  
                   
                   {/* Add Hotel Card */}
                   <Card 
@@ -594,8 +770,18 @@ export default function CreateBookingRequest() {
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
+                          variant="outline"
+                          onClick={() => handleEditDraft(draft)}
+                          disabled={editingDraftId === draft.id}
+                          className="gap-1.5"
+                        >
+                          <Edit className="h-4 w-4" />
+                          {editingDraftId === draft.id ? "Editing..." : "Edit"}
+                        </Button>
+                        <Button
+                          size="sm"
                           onClick={() => handleTransferToConfirmation(draft)}
-                          disabled={isTransferring === draft.id}
+                          disabled={isTransferring === draft.id || editingDraftId === draft.id}
                           className="gap-1.5"
                         >
                           <ArrowUpRight className="h-4 w-4" />
@@ -605,6 +791,7 @@ export default function CreateBookingRequest() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleDeleteDraft(draft.id)}
+                          disabled={editingDraftId === draft.id}
                           className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -622,20 +809,33 @@ export default function CreateBookingRequest() {
         <div className="h-20" />
       </div>
 
-      {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* Floating Action Buttons */}
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+        {editingDraftId && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={handleCancelEdit}
+            className="gap-2 px-6 h-14 text-base font-semibold shadow-xl bg-background rounded-full"
+          >
+            <X className="h-5 w-5" />
+            Cancel
+          </Button>
+        )}
         <Button
           size="lg"
-          onClick={handleSubmit}
+          onClick={editingDraftId ? handleSaveEditedDraft : handleSubmit}
           disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
           className="gap-2 px-6 h-14 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 bg-primary hover:bg-primary/90 rounded-full"
         >
           <Send className="h-5 w-5" />
           {isSubmitting 
-            ? "Sending..." 
-            : validEmailCount > 0 
-              ? `Send ${validEmailCount}`
-              : "Save"
+            ? (editingDraftId ? "Saving..." : "Sending...")
+            : editingDraftId
+              ? "Save Draft"
+              : validEmailCount > 0 
+                ? `Send ${validEmailCount}`
+                : "Save"
           }
         </Button>
       </div>

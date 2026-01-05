@@ -143,6 +143,11 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         // Get driver expense from transaction or calculate
         const driverTransaction = confirmationTransactions.find((t) => t.category === "driver");
         const actualDriverExpense = driverTransaction ? driverTransaction.amount : driverExpense;
+
+        // Get meals expense from transaction or calculate
+        const mealsTransaction = confirmationTransactions.find((t) => t.category === "breakfast");
+        const actualMealsExpense = mealsTransaction ? mealsTransaction.amount : mealsExpense;
+
         const totalExpenses = paidExpenses + invoiceExpensesTotal;
 
         return {
@@ -159,7 +164,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           clientPaid: c.client_paid || false,
           hotelsPaid: c.is_paid || false,
           driverExpense: actualDriverExpense,
-          mealsExpense,
+          mealsExpense: actualMealsExpense,
           mealsNights,
           invoiceExpenses,
           transactions: confirmationTransactions,

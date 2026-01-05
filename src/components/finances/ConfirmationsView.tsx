@@ -165,12 +165,21 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         // Get driver expense from transaction or calculate
         const driverTransaction = confirmationTransactions.find((t) => t.category === "driver");
         const actualDriverExpense = driverTransaction ? driverTransaction.amount : driverExpense;
+        const driverPaid = driverTransaction ? driverTransaction.is_paid : false;
 
         // Get meals expense from transaction or calculate
         const mealsTransaction = confirmationTransactions.find((t) => t.category === "breakfast");
         const actualMealsExpense = mealsTransaction ? mealsTransaction.amount : mealsExpense;
+        const mealsPaid = mealsTransaction ? mealsTransaction.is_paid : false;
 
+        // Total expenses = paid expense transactions + invoice expenses
+        // Driver and meals are shown separately in breakdown
         const totalExpenses = paidExpenses + invoiceExpensesTotal;
+
+        // Profit calculation includes driver and meals as expected costs
+        const expectedTotalExpenses = totalExpenses + 
+          (driverPaid ? 0 : actualDriverExpense) + 
+          (mealsPaid ? 0 : actualMealsExpense);
 
         return {
           id: c.id,

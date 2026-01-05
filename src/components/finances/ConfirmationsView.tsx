@@ -126,7 +126,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           received,
           pending: revenueExpected - received,
           expenses: totalExpenses,
-          profit: received - totalExpenses,
+          profit: revenueExpected - totalExpenses,
           clientPaid: c.client_paid || false,
           hotelsPaid: c.is_paid || false,
           driverExpense,

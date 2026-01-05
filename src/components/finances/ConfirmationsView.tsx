@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format, isWithinInterval } from "date-fns";
 import {
   Table,
@@ -30,7 +30,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
-import { useTransactions, Transaction } from "@/hooks/useTransactions";
+import { useBulkCreateTransactions, useTransactions, Transaction } from "@/hooks/useTransactions";
 import { useExpenses } from "@/hooks/useExpenses";
 import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,30 @@ interface ConfirmationsViewProps {
 const DRIVER_RATE_PER_DAY = 50;
 const MEALS_RATE_PER_2_ADULTS = 15;
 const MEALS_HOTELS = ["INN MARTVILI", "ORBI"];
+
+const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
+  if (!dateStr) return new Date().toISOString().split("T")[0];
+  const parts = dateStr.split("/");
+  if (parts.length === 3) {
+    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+  }
+  return new Date().toISOString().split("T")[0];
+};
+
+const calculateMealsFromPayload = (rawPayload: unknown) => {
+  const payload = rawPayload as any;
+  const itinerary = (payload?.itinerary as any[]) || [];
+  const numAdults = Number(payload?.guestInfo?.numAdults) || 2;
+
+  const mealsNights = itinerary.filter((day) => {
+    const hotelName = String(day?.hotel || "").toUpperCase().trim();
+    return MEALS_HOTELS.some((h) => hotelName.includes(h));
+  }).length;
+
+  const mealsExpense = Math.ceil(numAdults / 2) * MEALS_RATE_PER_2_ADULTS * mealsNights;
+
+  return { mealsNights, mealsExpense, numAdults };
+};
 
 interface ConfirmationRow {
   id: string;
@@ -74,6 +98,9 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfirmationId, setModalConfirmationId] = useState<string | undefined>();
+
+  const bulkCreateTransactions = useBulkCreateTransactions();
+  const createdMealsRef = useRef<Set<string>>(new Set());
 
   const isLoading = confirmationsLoading || transactionsLoading || expensesLoading;
 
@@ -111,17 +138,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const driverExpense = days * DRIVER_RATE_PER_DAY;
 
         // Calculate meals expense for INN MARTVILI and ORBI hotels
-        const rawPayload = c.raw_payload as {
-          itinerary?: { hotel?: string }[];
-          guestInfo?: { numAdults?: number };
-        } | null;
-        const itinerary = rawPayload?.itinerary || [];
-        const numAdults = rawPayload?.guestInfo?.numAdults || 2;
-        const mealsNights = itinerary.filter((day) => {
-          const hotelName = day.hotel?.toUpperCase().trim() || "";
-          return MEALS_HOTELS.some((h) => hotelName.includes(h));
-        }).length;
-        const mealsExpense = Math.ceil(numAdults / 2) * MEALS_RATE_PER_2_ADULTS * mealsNights;
+        const { mealsNights, mealsExpense } = calculateMealsFromPayload(c.raw_payload);
 
         // Calculate received (income transactions marked as paid)
         const received = confirmationTransactions
@@ -172,6 +189,53 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       })
       .filter((c) => c.revenueExpected > 0); // Only show confirmations with a price
   }, [confirmations, transactions, expenses, dateFrom, dateTo]);
+
+  // Auto-create meals transactions so they appear in the Ledger
+  useEffect(() => {
+    if (!confirmations || !transactions || isLoading) return;
+
+    const missingMealsTransactions = confirmations
+      .filter((c) => {
+        if (createdMealsRef.current.has(c.id)) return false;
+
+        if (dateFrom || dateTo) {
+          const arrivalDate = parseConfirmationDate(c.arrival_date);
+          if (!arrivalDate) return false;
+          if (dateFrom && arrivalDate < dateFrom) return false;
+          if (dateTo && arrivalDate > dateTo) return false;
+        }
+
+        const { mealsExpense, mealsNights } = calculateMealsFromPayload(c.raw_payload);
+        if (mealsNights <= 0 || mealsExpense <= 0) return false;
+
+        const hasMeals = transactions.some(
+          (t) => t.confirmation_id === c.id && t.category === "breakfast"
+        );
+        return !hasMeals;
+      })
+      .map((c) => {
+        const { mealsExpense, mealsNights, numAdults } = calculateMealsFromPayload(c.raw_payload);
+        return {
+          date: isoDateFromDdMmYyyy(c.arrival_date),
+          type: "expense" as const,
+          category: "breakfast" as const,
+          description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
+          amount: mealsExpense,
+          is_paid: true,
+          is_auto_generated: true,
+          confirmation_id: c.id,
+          payment_method: null,
+          notes: "Auto-generated meals expense (GEL)",
+        };
+      });
+
+    if (missingMealsTransactions.length > 0) {
+      missingMealsTransactions.forEach((t) => {
+        if (t.confirmation_id) createdMealsRef.current.add(t.confirmation_id);
+      });
+      bulkCreateTransactions.mutate(missingMealsTransactions);
+    }
+  }, [confirmations, transactions, isLoading, bulkCreateTransactions, dateFrom, dateTo]);
 
   const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
     try {

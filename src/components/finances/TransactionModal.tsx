@@ -42,7 +42,7 @@ interface TransactionModalProps {
   defaultConfirmationId?: string;
 }
 
-const CATEGORIES: { value: TransactionCategory; label: string; type: TransactionType | "both" }[] = [
+const CATEGORIES: { value: string; label: string; type: TransactionType | "both" }[] = [
   { value: "tour_payment", label: "Tour Payment", type: "income" },
   { value: "hotel", label: "Hotel", type: "expense" },
   { value: "driver", label: "Driver", type: "expense" },
@@ -51,6 +51,7 @@ const CATEGORIES: { value: TransactionCategory; label: string; type: Transaction
   { value: "fuel", label: "Fuel", type: "expense" },
   { value: "guide", label: "Guide", type: "expense" },
   { value: "other", label: "Other", type: "both" },
+  { value: "__custom__", label: "Custom...", type: "both" },
 ];
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
@@ -86,13 +87,19 @@ export function TransactionModal({
   });
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [customCategory, setCustomCategory] = useState("");
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
 
   useEffect(() => {
     if (transaction) {
+      // Check if the transaction's category is a known category
+      const knownCategories = CATEGORIES.map(c => c.value).filter(v => v !== "__custom__");
+      const isKnown = knownCategories.includes(transaction.category);
+      
       setFormData({
         date: transaction.date,
         type: transaction.type,
-        category: transaction.category,
+        category: isKnown ? transaction.category : "__custom__",
         description: transaction.description || "",
         amount: transaction.amount,
         is_paid: transaction.is_paid,
@@ -100,6 +107,8 @@ export function TransactionModal({
         confirmation_id: transaction.confirmation_id,
         notes: transaction.notes || "",
       });
+      setIsCustomCategory(!isKnown);
+      setCustomCategory(isKnown ? "" : transaction.category);
     } else {
       setFormData({
         date: format(new Date(), "yyyy-MM-dd"),
@@ -112,6 +121,8 @@ export function TransactionModal({
         confirmation_id: defaultConfirmationId || null,
         notes: "",
       });
+      setIsCustomCategory(false);
+      setCustomCategory("");
     }
   }, [transaction, defaultType, defaultCategory, defaultConfirmationId, open]);
 
@@ -125,12 +136,22 @@ export function TransactionModal({
       return;
     }
 
+    // Determine final category
+    const finalCategory = isCustomCategory ? customCategory.trim() : formData.category;
+    
+    if (isCustomCategory && !finalCategory) {
+      toast({ title: "Please enter a custom category name", variant: "destructive" });
+      return;
+    }
+
+    const submitData = { ...formData, category: finalCategory };
+
     try {
       if (transaction) {
-        await updateTransaction.mutateAsync({ id: transaction.id, ...formData });
+        await updateTransaction.mutateAsync({ id: transaction.id, ...submitData });
         toast({ title: "Transaction updated" });
       } else {
-        await createTransaction.mutateAsync(formData);
+        await createTransaction.mutateAsync(submitData);
         toast({ title: "Transaction created" });
       }
       onOpenChange(false);
@@ -227,23 +248,53 @@ export function TransactionModal({
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label className="text-xs">Category</Label>
-              <Select
-                value={formData.category}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, category: value as TransactionCategory })
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map((c) => (
-                    <SelectItem key={c.value} value={c.value} className="text-xs">
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isCustomCategory ? (
+                <div className="flex gap-1">
+                  <Input
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Type category..."
+                    className="h-8 text-xs flex-1"
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs"
+                    onClick={() => {
+                      setIsCustomCategory(false);
+                      setCustomCategory("");
+                      setFormData({ ...formData, category: "other" });
+                    }}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => {
+                    if (value === "__custom__") {
+                      setIsCustomCategory(true);
+                      setFormData({ ...formData, category: "__custom__" });
+                    } else {
+                      setFormData({ ...formData, category: value });
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredCategories.map((c) => (
+                      <SelectItem key={c.value} value={c.value} className="text-xs">
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Payment</Label>

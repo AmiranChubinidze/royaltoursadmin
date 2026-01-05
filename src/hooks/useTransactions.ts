@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 export type TransactionType = "income" | "expense";
-export type TransactionCategory = "tour_payment" | "hotel" | "driver" | "sim" | "breakfast" | "fuel" | "guide" | "other";
+export type TransactionCategory = "tour_payment" | "hotel" | "driver" | "sim" | "breakfast" | "fuel" | "guide" | "other" | string;
 export type PaymentMethod = "cash" | "card" | "bank" | "other";
 
 export interface Transaction {

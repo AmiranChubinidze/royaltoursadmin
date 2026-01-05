@@ -287,7 +287,6 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     <Switch
                       checked={t.is_paid}
                       onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
-                      disabled={t.is_auto_generated}
                     />
                   </TableCell>
                   <TableCell>

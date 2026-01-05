@@ -40,7 +40,10 @@ interface ConfirmationsViewProps {
   dateTo?: Date;
 }
 
-const DRIVER_RATE_PER_DAY = 50;
+const DRIVER_RATES: Record<string, number> = {
+  driver1: 50,
+  driver2: 60,
+};
 const MEALS_RATE_PER_2_ADULTS = 15;
 const MEALS_HOTELS = ["INN MARTVILI", "ORBI"];
 
@@ -135,7 +138,9 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const confirmationExpenses = expenses?.filter((e) => e.confirmation_id === c.id) || [];
         const revenueExpected = Number(c.price) || 0;
         const days = c.total_days || 1;
-        const driverExpense = days * DRIVER_RATE_PER_DAY;
+        const driverType = (c.raw_payload as any)?.driverType || "driver1";
+        const driverRate = DRIVER_RATES[driverType] || 50;
+        const driverExpense = days * driverRate;
 
         // Calculate meals expense for INN MARTVILI and ORBI hotels
         const { mealsNights, mealsExpense } = calculateMealsFromPayload(c.raw_payload);

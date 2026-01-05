@@ -4,7 +4,7 @@ import { useConfirmation, useUpdateConfirmation } from "@/hooks/useConfirmations
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { ConfirmationFormData, ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
+import { ConfirmationFormData, ConfirmationPayload, HotelBooking, ItineraryDay, DriverType } from "@/types/confirmation";
 import { toast } from "@/hooks/use-toast";
 
 // Helper to parse DD/MM/YYYY dates
@@ -194,6 +194,7 @@ export default function EditConfirmation() {
     services: payload?.services || "",
     notes: payload?.notes || "",
     price: confirmation.price ?? payload?.price ?? null,
+    driverType: (payload?.driverType as DriverType) || "driver1",
   };
 
   // Debug logging for draft completion
@@ -222,6 +223,7 @@ export default function EditConfirmation() {
           tourSource: data.tourSource,
           guestInfo: data.guestInfo,
           price: data.price,
+          driverType: data.driverType,
           // Keep hotelBookings for reference
           hotelBookings: hotelBookings,
         },

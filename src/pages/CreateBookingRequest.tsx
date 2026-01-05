@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Plus, Mail, Send, ArrowLeft, Plane, Users, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Mail, Send, ArrowLeft, Plane, Users, FileText, ArrowUpRight, Trash2 } from "lucide-react";
 import { format, parse, isValid } from "date-fns";
 import { CompactHotelBookingCard, HotelBooking } from "@/components/CompactHotelBookingCard";
+import { useBookingDrafts, useCreateBookingDraft, useDeleteBookingDraft, BookingDraft } from "@/hooks/useBookingDrafts";
 import {
   DndContext,
   closestCenter,
@@ -68,7 +71,12 @@ Royal Travel Georgia`;
 export default function CreateBookingRequest() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTransferring, setIsTransferring] = useState<string | null>(null);
   const [savedHotels, setSavedHotels] = useState<{ name: string; email: string }[]>([]);
+  
+  const { data: drafts, isLoading: draftsLoading } = useBookingDrafts();
+  const createDraft = useCreateBookingDraft();
+  const deleteDraft = useDeleteBookingDraft();
   const [sharedGuests, setSharedGuests] = useState({ adults: 2, kids: 0, applyToAll: true });
   
   const [hotelBookings, setHotelBookings] = useState<(HotelBooking & { id: string })[]>([
@@ -221,6 +229,72 @@ export default function CreateBookingRequest() {
     setIsSubmitting(true);
 
     try {
+      const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
+      const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
+      const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
+
+      // Save as draft first
+      await createDraft.mutateAsync({
+        hotel_bookings: bookingsToSave,
+        guest_info: { numAdults: totalAdults, numKids: totalKids },
+        emails_sent: true,
+      });
+
+      // Send emails
+      const hotelsToEmail = hotelBookings.filter(b => b.hotelEmail);
+      
+      const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
+        body: {
+          hotels: hotelsToEmail.map((booking) => ({
+            hotelName: booking.hotelName,
+            hotelEmail: booking.hotelEmail,
+            clientName: "TBD",
+            checkIn: booking.checkIn,
+            checkOut: booking.checkOut,
+            roomType: booking.roomCategory,
+            meals: booking.mealType,
+            confirmationCode: "PENDING",
+            guestInfo: {
+              numAdults: booking.numAdults,
+              numKids: booking.numKids,
+              kidsAges: [],
+            },
+          })),
+          confirmationCode: "PENDING",
+        },
+      });
+
+      if (emailError) {
+        console.error("Email error:", emailError);
+        toast.warning(`Draft saved but emails failed: ${emailError.message}`);
+      } else {
+        toast.success(`Sent ${hotelsToEmail.length} emails and saved draft`);
+      }
+
+      // Reset form
+      setHotelBookings([{
+        id: crypto.randomUUID(),
+        hotelName: "",
+        hotelEmail: "",
+        checkIn: "",
+        checkOut: "",
+        numAdults: 2,
+        numKids: 0,
+        mealType: "BB",
+        roomCategory: "Standard",
+      }]);
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Failed to create booking request");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTransferToConfirmation = async (draft: BookingDraft) => {
+    setIsTransferring(draft.id);
+
+    try {
       const today = new Date();
       const dateCode = format(today, "ddMMyy");
       
@@ -232,12 +306,12 @@ export default function CreateBookingRequest() {
       const sequenceNumber = (count || 0) + 1;
       const confirmationCode = `${dateCode}-${String(sequenceNumber).padStart(3, "0")}`;
 
-      const hotelNames = hotelBookings.map((b) => b.hotelName);
+      const hotelNames = draft.hotel_bookings.map((b) => b.hotelName);
 
-      const checkInDates = hotelBookings
+      const checkInDates = draft.hotel_bookings
         .map((b) => parseDateDDMMYYYY(b.checkIn))
         .filter((d): d is Date => d !== null);
-      const checkOutDates = hotelBookings
+      const checkOutDates = draft.hotel_bookings
         .map((b) => parseDateDDMMYYYY(b.checkOut))
         .filter((d): d is Date => d !== null);
 
@@ -259,12 +333,8 @@ export default function CreateBookingRequest() {
         totalDays = diffDays + 1;
       }
 
-      const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
-      const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
-      const totalGuests = totalAdults + totalKids;
+      const totalGuests = draft.guest_info.numAdults + draft.guest_info.numKids;
       const emptyClients = Array.from({ length: totalGuests }, () => ({ name: "", passport: "" }));
-
-      const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
 
       const { error: insertError } = await supabase
         .from("confirmations")
@@ -279,9 +349,9 @@ export default function CreateBookingRequest() {
           total_days: totalDays,
           total_nights: totalNights,
           raw_payload: {
-            hotelBookings: bookingsToSave,
+            hotelBookings: draft.hotel_bookings,
             clients: emptyClients,
-            guestInfo: { numAdults: totalAdults, numKids: totalKids, kidsAges: [] },
+            guestInfo: { numAdults: draft.guest_info.numAdults, numKids: draft.guest_info.numKids, kidsAges: [] },
             arrival: { date: earliestCheckIn || "", time: "", flight: "", from: "" },
             departure: { date: latestCheckOut || "", time: "", flight: "", to: "" },
             itinerary: [],
@@ -292,43 +362,25 @@ export default function CreateBookingRequest() {
 
       if (insertError) throw insertError;
 
-      // Only send emails to hotels with email addresses
-      const hotelsToEmail = hotelBookings.filter(b => b.hotelEmail);
-      
-      const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
-        body: {
-          hotels: hotelsToEmail.map((booking) => ({
-            hotelName: booking.hotelName,
-            hotelEmail: booking.hotelEmail,
-            clientName: "TBD", // Will be filled in confirmation
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            roomType: booking.roomCategory,
-            meals: booking.mealType,
-            confirmationCode,
-            guestInfo: {
-              numAdults: booking.numAdults,
-              numKids: booking.numKids,
-              kidsAges: [],
-            },
-          })),
-          confirmationCode,
-        },
-      });
+      // Delete the draft after successful transfer
+      await deleteDraft.mutateAsync(draft.id);
 
-      if (emailError) {
-        console.error("Email error:", emailError);
-        toast.warning(`Draft saved but emails failed: ${emailError.message}`);
-      } else {
-        toast.success(`Sent ${hotelBookings.length} emails and saved draft ${confirmationCode}`);
-      }
-
-      navigate("/");
+      toast.success(`Created confirmation ${confirmationCode}`);
+      navigate(`/confirmation/${confirmationCode}/edit`);
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Failed to create booking request");
+      toast.error("Failed to transfer to confirmation");
     } finally {
-      setIsSubmitting(false);
+      setIsTransferring(null);
+    }
+  };
+
+  const handleDeleteDraft = async (id: string) => {
+    try {
+      await deleteDraft.mutateAsync(id);
+      toast.success("Draft deleted");
+    } catch (error) {
+      toast.error("Failed to delete draft");
     }
   };
 
@@ -490,6 +542,80 @@ export default function CreateBookingRequest() {
             </Accordion>
           </Card>
         )}
+
+        {/* Saved Drafts Section */}
+        <Card className="border-border/50 shadow-sm overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-muted/50 to-muted/30 py-4 px-5 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Saved Drafts</CardTitle>
+              {drafts && drafts.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {drafts.length}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-5">
+            {draftsLoading ? (
+              <div className="space-y-3">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : !drafts?.length ? (
+              <p className="text-center text-muted-foreground py-8 text-sm">
+                No drafts yet. Send emails to hotels to create drafts.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {drafts.map((draft) => (
+                  <Card key={draft.id} className="bg-muted/20 border-border/40 overflow-hidden">
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">
+                            {draft.hotel_bookings.map(b => b.hotelName).filter(Boolean).join(" → ") || "No hotels"}
+                          </span>
+                          {draft.emails_sent && (
+                            <Badge variant="outline" className="text-xs border-emerald-500 text-emerald-600">
+                              <Mail className="h-3 w-3 mr-1" />
+                              Emails Sent
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>{draft.guest_info.numAdults} Adults{draft.guest_info.numKids > 0 ? ` + ${draft.guest_info.numKids} Kids` : ""}</span>
+                          <span>•</span>
+                          <span>{format(new Date(draft.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleTransferToConfirmation(draft)}
+                          disabled={isTransferring === draft.id}
+                          className="gap-1.5"
+                        >
+                          <ArrowUpRight className="h-4 w-4" />
+                          {isTransferring === draft.id ? "Transferring..." : "Transfer"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteDraft(draft.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Spacer for floating button */}
         <div className="h-20" />

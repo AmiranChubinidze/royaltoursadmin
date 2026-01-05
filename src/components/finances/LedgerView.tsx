@@ -62,7 +62,7 @@ interface LedgerViewProps {
   dateTo?: Date;
 }
 
-const CATEGORY_LABELS: Record<TransactionCategory, string> = {
+const CATEGORY_LABELS: Record<string, string> = {
   tour_payment: "Tour Payment",
   hotel: "Hotel",
   driver: "Driver",
@@ -73,7 +73,7 @@ const CATEGORY_LABELS: Record<TransactionCategory, string> = {
   other: "Other",
 };
 
-const CATEGORY_COLORS: Record<TransactionCategory, string> = {
+const CATEGORY_COLORS: Record<string, string> = {
   tour_payment: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   hotel: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   driver: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
@@ -82,6 +82,14 @@ const CATEGORY_COLORS: Record<TransactionCategory, string> = {
   fuel: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400",
   guide: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
   other: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+};
+
+const getCategoryLabel = (category: string) => {
+  return CATEGORY_LABELS[category] || category.charAt(0).toUpperCase() + category.slice(1);
+};
+
+const getCategoryColor = (category: string) => {
+  return CATEGORY_COLORS[category] || "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400";
 };
 
 const MEALS_RATE_PER_2_ADULTS = 15;
@@ -229,7 +237,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       t.date,
       t.confirmation?.confirmation_code || "General",
       t.type,
-      CATEGORY_LABELS[t.category],
+      getCategoryLabel(t.category),
       t.description || "",
       t.amount,
       t.is_paid ? (t.type === "income" ? "Received" : "Paid") : "Pending",
@@ -354,8 +362,8 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={cn("font-normal", CATEGORY_COLORS[t.category])}>
-                      {CATEGORY_LABELS[t.category]}
+                    <Badge className={cn("font-normal", getCategoryColor(t.category))}>
+                      {getCategoryLabel(t.category)}
                       {t.is_auto_generated && (
                         <Sparkles className="h-3 w-3 ml-1 inline" />
                       )}

@@ -150,9 +150,9 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           .filter((t) => t.type === "income" && t.is_paid)
           .reduce((sum, t) => sum + t.amount, 0);
 
-        // Calculate expenses (expense transactions marked as paid)
-        const paidExpenses = confirmationTransactions
-          .filter((t) => t.type === "expense" && t.is_paid)
+        // Calculate ALL expense transactions (not just paid ones)
+        const allExpenseTransactions = confirmationTransactions
+          .filter((t) => t.type === "expense")
           .reduce((sum, t) => sum + t.amount, 0);
 
         // Get invoice expenses from attachments with names
@@ -165,21 +165,21 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         // Get driver expense from transaction or calculate
         const driverTransaction = confirmationTransactions.find((t) => t.category === "driver");
         const actualDriverExpense = driverTransaction ? driverTransaction.amount : driverExpense;
-        const driverPaid = driverTransaction ? driverTransaction.is_paid : false;
 
         // Get meals expense from transaction or calculate
         const mealsTransaction = confirmationTransactions.find((t) => t.category === "breakfast");
         const actualMealsExpense = mealsTransaction ? mealsTransaction.amount : mealsExpense;
-        const mealsPaid = mealsTransaction ? mealsTransaction.is_paid : false;
 
-        // Total expenses = paid expense transactions + invoice expenses
-        // Driver and meals are shown separately in breakdown
-        const totalExpenses = paidExpenses + invoiceExpensesTotal;
-
-        // Profit calculation includes driver and meals as expected costs
-        const expectedTotalExpenses = totalExpenses + 
-          (driverPaid ? 0 : actualDriverExpense) + 
-          (mealsPaid ? 0 : actualMealsExpense);
+        // Total expenses = all expense transactions + invoice expenses
+        // If driver/meals transactions exist, they're already in allExpenseTransactions
+        // If not, add the calculated amounts
+        const hasDriverInTransactions = !!driverTransaction;
+        const hasMealsInTransactions = !!mealsTransaction;
+        
+        const totalExpenses = allExpenseTransactions + 
+          invoiceExpensesTotal + 
+          (hasDriverInTransactions ? 0 : actualDriverExpense) +
+          (hasMealsInTransactions ? 0 : actualMealsExpense);
 
         return {
           id: c.id,

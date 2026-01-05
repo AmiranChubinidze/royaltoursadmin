@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useTransactions, Transaction } from "@/hooks/useTransactions";
+import { useExpenses } from "@/hooks/useExpenses";
 import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
 
@@ -55,6 +56,7 @@ interface ConfirmationRow {
   clientPaid: boolean;
   hotelsPaid: boolean;
   driverExpense: number;
+  invoiceExpenses: number;
   transactions: Transaction[];
 }
 
@@ -63,12 +65,13 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const queryClient = useQueryClient();
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({ dateFrom, dateTo });
+  const { data: expenses, isLoading: expensesLoading } = useExpenses();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfirmationId, setModalConfirmationId] = useState<string | undefined>();
 
-  const isLoading = confirmationsLoading || transactionsLoading;
+  const isLoading = confirmationsLoading || transactionsLoading || expensesLoading;
 
   // Parse date from DD/MM/YYYY format
   const parseConfirmationDate = (dateStr: string | null): Date | null => {
@@ -98,6 +101,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       })
       .map((c) => {
         const confirmationTransactions = transactions?.filter((t) => t.confirmation_id === c.id) || [];
+        const confirmationExpenses = expenses?.filter((e) => e.confirmation_id === c.id) || [];
         const revenueExpected = Number(c.price) || 0;
         const days = c.total_days || 1;
         const driverExpense = days * DRIVER_RATE_PER_DAY;
@@ -112,9 +116,12 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           .filter((t) => t.type === "expense" && t.is_paid)
           .reduce((sum, t) => sum + t.amount, 0);
 
+        // Calculate invoice expenses from attachments
+        const invoiceExpenses = confirmationExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
         // Add auto-calculated driver expense if not already in transactions
         const hasDriverTransaction = confirmationTransactions.some((t) => t.category === "driver");
-        const totalExpenses = paidExpenses + (hasDriverTransaction ? 0 : driverExpense);
+        const totalExpenses = paidExpenses + invoiceExpenses + (hasDriverTransaction ? 0 : driverExpense);
 
         return {
           id: c.id,
@@ -130,11 +137,12 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           clientPaid: c.client_paid || false,
           hotelsPaid: c.is_paid || false,
           driverExpense,
+          invoiceExpenses,
           transactions: confirmationTransactions,
         };
       })
       .filter((c) => c.revenueExpected > 0); // Only show confirmations with a price
-  }, [confirmations, transactions, dateFrom, dateTo]);
+  }, [confirmations, transactions, expenses, dateFrom, dateTo]);
 
   const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
     try {
@@ -316,10 +324,18 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                               </div>
                             </div>
 
-                            {/* Auto Driver Expense */}
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Sparkles className="h-4 w-4" />
-                              <span>Auto Driver: ${row.driverExpense} ({row.days} days × $50)</span>
+                            {/* Auto Expenses */}
+                            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="h-4 w-4" />
+                                <span>Auto Driver: ${row.driverExpense} ({row.days} days × $50)</span>
+                              </div>
+                              {row.invoiceExpenses > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4" />
+                                  <span>Invoice Expenses: ${row.invoiceExpenses.toLocaleString()}</span>
+                                </div>
+                              )}
                             </div>
 
                             {/* Transactions */}

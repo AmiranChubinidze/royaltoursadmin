@@ -243,14 +243,13 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
               <TableHead className="text-right">Revenue</TableHead>
               <TableHead className="text-right">Expenses</TableHead>
               <TableHead className="text-center">Received?</TableHead>
-              <TableHead className="text-center">Hotels Paid?</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               [...Array(5)].map((_, i) => (
                 <TableRow key={i}>
-                  {[...Array(10)].map((_, j) => (
+                  {[...Array(8)].map((_, j) => (
                     <TableCell key={j}>
                       <Skeleton className="h-5 w-full" />
                     </TableCell>
@@ -259,7 +258,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
               ))
             ) : !confirmationRows.length ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No confirmations with revenue found
                 </TableCell>
               </TableRow>
@@ -292,12 +291,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                           <Checkbox
                             checked={row.clientPaid}
                             onCheckedChange={() => handleToggleClientPaid(row.id, row.clientPaid)}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={row.hotelsPaid}
-                            onCheckedChange={() => handleToggleHotelsPaid(row.id, row.hotelsPaid)}
                           />
                         </TableCell>
                       </TableRow>

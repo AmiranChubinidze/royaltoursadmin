@@ -56,7 +56,7 @@ interface ConfirmationRow {
   clientPaid: boolean;
   hotelsPaid: boolean;
   driverExpense: number;
-  invoiceExpenses: number;
+  invoiceExpenses: { name: string; amount: number }[];
   transactions: Transaction[];
 }
 
@@ -116,12 +116,16 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           .filter((t) => t.type === "expense" && t.is_paid)
           .reduce((sum, t) => sum + t.amount, 0);
 
-        // Calculate invoice expenses from attachments
-        const invoiceExpenses = confirmationExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+        // Get invoice expenses from attachments with names
+        const invoiceExpenses = confirmationExpenses.map((e) => ({
+          name: e.description?.replace("Invoice: ", "").replace(".pdf", "") || "Invoice",
+          amount: Number(e.amount),
+        }));
+        const invoiceExpensesTotal = invoiceExpenses.reduce((sum, e) => sum + e.amount, 0);
 
         // Add auto-calculated driver expense if not already in transactions
         const hasDriverTransaction = confirmationTransactions.some((t) => t.category === "driver");
-        const totalExpenses = paidExpenses + invoiceExpenses + (hasDriverTransaction ? 0 : driverExpense);
+        const totalExpenses = paidExpenses + invoiceExpensesTotal + (hasDriverTransaction ? 0 : driverExpense);
 
         return {
           id: c.id,
@@ -330,12 +334,12 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                                 <Sparkles className="h-4 w-4" />
                                 <span>Auto Driver: ${row.driverExpense} ({row.days} days × $50)</span>
                               </div>
-                              {row.invoiceExpenses > 0 && (
-                                <div className="flex items-center gap-2">
+                              {row.invoiceExpenses.length > 0 && row.invoiceExpenses.map((inv, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
                                   <Sparkles className="h-4 w-4" />
-                                  <span>Invoice Expenses: ${row.invoiceExpenses.toLocaleString()}</span>
+                                  <span>{inv.name}: ${inv.amount.toLocaleString()}</span>
                                 </div>
-                              )}
+                              ))}
                             </div>
 
                             {/* Transactions */}

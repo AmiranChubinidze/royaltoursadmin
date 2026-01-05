@@ -1,0 +1,345 @@
+import { useState } from "react";
+import { format } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import {
+  Plus,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Download,
+  Sparkles,
+} from "lucide-react";
+import {
+  Transaction,
+  TransactionType,
+  TransactionCategory,
+  useTransactions,
+  useDeleteTransaction,
+  useToggleTransactionPaid,
+} from "@/hooks/useTransactions";
+import { TransactionModal } from "./TransactionModal";
+import { useToast } from "@/hooks/use-toast";
+
+interface LedgerViewProps {
+  dateFrom?: Date;
+  dateTo?: Date;
+}
+
+const CATEGORY_LABELS: Record<TransactionCategory, string> = {
+  tour_payment: "Tour Payment",
+  hotel: "Hotel",
+  driver: "Driver",
+  sim: "SIM Card",
+  breakfast: "Breakfast",
+  fuel: "Fuel",
+  guide: "Guide",
+  other: "Other",
+};
+
+const CATEGORY_COLORS: Record<TransactionCategory, string> = {
+  tour_payment: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  hotel: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  driver: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  sim: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  breakfast: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
+  fuel: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400",
+  guide: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  other: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+};
+
+export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
+  const { toast } = useToast();
+  const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
+  const [paidFilter, setPaidFilter] = useState<"all" | "paid" | "unpaid">("all");
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const { data: transactions, isLoading } = useTransactions({
+    dateFrom,
+    dateTo,
+    type: typeFilter === "all" ? undefined : typeFilter,
+    category: categoryFilter === "all" ? undefined : categoryFilter,
+    isPaid: paidFilter === "all" ? undefined : paidFilter === "paid",
+  });
+
+  const deleteTransaction = useDeleteTransaction();
+  const togglePaid = useToggleTransactionPaid();
+
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setModalOpen(true);
+  };
+
+  const handleAdd = () => {
+    setEditingTransaction(null);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteTransaction.mutateAsync(deleteId);
+      toast({ title: "Transaction deleted" });
+      setDeleteId(null);
+    } catch (error) {
+      toast({ title: "Error deleting transaction", variant: "destructive" });
+    }
+  };
+
+  const handleTogglePaid = async (id: string, currentStatus: boolean) => {
+    try {
+      await togglePaid.mutateAsync({ id, isPaid: !currentStatus });
+    } catch (error) {
+      toast({ title: "Error updating status", variant: "destructive" });
+    }
+  };
+
+  const handleExportCSV = () => {
+    if (!transactions?.length) return;
+
+    const headers = ["Date", "Confirmation", "Type", "Category", "Description", "Amount", "Status", "Method"];
+    const rows = transactions.map((t) => [
+      t.date,
+      t.confirmation?.confirmation_code || "General",
+      t.type,
+      CATEGORY_LABELS[t.category],
+      t.description || "",
+      t.amount,
+      t.is_paid ? (t.type === "income" ? "Received" : "Paid") : "Pending",
+      t.payment_method || "",
+    ]);
+
+    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ledger-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+          <SelectTrigger className="w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="income">Income</SelectItem>
+            <SelectItem value="expense">Expense</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as typeof categoryFilter)}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Categories</SelectItem>
+            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={paidFilter} onValueChange={(v) => setPaidFilter(v as typeof paidFilter)}>
+          <SelectTrigger className="w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="paid">Paid/Received</SelectItem>
+            <SelectItem value="unpaid">Pending</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="flex-1" />
+
+        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!transactions?.length}>
+          <Download className="h-4 w-4 mr-2" />
+          Export CSV
+        </Button>
+
+        <Button size="sm" onClick={handleAdd}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Transaction
+        </Button>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-lg border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[100px]">Date</TableHead>
+              <TableHead>Confirmation</TableHead>
+              <TableHead className="w-[90px]">Type</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="w-[100px] text-center">Status</TableHead>
+              <TableHead className="w-[50px]" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              [...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  {[...Array(8)].map((_, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-5 w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : !transactions?.length ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No transactions found
+                </TableCell>
+              </TableRow>
+            ) : (
+              transactions.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell className="font-medium">
+                    {format(new Date(t.date), "MMM d")}
+                  </TableCell>
+                  <TableCell>
+                    {t.confirmation?.confirmation_code || (
+                      <span className="text-muted-foreground">General</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        t.type === "income"
+                          ? "border-emerald-500 text-emerald-600"
+                          : "border-red-500 text-red-600"
+                      )}
+                    >
+                      {t.type === "income" ? "In" : "Out"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={cn("font-normal", CATEGORY_COLORS[t.category])}>
+                      {CATEGORY_LABELS[t.category]}
+                      {t.is_auto_generated && (
+                        <Sparkles className="h-3 w-3 ml-1 inline" />
+                      )}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate">
+                    {t.description || "—"}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      "text-right font-medium",
+                      t.type === "income" ? "text-emerald-600" : "text-red-600"
+                    )}
+                  >
+                    {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Switch
+                      checked={t.is_paid}
+                      onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
+                      disabled={t.is_auto_generated}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleEdit(t)}>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => setDeleteId(t.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Modals */}
+      <TransactionModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        transaction={editingTransaction}
+      />
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

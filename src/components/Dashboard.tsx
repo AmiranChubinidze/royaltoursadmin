@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parse, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,9 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/MobileHeader";
 import { MobileConfirmationCard } from "@/components/MobileConfirmationCard";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { PullToRefreshIndicator, PullToRefreshContainer } from "@/components/PullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 import rtgLogoFull from "@/assets/rtg-logo-full.png";
 
 export function Dashboard() {
@@ -47,6 +50,7 @@ export function Dashboard() {
   const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   
   // Admin "View as" feature
   const [viewAsRole, setViewAsRole] = useState<string | null>(null);
@@ -70,6 +74,16 @@ export function Dashboard() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+  }, [queryClient]);
+
+  const { containerRef, isRefreshing, pullDistance, pullProgress } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    disabled: !isMobile,
+  });
 
   const handleDuplicate = async (id: string) => {
     const result = await duplicateMutation.mutateAsync(id);
@@ -188,7 +202,7 @@ export function Dashboard() {
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex flex-col">
         <MobileHeader
           user={user}
           role={role}
@@ -200,125 +214,136 @@ export function Dashboard() {
           signOut={signOut}
         />
 
-        {/* Mobile Stats - Horizontal scroll */}
-        <div className="px-4 py-4 overflow-x-auto">
-          <div className="flex gap-3 min-w-max">
-            <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold text-foreground">
-                {isLoading ? "..." : confirmations?.length || 0}
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
-              <p className="text-xs text-muted-foreground">This Month</p>
-              <p className="text-2xl font-bold text-emerald-600">
-                {isLoading
-                  ? "..."
-                  : confirmations?.filter((c) => {
-                      const arrivalDate = parseArrivalDate(c.arrival_date);
-                      if (!arrivalDate) return false;
-                      const now = new Date();
-                      return (
-                        arrivalDate.getMonth() === now.getMonth() &&
-                        arrivalDate.getFullYear() === now.getFullYear()
-                      );
-                    }).length || 0}
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
-              <p className="text-xs text-muted-foreground">Showing</p>
-              <p className="text-2xl font-bold text-foreground">
-                {filteredConfirmations.length}
-              </p>
+        <PullToRefreshContainer
+          ref={containerRef}
+          className="flex-1 overflow-y-auto"
+        >
+          <PullToRefreshIndicator
+            pullProgress={pullProgress}
+            isRefreshing={isRefreshing}
+            pullDistance={pullDistance}
+          />
+
+          {/* Mobile Stats - Horizontal scroll */}
+          <div className="px-4 py-4 overflow-x-auto">
+            <div className="flex gap-3 min-w-max">
+              <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {isLoading ? "..." : confirmations?.length || 0}
+                </p>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
+                <p className="text-xs text-muted-foreground">This Month</p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  {isLoading
+                    ? "..."
+                    : confirmations?.filter((c) => {
+                        const arrivalDate = parseArrivalDate(c.arrival_date);
+                        if (!arrivalDate) return false;
+                        const now = new Date();
+                        return (
+                          arrivalDate.getMonth() === now.getMonth() &&
+                          arrivalDate.getFullYear() === now.getFullYear()
+                        );
+                      }).length || 0}
+                </p>
+              </div>
+              <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
+                <p className="text-xs text-muted-foreground">Showing</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {filteredConfirmations.length}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Mobile Search & Filters */}
-        <div className="px-4 pb-4 space-y-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11"
-              />
+          {/* Mobile Search & Filters */}
+          <div className="px-4 pb-4 space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-11"
+                />
+              </div>
+              <Button
+                variant={showMobileFilters || hasActiveFilters ? "secondary" : "outline"}
+                size="icon"
+                className="h-11 w-11 flex-shrink-0"
+                onClick={() => setShowMobileFilters(!showMobileFilters)}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              variant={showMobileFilters || hasActiveFilters ? "secondary" : "outline"}
-              size="icon"
-              className="h-11 w-11 flex-shrink-0"
-              onClick={() => setShowMobileFilters(!showMobileFilters)}
-            >
-              <Filter className="h-4 w-4" />
-            </Button>
-          </div>
 
-          {/* Collapsible filter options */}
-          {showMobileFilters && (
-            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {["all", "this-month", "last-month", "next-month"].map((filter) => (
-                  <Button
-                    key={filter}
-                    variant={filterMonth === filter && !dateFrom && !dateTo ? "secondary" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setFilterMonth(filter);
-                      setDateFrom(undefined);
-                      setDateTo(undefined);
-                    }}
-                  >
-                    {filter === "all" && "All"}
-                    {filter === "this-month" && "This Month"}
-                    {filter === "last-month" && "Last Month"}
-                    {filter === "next-month" && "Next Month"}
+            {/* Collapsible filter options */}
+            {showMobileFilters && (
+              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {["all", "this-month", "last-month", "next-month"].map((filter) => (
+                    <Button
+                      key={filter}
+                      variant={filterMonth === filter && !dateFrom && !dateTo ? "secondary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setFilterMonth(filter);
+                        setDateFrom(undefined);
+                        setDateTo(undefined);
+                      }}
+                    >
+                      {filter === "all" && "All"}
+                      {filter === "this-month" && "This Month"}
+                      {filter === "last-month" && "Last Month"}
+                      {filter === "next-month" && "Next Month"}
+                    </Button>
+                  ))}
+                </div>
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
+                    <X className="h-4 w-4 mr-1" />
+                    Clear Filters
                   </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile Confirmation List */}
+          <div className="px-4 pb-24 space-y-3">
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-32 w-full rounded-xl" />
                 ))}
               </div>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
-                  <X className="h-4 w-4 mr-1" />
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Mobile Confirmation List */}
-        <div className="px-4 pb-24 space-y-3">
-          {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-32 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : filteredConfirmations.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                {hasActiveFilters ? "No matching confirmations" : "No confirmations yet"}
-              </h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                {hasActiveFilters ? "Try adjusting your filters" : "Create your first confirmation"}
-              </p>
-            </div>
-          ) : (
-            filteredConfirmations.map((confirmation) => (
-              <MobileConfirmationCard
-                key={confirmation.id}
-                confirmation={confirmation}
-                effectiveCanManageConfirmations={effectiveCanManageConfirmations}
-                effectiveIsBooking={effectiveIsBooking}
-                effectiveIsVisitor={effectiveIsVisitor}
-                onDelete={handleDelete}
-              />
-            ))
-          )}
-        </div>
+            ) : filteredConfirmations.length === 0 ? (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  {hasActiveFilters ? "No matching confirmations" : "No confirmations yet"}
+                </h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  {hasActiveFilters ? "Try adjusting your filters" : "Create your first confirmation"}
+                </p>
+              </div>
+            ) : (
+              filteredConfirmations.map((confirmation) => (
+                <MobileConfirmationCard
+                  key={confirmation.id}
+                  confirmation={confirmation}
+                  effectiveCanManageConfirmations={effectiveCanManageConfirmations}
+                  effectiveIsBooking={effectiveIsBooking}
+                  effectiveIsVisitor={effectiveIsVisitor}
+                  onDelete={handleDelete}
+                />
+              ))
+            )}
+          </div>
+        </PullToRefreshContainer>
 
         {/* Mobile FAB for new confirmation */}
         {effectiveCanManageConfirmations && (

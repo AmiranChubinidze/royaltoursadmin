@@ -8,7 +8,7 @@ interface AccountantRouteProps {
 }
 
 export function AccountantRoute({ children }: AccountantRouteProps) {
-  const { isAdmin, isAccountant, isLoading } = useUserRole();
+  const { isAdmin, isAccountant, isWorker, isLoading } = useUserRole();
 
   if (isLoading) {
     return (
@@ -21,8 +21,8 @@ export function AccountantRoute({ children }: AccountantRouteProps) {
     );
   }
 
-  // Allow admin and accountant roles
-  if (!isAdmin && !isAccountant) {
+  // Allow admin, accountant, and worker roles
+  if (!isAdmin && !isAccountant && !isWorker) {
     return <Navigate to="/" replace />;
   }
 

@@ -7,6 +7,7 @@ import {
   Clock,
   Wallet,
 } from "lucide-react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface FinanceSummaryCardsProps {
   revenueExpected: number;
@@ -25,6 +26,8 @@ export function FinanceSummaryCards({
   pending,
   isLoading = false,
 }: FinanceSummaryCardsProps) {
+  const { formatAmount } = useCurrency();
+  
   const cards = [
     {
       label: "Received (Cash In)",
@@ -73,7 +76,7 @@ export function FinanceSummaryCards({
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
                   <p className={cn("text-xl font-bold mt-0.5", card.color)}>
-                    ${card.value.toLocaleString()}
+                    {formatAmount(card.value)}
                   </p>
                 )}
               </div>

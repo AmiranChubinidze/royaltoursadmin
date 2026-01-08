@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 
 export function MobileFinanceHeader() {
   const navigate = useNavigate();
@@ -10,10 +11,11 @@ export function MobileFinanceHeader() {
       <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
         <ArrowLeft className="h-5 w-5" />
       </Button>
-      <div>
+      <div className="flex-1">
         <h1 className="text-lg font-bold text-foreground">Finances</h1>
         <p className="text-xs text-muted-foreground">Income, expenses & profit</p>
       </div>
+      <CurrencyToggle />
     </div>
   );
 }

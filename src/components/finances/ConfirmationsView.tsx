@@ -34,6 +34,7 @@ import { useBulkCreateTransactions, useTransactions, Transaction } from "@/hooks
 import { useExpenses } from "@/hooks/useExpenses";
 import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface ConfirmationsViewProps {
   dateFrom?: Date;
@@ -97,6 +98,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({ dateFrom, dateTo });
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
+  const { formatAmount, symbol } = useCurrency();
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -385,10 +387,10 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                         <TableCell>{row.arrivalDate || "—"}</TableCell>
                         <TableCell className="text-center">{row.days}</TableCell>
                         <TableCell className="text-right font-medium">
-                          ${row.revenueExpected.toLocaleString()}
+                          {formatAmount(row.revenueExpected)}
                         </TableCell>
                         <TableCell className="text-right text-red-600 font-medium">
-                          ${row.expenses.toLocaleString()}
+                          {formatAmount(row.expenses)}
                         </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           <Checkbox
@@ -407,19 +409,19 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                               <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                                 <p className="text-xs text-muted-foreground">Income</p>
                                 <p className="text-lg font-bold text-emerald-600">
-                                  ${row.revenueExpected.toLocaleString()}
+                                  {formatAmount(row.revenueExpected)}
                                 </p>
                               </div>
                               <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20">
                                 <p className="text-xs text-muted-foreground">Expenses</p>
                                 <p className="text-lg font-bold text-red-600">
-                                  ${row.expenses.toLocaleString()}
+                                  {formatAmount(row.expenses)}
                                 </p>
                               </div>
                               <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                                 <p className="text-xs text-muted-foreground">Profit</p>
                                 <p className={cn("text-lg font-bold", row.profit >= 0 ? "text-blue-600" : "text-red-600")}>
-                                  ${row.profit.toLocaleString()}
+                                  {formatAmount(row.profit)}
                                 </p>
                               </div>
                             </div>
@@ -429,7 +431,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                               {/* Driver */}
                               <div className="flex items-center gap-2">
                                 <Sparkles className="h-4 w-4 shrink-0" />
-                                <span>Driver: ${row.driverExpense} ({row.days} days × $50)</span>
+                                <span>Driver: {formatAmount(row.driverExpense)} ({row.days} days × {symbol}50)</span>
                               </div>
 
                               {/* Meals */}
@@ -444,7 +446,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                               {row.invoiceExpenses.map((inv, idx) => (
                                 <div key={idx} className="flex items-center gap-2">
                                   <Sparkles className="h-4 w-4 shrink-0" />
-                                  <span>Hotel: {inv.name} - ${inv.amount.toLocaleString()}</span>
+                                  <span>Hotel: {inv.name} - {formatAmount(inv.amount)}</span>
                                 </div>
                               ))}
                             </div>
@@ -478,7 +480,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                                           t.type === "income" ? "text-emerald-600" : "text-red-600"
                                         )}
                                       >
-                                        ${t.amount.toLocaleString()}
+                                        {formatAmount(t.amount)}
                                       </span>
                                       {t.is_paid ? (
                                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />

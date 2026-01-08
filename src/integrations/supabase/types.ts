@@ -211,6 +211,115 @@ export type Database = {
           },
         ]
       }
+      holders: {
+        Row: {
+          created_at: string | null
+          currency: string
+          id: string
+          is_active: boolean
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          currency?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      liabilities: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string
+          id: string
+          owner_id: string
+          reason: string | null
+          resolved_at: string | null
+          resolved_transaction_id: string | null
+          source_transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string
+          id?: string
+          owner_id: string
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_transaction_id?: string | null
+          source_transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string
+          id?: string
+          owner_id?: string
+          reason?: string | null
+          resolved_at?: string | null
+          resolved_transaction_id?: string | null
+          source_transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liabilities_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liabilities_resolved_transaction_fk"
+            columns: ["resolved_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liabilities_source_transaction_fk"
+            columns: ["source_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      owners: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean
+          name: string
+          role: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          role?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          role?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           approved: boolean
@@ -264,16 +373,23 @@ export type Database = {
           amount: number
           category: string
           confirmation_id: string | null
+          counterparty: string | null
           created_at: string
           created_by: string | null
           currency: string
           date: string
           description: string | null
+          from_holder_id: string | null
+          holder_id: string | null
           id: string
           is_auto_generated: boolean
           is_paid: boolean
+          kind: string
           notes: string | null
+          owner_id: string | null
           payment_method: string | null
+          status: string
+          to_holder_id: string | null
           type: string
           updated_at: string
         }
@@ -281,16 +397,23 @@ export type Database = {
           amount?: number
           category: string
           confirmation_id?: string | null
+          counterparty?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           date?: string
           description?: string | null
+          from_holder_id?: string | null
+          holder_id?: string | null
           id?: string
           is_auto_generated?: boolean
           is_paid?: boolean
+          kind: string
           notes?: string | null
+          owner_id?: string | null
           payment_method?: string | null
+          status?: string
+          to_holder_id?: string | null
           type: string
           updated_at?: string
         }
@@ -298,16 +421,23 @@ export type Database = {
           amount?: number
           category?: string
           confirmation_id?: string | null
+          counterparty?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
           date?: string
           description?: string | null
+          from_holder_id?: string | null
+          holder_id?: string | null
           id?: string
           is_auto_generated?: boolean
           is_paid?: boolean
+          kind?: string
           notes?: string | null
+          owner_id?: string | null
           payment_method?: string | null
+          status?: string
+          to_holder_id?: string | null
           type?: string
           updated_at?: string
         }
@@ -317,6 +447,34 @@ export type Database = {
             columns: ["confirmation_id"]
             isOneToOne: false
             referencedRelation: "confirmations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_from_holder_id_fkey"
+            columns: ["from_holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_holder_id_fkey"
+            columns: ["holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_to_holder_id_fkey"
+            columns: ["to_holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
             referencedColumns: ["id"]
           },
         ]

@@ -151,7 +151,7 @@ export default function FinancesPage() {
   }, [confirmations, transactions, dateFrom, dateTo]);
 
   const handleTogglePaid = async (id: string, currentStatus: boolean) => {
-    await updateTransaction.mutateAsync({ id, is_paid: !currentStatus });
+    await updateTransaction.mutateAsync({ id, status: currentStatus ? "pending" : "confirmed" });
   };
 
   const isThisMonth =

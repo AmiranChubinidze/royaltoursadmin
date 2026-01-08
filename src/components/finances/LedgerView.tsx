@@ -136,9 +136,9 @@ const calculateMealsFromPayload = (rawPayload: unknown) => {
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { toast } = useToast();
   
-  const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
+  const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
-  const [paidFilter, setPaidFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending">("all");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -153,9 +153,9 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { data: transactions, isLoading } = useTransactions({
     dateFrom,
     dateTo,
-    type: typeFilter === "all" ? undefined : typeFilter,
+    kind: kindFilter === "all" ? undefined : kindFilter,
     category: categoryFilter === "all" ? undefined : categoryFilter,
-    isPaid: paidFilter === "all" ? undefined : paidFilter === "paid",
+    status: statusFilter === "all" ? undefined : statusFilter,
   });
 
   const deleteTransaction = useDeleteTransaction();
@@ -195,11 +195,11 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         const { mealsExpense, mealsNights, numAdults } = calculateMealsFromPayload(c.raw_payload);
         return {
           date: isoDateFromDdMmYyyy(c.arrival_date),
-          type: "expense" as const,
+          kind: "out" as const,
+          status: "confirmed" as const,
           category: "breakfast" as const,
           description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
           amount: mealsExpense,
-          is_paid: true,
           is_auto_generated: true,
           confirmation_id: c.id,
           payment_method: null,
@@ -272,14 +272,15 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+        <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="income">Income</SelectItem>
-            <SelectItem value="expense">Expense</SelectItem>
+            <SelectItem value="all">All Kinds</SelectItem>
+            <SelectItem value="in">Income</SelectItem>
+            <SelectItem value="out">Expense</SelectItem>
+            <SelectItem value="transfer">Transfer</SelectItem>
           </SelectContent>
         </Select>
 
@@ -297,14 +298,14 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           </SelectContent>
         </Select>
 
-        <Select value={paidFilter} onValueChange={(v) => setPaidFilter(v as typeof paidFilter)}>
+        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
           <SelectTrigger className="w-[130px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="paid">Paid/Received</SelectItem>
-            <SelectItem value="unpaid">Pending</SelectItem>
+            <SelectItem value="confirmed">Confirmed</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
           </SelectContent>
         </Select>
 
@@ -376,12 +377,14 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       <Badge
                         variant="outline"
                         className={cn(
-                          t.type === "income"
+                          t.kind === "in"
                             ? "border-emerald-500 text-emerald-600"
+                            : t.kind === "transfer"
+                            ? "border-blue-500 text-blue-600"
                             : "border-red-500 text-red-600"
                         )}
                       >
-                        {t.type === "income" ? "In" : "Out"}
+                        {t.kind === "in" ? "In" : t.kind === "transfer" ? "Transfer" : "Out"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -395,15 +398,15 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     <TableCell
                       className={cn(
                         "text-right font-medium",
-                        t.type === "income" ? "text-emerald-600" : "text-red-600"
+                        t.kind === "in" ? "text-emerald-600" : t.kind === "transfer" ? "text-blue-600" : "text-red-600"
                       )}
                     >
-                      {t.type === "income" ? "+" : "-"}{formatTransactionAmount(t.amount, t.currency)}
+                      {t.kind === "in" ? "+" : t.kind === "transfer" ? "" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch
-                        checked={t.is_paid}
-                        onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
+                        checked={t.status === "confirmed"}
+                        onCheckedChange={() => handleTogglePaid(t.id, t.status === "confirmed")}
                       />
                     </TableCell>
                     <TableCell>

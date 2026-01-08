@@ -244,11 +244,11 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const { mealsExpense, mealsNights, numAdults } = calculateMealsFromPayload(c.raw_payload);
         return {
           date: isoDateFromDdMmYyyy(c.arrival_date),
-          type: "expense" as const,
+          kind: "out" as const,
+          status: "confirmed" as const,
           category: "breakfast" as const,
           description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
           amount: mealsExpense,
-          is_paid: true,
           is_auto_generated: true,
           confirmation_id: c.id,
           payment_method: null,

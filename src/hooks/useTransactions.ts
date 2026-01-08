@@ -6,6 +6,8 @@ export type TransactionType = "income" | "expense";
 export type TransactionCategory = "tour_payment" | "hotel" | "driver" | "sim" | "breakfast" | "fuel" | "guide" | "other" | string;
 export type PaymentMethod = "cash" | "card" | "bank" | "other";
 
+export type TransactionCurrency = "USD" | "GEL";
+
 export interface Transaction {
   id: string;
   date: string;
@@ -14,6 +16,7 @@ export interface Transaction {
   category: TransactionCategory;
   description: string | null;
   amount: number;
+  currency: TransactionCurrency;
   is_paid: boolean;
   payment_method: PaymentMethod | null;
   is_auto_generated: boolean;
@@ -35,6 +38,7 @@ export interface CreateTransactionData {
   category: TransactionCategory;
   description?: string | null;
   amount: number;
+  currency?: TransactionCurrency;
   is_paid?: boolean;
   payment_method?: PaymentMethod | null;
   is_auto_generated?: boolean;

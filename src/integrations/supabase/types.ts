@@ -266,6 +266,7 @@ export type Database = {
           confirmation_id: string | null
           created_at: string
           created_by: string | null
+          currency: string
           date: string
           description: string | null
           id: string
@@ -282,6 +283,7 @@ export type Database = {
           confirmation_id?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string
           date?: string
           description?: string | null
           id?: string
@@ -298,6 +300,7 @@ export type Database = {
           confirmation_id?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string
           date?: string
           description?: string | null
           id?: string

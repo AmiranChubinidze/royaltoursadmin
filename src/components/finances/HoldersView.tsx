@@ -1,18 +1,16 @@
 import { useState } from "react";
 import { Loader2, Wallet, AlertTriangle, ArrowRightLeft, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useHoldersWithBalances } from "@/hooks/useHolders";
+import { useHoldersWithBalances, HolderWithBalance } from "@/hooks/useHolders";
 import { HolderCard } from "./HolderCard";
 import { QuickTransferModal } from "./QuickTransferModal";
 import { HolderManagementModal } from "./HolderManagementModal";
+import { HolderTransactionsSheet } from "./HolderTransactionsSheet";
 
-interface HoldersViewProps {
-  onHolderClick?: (holderId: string) => void;
-}
-
-export function HoldersView({ onHolderClick }: HoldersViewProps) {
+export function HoldersView() {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [holderModalOpen, setHolderModalOpen] = useState(false);
+  const [selectedHolder, setSelectedHolder] = useState<HolderWithBalance | null>(null);
 
   const { data: holders, isLoading, error } = useHoldersWithBalances();
 
@@ -120,7 +118,7 @@ export function HoldersView({ onHolderClick }: HoldersViewProps) {
           <HolderCard
             key={holder.id}
             holder={holder}
-            onClick={() => onHolderClick?.(holder.id)}
+            onClick={() => setSelectedHolder(holder)}
           />
         ))}
       </div>
@@ -128,6 +126,11 @@ export function HoldersView({ onHolderClick }: HoldersViewProps) {
       {/* Modals */}
       <QuickTransferModal open={transferModalOpen} onOpenChange={setTransferModalOpen} />
       <HolderManagementModal open={holderModalOpen} onOpenChange={setHolderModalOpen} />
+      <HolderTransactionsSheet
+        holder={selectedHolder}
+        open={!!selectedHolder}
+        onOpenChange={(open) => !open && setSelectedHolder(null)}
+      />
     </div>
   );
 }

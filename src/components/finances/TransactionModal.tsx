@@ -32,6 +32,7 @@ import {
 } from "@/hooks/useTransactions";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 
 interface TransactionModalProps {
   open: boolean;
@@ -71,9 +72,13 @@ export function TransactionModal({
   defaultConfirmationId,
 }: TransactionModalProps) {
   const { toast } = useToast();
+  const { exchangeRate } = useCurrency();
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
   const { data: confirmations } = useConfirmations();
+
+  // Currency for input - amounts are stored in USD
+  const [inputCurrency, setInputCurrency] = useState<Currency>("USD");
 
   const [formData, setFormData] = useState<CreateTransactionData>({
     date: format(new Date(), "yyyy-MM-dd"),
@@ -110,6 +115,7 @@ export function TransactionModal({
       });
       setIsCustomCategory(!isKnown);
       setCustomCategory(isKnown ? "" : transaction.category);
+      setInputCurrency("USD"); // Stored amounts are always in USD
     } else {
       setFormData({
         date: format(new Date(), "yyyy-MM-dd"),
@@ -124,6 +130,7 @@ export function TransactionModal({
       });
       setIsCustomCategory(false);
       setCustomCategory("");
+      setInputCurrency("USD");
     }
   }, [transaction, defaultType, defaultCategory, defaultConfirmationId, open]);
 
@@ -145,7 +152,12 @@ export function TransactionModal({
       return;
     }
 
-    const submitData = { ...formData, category: finalCategory };
+    // Convert amount to USD if entered in GEL
+    const amountInUSD = inputCurrency === "GEL" 
+      ? formData.amount / exchangeRate 
+      : formData.amount;
+
+    const submitData = { ...formData, category: finalCategory, amount: amountInUSD };
 
     try {
       if (transaction) {
@@ -195,21 +207,49 @@ export function TransactionModal({
             </Button>
           </div>
 
-          {/* Row 1: Amount + Date */}
+          {/* Row 1: Amount + Currency + Date */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-xs">Amount ($)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.amount || ""}
-                onChange={(e) =>
-                  setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })
-                }
-                placeholder="0.00"
-                className="h-8 text-sm"
-              />
+              <Label className="text-xs">Amount</Label>
+              <div className="flex gap-1">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.amount || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })
+                  }
+                  placeholder="0.00"
+                  className="h-8 text-sm flex-1"
+                />
+                <div className="flex rounded-md border border-input bg-background overflow-hidden h-8">
+                  <button
+                    type="button"
+                    onClick={() => setInputCurrency("USD")}
+                    className={cn(
+                      "px-2 text-xs font-medium transition-colors",
+                      inputCurrency === "USD"
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    $
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInputCurrency("GEL")}
+                    className={cn(
+                      "px-2 text-xs font-medium transition-colors",
+                      inputCurrency === "GEL"
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                  >
+                    ₾
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Date</Label>

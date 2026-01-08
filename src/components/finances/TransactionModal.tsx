@@ -456,51 +456,28 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Holder + Responsible (for non-transfer) */}
+          {/* Responsible (for non-transfer) - who holds the money */}
           {formData.kind !== "transfer" && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">Holder</Label>
-                <Select
-                  value={formData.holder_id || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, holder_id: value === "none" ? null : value })
-                  }
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-xs">None</SelectItem>
-                    {filteredHolders?.map((h) => (
-                      <SelectItem key={h.id} value={h.id} className="text-xs">
-                        {h.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Responsible</Label>
-                <Select
-                  value={formData.responsible_holder_id || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, responsible_holder_id: value === "none" ? null : value })
-                  }
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-xs">None</SelectItem>
-                    {holders?.map((h) => (
-                      <SelectItem key={h.id} value={h.id} className="text-xs">
-                        {h.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Responsible</Label>
+              <Select
+                value={formData.responsible_holder_id || "none"}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, responsible_holder_id: value === "none" ? null : value })
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Who handles this?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" className="text-xs">None</SelectItem>
+                  {holders?.map((h) => (
+                    <SelectItem key={h.id} value={h.id} className="text-xs">
+                      {h.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 

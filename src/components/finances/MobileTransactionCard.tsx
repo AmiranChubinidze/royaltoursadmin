@@ -1,14 +1,18 @@
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowDownLeft, ArrowUpRight, CheckCircle, Clock } from "lucide-react";
-import { useCurrency } from "@/contexts/CurrencyContext";
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  GEL: "₾",
+};
 
 interface Transaction {
   id: string;
   type: string;
   category: string;
   amount: number;
+  currency?: string;
   date: string;
   description: string | null;
   is_paid: boolean;
@@ -38,8 +42,9 @@ export function MobileTransactionCard({
   transaction,
   onTogglePaid,
 }: MobileTransactionCardProps) {
-  const { formatAmount } = useCurrency();
   const isIncome = transaction.type === "income";
+  const currencySymbol = CURRENCY_SYMBOLS[transaction.currency || "USD"] || "$";
+  const formattedAmount = `${currencySymbol}${Math.round(transaction.amount).toLocaleString()}`;
   const formattedDate = (() => {
     try {
       return format(new Date(transaction.date), "MMM d");
@@ -86,7 +91,7 @@ export function MobileTransactionCard({
               isIncome ? "text-emerald-600" : "text-red-600"
             )}
           >
-            {isIncome ? "+" : "-"}{formatAmount(transaction.amount)}
+            {isIncome ? "+" : "-"}{formattedAmount}
           </p>
           <button
             onClick={() => onTogglePaid?.(transaction.id, transaction.is_paid)}

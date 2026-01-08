@@ -32,7 +32,7 @@ import {
 } from "@/hooks/useTransactions";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
-import { useCurrency, Currency } from "@/contexts/CurrencyContext";
+import { Currency } from "@/contexts/CurrencyContext";
 
 interface TransactionModalProps {
   open: boolean;
@@ -72,7 +72,6 @@ export function TransactionModal({
   defaultConfirmationId,
 }: TransactionModalProps) {
   const { toast } = useToast();
-  const { exchangeRate } = useCurrency();
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
   const { data: confirmations } = useConfirmations();
@@ -115,7 +114,7 @@ export function TransactionModal({
       });
       setIsCustomCategory(!isKnown);
       setCustomCategory(isKnown ? "" : transaction.category);
-      setInputCurrency("USD"); // Stored amounts are always in USD
+      setInputCurrency((transaction.currency as Currency) || "USD");
     } else {
       setFormData({
         date: format(new Date(), "yyyy-MM-dd"),
@@ -152,12 +151,13 @@ export function TransactionModal({
       return;
     }
 
-    // Convert amount to USD if entered in GEL
-    const amountInUSD = inputCurrency === "GEL" 
-      ? formData.amount / exchangeRate 
-      : formData.amount;
-
-    const submitData = { ...formData, category: finalCategory, amount: amountInUSD };
+    // Store amount in original currency (no conversion)
+    const submitData = { 
+      ...formData, 
+      category: finalCategory, 
+      amount: formData.amount,
+      currency: inputCurrency,
+    };
 
     try {
       if (transaction) {

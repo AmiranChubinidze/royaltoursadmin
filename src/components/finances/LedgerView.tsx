@@ -56,7 +56,18 @@ import {
 import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
-import { useCurrency } from "@/contexts/CurrencyContext";
+
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  GEL: "₾",
+};
+
+// Format transaction amount in its original currency (no conversion)
+const formatTransactionAmount = (amount: number, currency?: string): string => {
+  const symbol = CURRENCY_SYMBOLS[currency || "USD"] || "$";
+  return `${symbol}${Math.round(amount).toLocaleString()}`;
+};
 
 interface LedgerViewProps {
   dateFrom?: Date;
@@ -124,7 +135,7 @@ const calculateMealsFromPayload = (rawPayload: unknown) => {
 
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { toast } = useToast();
-  const { formatAmount } = useCurrency();
+  
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [paidFilter, setPaidFilter] = useState<"all" | "paid" | "unpaid">("all");
@@ -387,7 +398,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         t.type === "income" ? "text-emerald-600" : "text-red-600"
                       )}
                     >
-                      {t.type === "income" ? "+" : "-"}{formatAmount(t.amount)}
+                      {t.type === "income" ? "+" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch
@@ -503,7 +514,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         t.type === "income" ? "text-emerald-600" : "text-red-600"
                       )}
                     >
-                      {t.type === "income" ? "+" : "-"}{formatAmount(t.amount)}
+                      {t.type === "income" ? "+" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch

@@ -36,6 +36,17 @@ import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  GEL: "₾",
+};
+
+// Format transaction amount in its original currency (no conversion)
+const formatTransactionAmount = (amount: number, currency?: string): string => {
+  const symbol = CURRENCY_SYMBOLS[currency || "USD"] || "$";
+  return `${symbol}${Math.round(amount).toLocaleString()}`;
+};
+
 interface ConfirmationsViewProps {
   dateFrom?: Date;
   dateTo?: Date;
@@ -480,7 +491,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                                           t.type === "income" ? "text-emerald-600" : "text-red-600"
                                         )}
                                       >
-                                        {formatAmount(t.amount)}
+                                        {formatTransactionAmount(t.amount, t.currency)}
                                       </span>
                                       {t.is_paid ? (
                                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />

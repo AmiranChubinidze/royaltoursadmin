@@ -4,10 +4,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useTransactions, useToggleTransactionStatus } from "@/hooks/useTransactions";
+import { useTransactions, useConfirmTransaction } from "@/hooks/useTransactions";
 import { HolderWithBalance } from "@/hooks/useHolders";
 import { cn } from "@/lib/utils";
-import { StatusCheckbox } from "./StatusCheckbox";
+import { ConfirmWithResponsiblePopover } from "./ConfirmWithResponsiblePopover";
 
 interface HolderTransactionsSheetProps {
   holder: HolderWithBalance | null;
@@ -17,7 +17,7 @@ interface HolderTransactionsSheetProps {
 
 export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTransactionsSheetProps) {
   const { data: transactions } = useTransactions({ holderId: holder?.id });
-  const toggleStatus = useToggleTransactionStatus();
+  const confirmTransaction = useConfirmTransaction();
 
   if (!holder) return null;
 
@@ -75,9 +75,14 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                     key={t.id}
                     className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg"
                   >
-                    <StatusCheckbox
+                    <ConfirmWithResponsiblePopover
                       checked={t.status === "confirmed"}
-                      onChange={() => toggleStatus.mutate({ id: t.id, status: t.status === "confirmed" ? "pending" : "confirmed" })}
+                      currentResponsibleId={t.responsible_holder_id}
+                      onConfirm={(holderId) => confirmTransaction.mutate({ 
+                        id: t.id, 
+                        confirm: t.status !== "confirmed",
+                        responsibleHolderId: t.status !== "confirmed" ? holderId : undefined
+                      })}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
@@ -121,9 +126,14 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                     key={t.id}
                     className="flex items-center gap-3 p-3 bg-destructive/5 border border-destructive/20 rounded-lg"
                   >
-                    <StatusCheckbox
+                    <ConfirmWithResponsiblePopover
                       checked={t.status === "confirmed"}
-                      onChange={() => toggleStatus.mutate({ id: t.id, status: t.status === "confirmed" ? "pending" : "confirmed" })}
+                      currentResponsibleId={t.responsible_holder_id}
+                      onConfirm={(holderId) => confirmTransaction.mutate({ 
+                        id: t.id, 
+                        confirm: t.status !== "confirmed",
+                        responsibleHolderId: t.status !== "confirmed" ? holderId : undefined
+                      })}
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">

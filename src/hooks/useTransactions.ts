@@ -273,6 +273,42 @@ export const useBulkCreateTransactions = () => {
   });
 };
 
+export const useConfirmTransaction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      id, 
+      confirm, 
+      responsibleHolderId 
+    }: { 
+      id: string; 
+      confirm: boolean;
+      responsibleHolderId?: string | null;
+    }) => {
+      const updateData: Record<string, unknown> = { 
+        status: confirm ? "confirmed" : "pending",
+        is_paid: confirm,
+      };
+      
+      if (responsibleHolderId !== undefined) {
+        updateData.responsible_holder_id = responsibleHolderId;
+      }
+
+      const { error } = await supabase
+        .from("transactions")
+        .update(updateData)
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["holders"] });
+    },
+  });
+};
+
 export const useToggleTransactionStatus = () => {
   const queryClient = useQueryClient();
 

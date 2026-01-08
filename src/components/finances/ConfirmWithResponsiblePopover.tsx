@@ -6,6 +6,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -30,13 +40,14 @@ export function ConfirmWithResponsiblePopover({
   disabled,
 }: ConfirmWithResponsiblePopoverProps) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedHolder, setSelectedHolder] = useState<string>(currentResponsibleId || "none");
   const { data: holders } = useHolders();
 
   const handleClick = () => {
     if (checked) {
-      // If already confirmed, just unconfirm without popup
-      onConfirm(currentResponsibleId);
+      // Show confirmation dialog before unchecking
+      setConfirmOpen(true);
     } else {
       // Open popover to select responsible
       setSelectedHolder(currentResponsibleId || "none");
@@ -49,52 +60,76 @@ export function ConfirmWithResponsiblePopover({
     setOpen(false);
   };
 
+  const handleUnconfirm = () => {
+    onConfirm(currentResponsibleId);
+    setConfirmOpen(false);
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={disabled}
-          className={cn(
-            "relative h-5 w-5 rounded-full border-2 transition-all duration-200 ease-out",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-            "disabled:cursor-not-allowed disabled:opacity-50",
-            checked
-              ? "border-emerald-500 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]"
-              : "border-muted-foreground/40 bg-transparent hover:border-muted-foreground/60"
-          )}
-        >
-          <Check
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            onClick={handleClick}
+            disabled={disabled}
             className={cn(
-              "absolute inset-0 m-auto h-3 w-3 text-white transition-all duration-200",
-              checked ? "scale-100 opacity-100" : "scale-50 opacity-0"
+              "relative h-5 w-5 rounded-full border-2 transition-all duration-200 ease-out",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+              "disabled:cursor-not-allowed disabled:opacity-50",
+              checked
+                ? "border-emerald-500 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]"
+                : "border-muted-foreground/40 bg-transparent hover:border-muted-foreground/60"
             )}
-            strokeWidth={3}
-          />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-56 p-3" align="start">
-        <div className="space-y-3">
-          <p className="text-sm font-medium">Who received/paid?</p>
-          <Select value={selectedHolder} onValueChange={setSelectedHolder}>
-            <SelectTrigger className="w-full h-9">
-              <SelectValue placeholder="Select holder" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No one / Unknown</SelectItem>
-              {holders?.map((h) => (
-                <SelectItem key={h.id} value={h.id}>
-                  {h.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" className="w-full" onClick={handleConfirm}>
-            Confirm
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+          >
+            <Check
+              className={cn(
+                "absolute inset-0 m-auto h-3 w-3 text-white transition-all duration-200",
+                checked ? "scale-100 opacity-100" : "scale-50 opacity-0"
+              )}
+              strokeWidth={3}
+            />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-3" align="start">
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Who received/paid?</p>
+            <Select value={selectedHolder} onValueChange={setSelectedHolder}>
+              <SelectTrigger className="w-full h-9">
+                <SelectValue placeholder="Select holder" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No one / Unknown</SelectItem>
+                {holders?.map((h) => (
+                  <SelectItem key={h.id} value={h.id}>
+                    {h.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" className="w-full" onClick={handleConfirm}>
+              Confirm
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as pending?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the transaction as not yet received/paid.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUnconfirm}>
+              Yes, mark pending
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

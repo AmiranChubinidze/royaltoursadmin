@@ -41,7 +41,7 @@ import rtgLogoFull from "@/assets/rtg-logo-full.png";
 export function Dashboard() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isAdmin, isAccountant, canEdit, role } = useUserRole();
+  const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   
   // Admin "View as" feature
@@ -340,7 +340,7 @@ export function Dashboard() {
                 </p>
               </div>
               <div className="flex gap-2">
-                {(isAdmin || isAccountant) && (
+                {(isAdmin || isAccountant || isWorker) && (
                   <Button variant="outline" size="icon" onClick={() => navigate("/finances")} title="Finances">
                     <DollarSign className="h-4 w-4" />
                   </Button>

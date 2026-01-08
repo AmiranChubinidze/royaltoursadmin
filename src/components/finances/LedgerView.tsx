@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { StatusCheckbox } from "./StatusCheckbox";
 import {
   Select,
   SelectContent,
@@ -410,9 +410,9 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       {t.kind === "in" ? "+" : t.kind === "transfer" ? "" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Switch
+                      <StatusCheckbox
                         checked={t.status === "confirmed"}
-                        onCheckedChange={() => handleTogglePaid(t.id, t.status === "confirmed")}
+                        onChange={() => handleTogglePaid(t.id, t.status === "confirmed")}
                       />
                     </TableCell>
                     <TableCell>
@@ -526,9 +526,9 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       {t.type === "income" ? "+" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <Switch
+                      <StatusCheckbox
                         checked={t.is_paid}
-                        onCheckedChange={() => handleTogglePaid(t.id, t.is_paid)}
+                        onChange={() => handleTogglePaid(t.id, t.is_paid)}
                       />
                     </TableCell>
                     <TableCell>

@@ -13,6 +13,7 @@ import { FinanceSummaryCards } from "@/components/finances/FinanceSummaryCards";
 import { ConfirmationsView } from "@/components/finances/ConfirmationsView";
 import { LedgerView } from "@/components/finances/LedgerView";
 import { CategoriesView } from "@/components/finances/CategoriesView";
+import { HoldersView } from "@/components/finances/HoldersView";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileFinanceHeader } from "@/components/finances/MobileFinanceHeader";
 import { MobileSummaryCards } from "@/components/finances/MobileSummaryCards";
@@ -36,7 +37,7 @@ export default function FinancesPage() {
   // Date filter state
   const [dateFrom, setDateFrom] = useState<Date | undefined>(startOfMonth(new Date()));
   const [dateTo, setDateTo] = useState<Date | undefined>(endOfMonth(new Date()));
-  const [activeTab, setActiveTab] = useState("confirmations");
+  const [activeTab, setActiveTab] = useState("holders");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mobileView, setMobileView] = useState<"summary" | "transactions">("summary");
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
@@ -449,6 +450,9 @@ export default function FinancesPage() {
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="bg-muted/50">
+            <TabsTrigger value="holders" className="data-[state=active]:bg-background">
+              Holdings
+            </TabsTrigger>
             <TabsTrigger value="confirmations" className="data-[state=active]:bg-background">
               Confirmations
             </TabsTrigger>
@@ -459,6 +463,13 @@ export default function FinancesPage() {
               Categories
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="holders" className="mt-4">
+            <HoldersView onHolderClick={(holderId) => {
+              setActiveTab("ledger");
+              // TODO: Add holder filter to ledger
+            }} />
+          </TabsContent>
 
           <TabsContent value="confirmations" className="mt-4">
             <ConfirmationsView dateFrom={dateFrom} dateTo={dateTo} />

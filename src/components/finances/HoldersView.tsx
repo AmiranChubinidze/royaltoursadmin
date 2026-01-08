@@ -1,12 +1,21 @@
-import { Loader2, Wallet, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { Loader2, Wallet, AlertTriangle, ArrowRightLeft, Settings, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useHoldersWithBalances } from "@/hooks/useHolders";
 import { HolderCard } from "./HolderCard";
+import { QuickTransferModal } from "./QuickTransferModal";
+import { HolderManagementModal } from "./HolderManagementModal";
+import { OwnerManagementModal } from "./OwnerManagementModal";
 
 interface HoldersViewProps {
   onHolderClick?: (holderId: string) => void;
 }
 
 export function HoldersView({ onHolderClick }: HoldersViewProps) {
+  const [transferModalOpen, setTransferModalOpen] = useState(false);
+  const [holderModalOpen, setHolderModalOpen] = useState(false);
+  const [ownerModalOpen, setOwnerModalOpen] = useState(false);
+
   const { data: holders, isLoading, error } = useHoldersWithBalances();
 
   if (isLoading) {
@@ -53,6 +62,22 @@ export function HoldersView({ onHolderClick }: HoldersViewProps) {
 
   return (
     <div className="space-y-6">
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => setTransferModalOpen(true)} className="gap-2">
+          <ArrowRightLeft className="h-4 w-4" />
+          Quick Transfer
+        </Button>
+        <Button variant="outline" onClick={() => setHolderModalOpen(true)} className="gap-2">
+          <Settings className="h-4 w-4" />
+          Manage Holders
+        </Button>
+        <Button variant="outline" onClick={() => setOwnerModalOpen(true)} className="gap-2">
+          <Users className="h-4 w-4" />
+          Manage Owners
+        </Button>
+      </div>
+
       {/* Summary Header */}
       <div className="bg-card border border-border rounded-xl p-4">
         <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
@@ -105,6 +130,11 @@ export function HoldersView({ onHolderClick }: HoldersViewProps) {
           />
         ))}
       </div>
+
+      {/* Modals */}
+      <QuickTransferModal open={transferModalOpen} onOpenChange={setTransferModalOpen} />
+      <HolderManagementModal open={holderModalOpen} onOpenChange={setHolderModalOpen} />
+      <OwnerManagementModal open={ownerModalOpen} onOpenChange={setOwnerModalOpen} />
     </div>
   );
 }

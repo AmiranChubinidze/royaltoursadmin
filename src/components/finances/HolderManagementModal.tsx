@@ -27,6 +27,7 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
     name: "",
     type: "cash" as HolderType,
     currency: "GEL" as HolderCurrency,
+    email: "",
   });
 
   const { data: holders, isLoading } = useHolders();
@@ -35,7 +36,7 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
   const deleteHolder = useDeleteHolder();
 
   const resetForm = () => {
-    setFormData({ name: "", type: "cash", currency: "GEL" });
+    setFormData({ name: "", type: "cash", currency: "GEL", email: "" });
     setEditingHolder(null);
     setMode("list");
   };
@@ -51,6 +52,7 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
       name: holder.name,
       type: holder.type,
       currency: holder.currency,
+      email: holder.email || "",
     });
     setMode("edit");
   };
@@ -62,11 +64,15 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
     }
 
     try {
+      const submitData = {
+        ...formData,
+        email: formData.email.trim() || null,
+      };
       if (mode === "create") {
-        await createHolder.mutateAsync(formData);
+        await createHolder.mutateAsync(submitData);
         toast.success("Holder created!");
       } else if (mode === "edit" && editingHolder) {
-        await updateHolder.mutateAsync({ id: editingHolder.id, ...formData });
+        await updateHolder.mutateAsync({ id: editingHolder.id, ...submitData });
         toast.success("Holder updated!");
       }
       resetForm();
@@ -217,6 +223,19 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
                     <SelectItem value="USD">$ USD (US Dollar)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Email (optional)</Label>
+                <Input
+                  type="email"
+                  placeholder="e.g., user@example.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Link this holder to a signed-up user email
+                </p>
               </div>
             </div>
 

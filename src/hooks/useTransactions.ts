@@ -33,7 +33,7 @@ export interface Transaction {
   holder_id: string | null;
   from_holder_id: string | null;
   to_holder_id: string | null;
-  owner_id: string | null;
+  responsible_holder_id: string | null;
   counterparty: string | null;
   // Joined data
   confirmation?: {
@@ -55,9 +55,10 @@ export interface Transaction {
     name: string;
     type: string;
   } | null;
-  owner?: {
+  responsible_holder?: {
     id: string;
     name: string;
+    type: string;
   } | null;
 }
 
@@ -76,7 +77,7 @@ export interface CreateTransactionData {
   holder_id?: string | null;
   from_holder_id?: string | null;
   to_holder_id?: string | null;
-  owner_id?: string | null;
+  responsible_holder_id?: string | null;
   counterparty?: string | null;
 }
 
@@ -111,7 +112,7 @@ export const useTransactions = (filters?: {
           holder:holders!transactions_holder_id_fkey(id, name, type),
           from_holder:holders!transactions_from_holder_id_fkey(id, name, type),
           to_holder:holders!transactions_to_holder_id_fkey(id, name, type),
-          owner:owners(id, name)
+          responsible_holder:holders!transactions_responsible_holder_id_fkey(id, name, type)
         `)
         .neq("status", "void")
         .order("date", { ascending: false });
@@ -135,10 +136,7 @@ export const useTransactions = (filters?: {
         query = query.eq("status", filters.status);
       }
       if (filters?.holderId) {
-        query = query.or(`holder_id.eq.${filters.holderId},from_holder_id.eq.${filters.holderId},to_holder_id.eq.${filters.holderId}`);
-      }
-      if (filters?.ownerId) {
-        query = query.eq("owner_id", filters.ownerId);
+        query = query.or(`holder_id.eq.${filters.holderId},from_holder_id.eq.${filters.holderId},to_holder_id.eq.${filters.holderId},responsible_holder_id.eq.${filters.holderId}`);
       }
 
       const { data, error } = await query;
@@ -160,7 +158,7 @@ export const useTransactionsByConfirmation = (confirmationId?: string) => {
         .select(`
           *,
           holder:holders!transactions_holder_id_fkey(id, name, type),
-          owner:owners(id, name)
+          responsible_holder:holders!transactions_responsible_holder_id_fkey(id, name, type)
         `)
         .eq("confirmation_id", confirmationId)
         .neq("status", "void")

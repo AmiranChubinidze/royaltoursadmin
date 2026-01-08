@@ -69,9 +69,9 @@ export default function ConfirmationAttachments() {
   // Transaction modal state
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
   
-  const canUpload = role === "admin" || role === "booking";
+  const canUpload = role === "admin" || role === "worker" || role === "booking";
   const canDelete = role === "admin" || role === "worker";
-  const isBookingView = role === "booking";
+  const canAddTransaction = role === "admin" || role === "worker" || role === "accountant";
   
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -257,18 +257,13 @@ export default function ConfirmationAttachments() {
                   </Badge>
                 )}
               </CardTitle>
-              {(isAdmin || role === "accountant") && (
+              {canAddTransaction && (
                 <Button size="sm" variant="outline" onClick={() => setTransactionModalOpen(true)}>
                   <Plus className="h-4 w-4 mr-1" />
                   Transaction
                 </Button>
               )}
             </div>
-            {isWorker && (
-              <CardDescription>
-                View-only access. Contact booking team to upload invoices.
-              </CardDescription>
-            )}
           </CardHeader>
           <CardContent>
             {attachmentsLoading ? (

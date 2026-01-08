@@ -1,12 +1,13 @@
 import { format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useTransactions } from "@/hooks/useTransactions";
+import { useTransactions, useToggleTransactionStatus } from "@/hooks/useTransactions";
 import { HolderWithBalance } from "@/hooks/useHolders";
 import { cn } from "@/lib/utils";
+import { StatusCheckbox } from "./StatusCheckbox";
 
 interface HolderTransactionsSheetProps {
   holder: HolderWithBalance | null;
@@ -16,6 +17,7 @@ interface HolderTransactionsSheetProps {
 
 export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTransactionsSheetProps) {
   const { data: transactions } = useTransactions({ holderId: holder?.id });
+  const toggleStatus = useToggleTransactionStatus();
 
   if (!holder) return null;
 
@@ -71,18 +73,22 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                 {ins.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg"
+                    className="flex items-center gap-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg"
                   >
+                    <StatusCheckbox
+                      checked={t.status === "confirmed"}
+                      onChange={() => toggleStatus.mutate({ id: t.id, status: t.status === "confirmed" ? "pending" : "confirmed" })}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
                         {t.description || t.category || "Income"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(t.date), "MMM d, yyyy")}
-                        {t.status === "pending" && (
-                          <Badge variant="outline" className="ml-2 text-xs py-0">
-                            Pending
-                          </Badge>
+                        {t.responsible_holder?.name && (
+                          <span className="ml-2 text-muted-foreground/70">
+                            • {t.responsible_holder.name}
+                          </span>
                         )}
                       </p>
                     </div>
@@ -113,18 +119,22 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                 {outs.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between p-3 bg-destructive/5 border border-destructive/20 rounded-lg"
+                    className="flex items-center gap-3 p-3 bg-destructive/5 border border-destructive/20 rounded-lg"
                   >
+                    <StatusCheckbox
+                      checked={t.status === "confirmed"}
+                      onChange={() => toggleStatus.mutate({ id: t.id, status: t.status === "confirmed" ? "pending" : "confirmed" })}
+                    />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">
                         {t.description || t.category || "Expense"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(new Date(t.date), "MMM d, yyyy")}
-                        {t.status === "pending" && (
-                          <Badge variant="outline" className="ml-2 text-xs py-0">
-                            Pending
-                          </Badge>
+                        {t.responsible_holder?.name && (
+                          <span className="ml-2 text-muted-foreground/70">
+                            • {t.responsible_holder.name}
+                          </span>
                         )}
                       </p>
                     </div>

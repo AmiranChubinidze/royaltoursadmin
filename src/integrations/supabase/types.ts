@@ -215,6 +215,7 @@ export type Database = {
         Row: {
           created_at: string | null
           currency: string
+          email: string | null
           id: string
           is_active: boolean
           name: string
@@ -223,6 +224,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           currency?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -231,6 +233,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           currency?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -388,6 +391,7 @@ export type Database = {
           notes: string | null
           owner_id: string | null
           payment_method: string | null
+          responsible_holder_id: string | null
           status: string
           to_holder_id: string | null
           type: string
@@ -412,6 +416,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           payment_method?: string | null
+          responsible_holder_id?: string | null
           status?: string
           to_holder_id?: string | null
           type: string
@@ -436,6 +441,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           payment_method?: string | null
+          responsible_holder_id?: string | null
           status?: string
           to_holder_id?: string | null
           type?: string
@@ -468,6 +474,13 @@ export type Database = {
             columns: ["owner_id"]
             isOneToOne: false
             referencedRelation: "owners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_responsible_holder_id_fkey"
+            columns: ["responsible_holder_id"]
+            isOneToOne: false
+            referencedRelation: "holders"
             referencedColumns: ["id"]
           },
           {

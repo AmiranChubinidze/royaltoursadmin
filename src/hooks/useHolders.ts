@@ -9,6 +9,7 @@ export interface Holder {
   name: string;
   type: HolderType;
   currency: HolderCurrency;
+  email: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -24,6 +25,7 @@ export interface CreateHolderData {
   name: string;
   type: HolderType;
   currency?: HolderCurrency;
+  email?: string | null;
   is_active?: boolean;
 }
 
@@ -77,9 +79,10 @@ export const useHoldersWithBalances = () => {
 
         transactions.forEach((tx) => {
           const isConfirmed = tx.status === "confirmed";
+          const isResponsible = tx.responsible_holder_id === holder.id;
           
-          // Handle IN transactions
-          if (tx.kind === "in" && tx.holder_id === holder.id) {
+          // Handle IN transactions - responsible holder receives the money
+          if (tx.kind === "in" && isResponsible) {
             if (isConfirmed) {
               balance += Number(tx.amount);
             } else if (tx.status === "pending") {
@@ -90,8 +93,8 @@ export const useHoldersWithBalances = () => {
             }
           }
           
-          // Handle OUT transactions
-          if (tx.kind === "out" && tx.holder_id === holder.id) {
+          // Handle OUT transactions - responsible holder spends the money
+          if (tx.kind === "out" && isResponsible) {
             if (isConfirmed) {
               balance -= Number(tx.amount);
             } else if (tx.status === "pending") {

@@ -32,7 +32,6 @@ import {
   useUpdateTransaction,
 } from "@/hooks/useTransactions";
 import { useHolders } from "@/hooks/useHolders";
-import { useOwners } from "@/hooks/useOwners";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
 import { Currency } from "@/contexts/CurrencyContext";
@@ -83,7 +82,6 @@ export function TransactionModal({
   const updateTransaction = useUpdateTransaction();
   const { data: confirmations } = useConfirmations();
   const { data: holders } = useHolders();
-  const { data: owners } = useOwners();
 
   const [inputCurrency, setInputCurrency] = useState<Currency>("USD");
 
@@ -99,7 +97,7 @@ export function TransactionModal({
     holder_id: null,
     from_holder_id: null,
     to_holder_id: null,
-    owner_id: null,
+    responsible_holder_id: null,
     notes: "",
   });
 
@@ -124,7 +122,7 @@ export function TransactionModal({
         holder_id: transaction.holder_id,
         from_holder_id: transaction.from_holder_id,
         to_holder_id: transaction.to_holder_id,
-        owner_id: transaction.owner_id,
+        responsible_holder_id: transaction.responsible_holder_id,
         notes: transaction.notes || "",
       });
       setIsCustomCategory(!isKnown);
@@ -143,7 +141,7 @@ export function TransactionModal({
         holder_id: null,
         from_holder_id: null,
         to_holder_id: null,
-        owner_id: null,
+        responsible_holder_id: null,
         notes: "",
       });
       setIsCustomCategory(false);
@@ -458,7 +456,7 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Holder + Owner (for non-transfer) */}
+          {/* Holder + Responsible (for non-transfer) */}
           {formData.kind !== "transfer" && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
@@ -483,11 +481,11 @@ export function TransactionModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Owner</Label>
+                <Label className="text-xs">Responsible</Label>
                 <Select
-                  value={formData.owner_id || "none"}
+                  value={formData.responsible_holder_id || "none"}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, owner_id: value === "none" ? null : value })
+                    setFormData({ ...formData, responsible_holder_id: value === "none" ? null : value })
                   }
                 >
                   <SelectTrigger className="h-8 text-xs">
@@ -495,9 +493,9 @@ export function TransactionModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" className="text-xs">None</SelectItem>
-                    {owners?.map((o) => (
-                      <SelectItem key={o.id} value={o.id} className="text-xs">
-                        {o.name}
+                    {holders?.map((h) => (
+                      <SelectItem key={h.id} value={h.id} className="text-xs">
+                        {h.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

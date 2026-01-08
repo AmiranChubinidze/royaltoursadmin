@@ -465,10 +465,7 @@ export default function FinancesPage() {
           </TabsList>
 
           <TabsContent value="holders" className="mt-4">
-            <HoldersView onHolderClick={(holderId) => {
-              setActiveTab("ledger");
-              // TODO: Add holder filter to ledger
-            }} />
+            <HoldersView />
           </TabsContent>
 
           <TabsContent value="confirmations" className="mt-4">

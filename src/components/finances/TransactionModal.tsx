@@ -23,13 +23,16 @@ import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import {
   Transaction,
-  TransactionType,
+  TransactionKind,
   TransactionCategory,
   PaymentMethod,
+  TransactionStatus,
   CreateTransactionData,
   useCreateTransaction,
   useUpdateTransaction,
 } from "@/hooks/useTransactions";
+import { useHolders } from "@/hooks/useHolders";
+import { useOwners } from "@/hooks/useOwners";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
 import { Currency } from "@/contexts/CurrencyContext";
@@ -38,36 +41,40 @@ interface TransactionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: Transaction | null;
-  defaultType?: TransactionType;
+  defaultKind?: TransactionKind;
   defaultCategory?: TransactionCategory;
   defaultConfirmationId?: string;
 }
 
-const CATEGORIES: { value: string; label: string; type: TransactionType | "both" }[] = [
-  { value: "tour_payment", label: "Tour Payment", type: "income" },
-  { value: "hotel", label: "Hotel", type: "expense" },
-  { value: "driver", label: "Driver", type: "expense" },
-  { value: "sim", label: "SIM", type: "expense" },
-  { value: "breakfast", label: "Breakfast", type: "expense" },
-  { value: "fuel", label: "Fuel", type: "expense" },
-  { value: "guide", label: "Guide", type: "expense" },
-  { value: "salary", label: "Salary", type: "expense" },
-  { value: "other", label: "Other", type: "both" },
-  { value: "__custom__", label: "Custom...", type: "both" },
+const CATEGORIES: { value: string; label: string; kind: TransactionKind | "both" }[] = [
+  { value: "tour_payment", label: "Tour Payment", kind: "in" },
+  { value: "hotel", label: "Hotel", kind: "out" },
+  { value: "driver", label: "Driver", kind: "out" },
+  { value: "sim", label: "SIM", kind: "out" },
+  { value: "breakfast", label: "Breakfast", kind: "out" },
+  { value: "fuel", label: "Fuel", kind: "out" },
+  { value: "guide", label: "Guide", kind: "out" },
+  { value: "salary", label: "Salary", kind: "out" },
+  { value: "transfer_internal", label: "Internal Transfer", kind: "transfer" },
+  { value: "reimbursement", label: "Reimbursement", kind: "transfer" },
+  { value: "deposit", label: "Bank Deposit", kind: "transfer" },
+  { value: "other", label: "Other", kind: "both" },
+  { value: "__custom__", label: "Custom...", kind: "both" },
 ];
 
 const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: "cash", label: "Cash" },
   { value: "card", label: "Card" },
   { value: "bank", label: "Bank" },
-  { value: "other", label: "Other" },
+  { value: "online", label: "Online" },
+  { value: "personal", label: "Personal" },
 ];
 
 export function TransactionModal({
   open,
   onOpenChange,
   transaction,
-  defaultType = "expense",
+  defaultKind = "out",
   defaultCategory,
   defaultConfirmationId,
 }: TransactionModalProps) {
@@ -75,19 +82,24 @@ export function TransactionModal({
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
   const { data: confirmations } = useConfirmations();
+  const { data: holders } = useHolders();
+  const { data: owners } = useOwners();
 
-  // Currency for input - amounts are stored in USD
   const [inputCurrency, setInputCurrency] = useState<Currency>("USD");
 
   const [formData, setFormData] = useState<CreateTransactionData>({
     date: format(new Date(), "yyyy-MM-dd"),
-    type: defaultType,
-    category: defaultCategory || (defaultType === "income" ? "tour_payment" : "other"),
+    kind: defaultKind,
+    status: "confirmed",
+    category: defaultCategory || (defaultKind === "in" ? "tour_payment" : "other"),
     description: "",
     amount: 0,
-    is_paid: false,
     payment_method: null,
     confirmation_id: defaultConfirmationId || null,
+    holder_id: null,
+    from_holder_id: null,
+    to_holder_id: null,
+    owner_id: null,
     notes: "",
   });
 
@@ -97,19 +109,22 @@ export function TransactionModal({
 
   useEffect(() => {
     if (transaction) {
-      // Check if the transaction's category is a known category
       const knownCategories = CATEGORIES.map(c => c.value).filter(v => v !== "__custom__");
       const isKnown = knownCategories.includes(transaction.category);
       
       setFormData({
         date: transaction.date,
-        type: transaction.type,
+        kind: transaction.kind,
+        status: transaction.status,
         category: isKnown ? transaction.category : "__custom__",
         description: transaction.description || "",
         amount: transaction.amount,
-        is_paid: transaction.is_paid,
-        payment_method: transaction.payment_method,
+        payment_method: transaction.payment_method as PaymentMethod | null,
         confirmation_id: transaction.confirmation_id,
+        holder_id: transaction.holder_id,
+        from_holder_id: transaction.from_holder_id,
+        to_holder_id: transaction.to_holder_id,
+        owner_id: transaction.owner_id,
         notes: transaction.notes || "",
       });
       setIsCustomCategory(!isKnown);
@@ -118,24 +133,41 @@ export function TransactionModal({
     } else {
       setFormData({
         date: format(new Date(), "yyyy-MM-dd"),
-        type: defaultType,
-        category: defaultCategory || (defaultType === "income" ? "tour_payment" : "other"),
+        kind: defaultKind,
+        status: "confirmed",
+        category: defaultCategory || (defaultKind === "in" ? "tour_payment" : "other"),
         description: "",
         amount: 0,
-        is_paid: false,
         payment_method: null,
         confirmation_id: defaultConfirmationId || null,
+        holder_id: null,
+        from_holder_id: null,
+        to_holder_id: null,
+        owner_id: null,
         notes: "",
       });
       setIsCustomCategory(false);
       setCustomCategory("");
       setInputCurrency("USD");
     }
-  }, [transaction, defaultType, defaultCategory, defaultConfirmationId, open]);
+  }, [transaction, defaultKind, defaultCategory, defaultConfirmationId, open]);
 
   const filteredCategories = CATEGORIES.filter(
-    (c) => c.type === "both" || c.type === formData.type
+    (c) => c.kind === "both" || c.kind === formData.kind
   );
+
+  // Filter holders by payment method
+  const filteredHolders = holders?.filter((h) => {
+    if (!formData.payment_method) return true;
+    const mapping: Record<string, string[]> = {
+      cash: ["cash"],
+      bank: ["bank"],
+      online: ["bank"],
+      card: ["card"],
+      personal: ["cash"],
+    };
+    return mapping[formData.payment_method]?.includes(h.type) ?? true;
+  });
 
   const handleSubmit = async () => {
     if (!formData.amount || formData.amount <= 0) {
@@ -143,7 +175,14 @@ export function TransactionModal({
       return;
     }
 
-    // Determine final category
+    // Validate transfer fields
+    if (formData.kind === "transfer") {
+      if (!formData.from_holder_id || !formData.to_holder_id) {
+        toast({ title: "Please select both source and destination holders", variant: "destructive" });
+        return;
+      }
+    }
+
     const finalCategory = isCustomCategory ? customCategory.trim() : formData.category;
     
     if (isCustomCategory && !finalCategory) {
@@ -151,7 +190,6 @@ export function TransactionModal({
       return;
     }
 
-    // Store amount in original currency (no conversion)
     const submitData = { 
       ...formData, 
       category: finalCategory, 
@@ -185,25 +223,34 @@ export function TransactionModal({
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Type Toggle */}
+          {/* Kind Toggle */}
           <div className="flex gap-1.5">
             <Button
               type="button"
-              variant={formData.type === "income" ? "default" : "outline"}
+              variant={formData.kind === "in" ? "default" : "outline"}
               size="sm"
               className="flex-1 h-8 text-xs"
-              onClick={() => setFormData({ ...formData, type: "income", category: "tour_payment" })}
+              onClick={() => setFormData({ ...formData, kind: "in", category: "tour_payment" })}
             >
               Income
             </Button>
             <Button
               type="button"
-              variant={formData.type === "expense" ? "default" : "outline"}
+              variant={formData.kind === "out" ? "default" : "outline"}
               size="sm"
               className="flex-1 h-8 text-xs"
-              onClick={() => setFormData({ ...formData, type: "expense", category: "other" })}
+              onClick={() => setFormData({ ...formData, kind: "out", category: "other" })}
             >
               Expense
+            </Button>
+            <Button
+              type="button"
+              variant={formData.kind === "transfer" ? "default" : "outline"}
+              size="sm"
+              className="flex-1 h-8 text-xs"
+              onClick={() => setFormData({ ...formData, kind: "transfer", category: "transfer_internal" })}
+            >
+              Transfer
             </Button>
           </div>
 
@@ -285,83 +332,179 @@ export function TransactionModal({
             </div>
           </div>
 
-          {/* Row 2: Category + Payment */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Category</Label>
-              {isCustomCategory ? (
-                <div className="flex gap-1">
-                  <Input
-                    value={customCategory}
-                    onChange={(e) => setCustomCategory(e.target.value)}
-                    placeholder="Type category..."
-                    className="h-8 text-xs flex-1"
-                    autoFocus
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 text-xs"
-                    onClick={() => {
-                      setIsCustomCategory(false);
-                      setCustomCategory("");
-                      setFormData({ ...formData, category: "other" });
-                    }}
-                  >
-                    ✕
-                  </Button>
-                </div>
-              ) : (
+          {/* Transfer: From/To Holders */}
+          {formData.kind === "transfer" ? (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">From</Label>
                 <Select
-                  value={formData.category}
-                  onValueChange={(value) => {
-                    if (value === "__custom__") {
-                      setIsCustomCategory(true);
-                      setFormData({ ...formData, category: "__custom__" });
-                    } else {
-                      setFormData({ ...formData, category: value });
-                    }
-                  }}
+                  value={formData.from_holder_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, from_holder_id: value === "none" ? null : value })
+                  }
                 >
                   <SelectTrigger className="h-8 text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredCategories.map((c) => (
-                      <SelectItem key={c.value} value={c.value} className="text-xs">
-                        {c.label}
+                    <SelectItem value="none" className="text-xs">Select...</SelectItem>
+                    {holders?.map((h) => (
+                      <SelectItem key={h.id} value={h.id} className="text-xs">
+                        {h.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">To</Label>
+                <Select
+                  value={formData.to_holder_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, to_holder_id: value === "none" ? null : value })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">Select...</SelectItem>
+                    {holders?.map((h) => (
+                      <SelectItem key={h.id} value={h.id} className="text-xs">
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Payment</Label>
-              <Select
-                value={formData.payment_method || "none"}
-                onValueChange={(value) =>
-                  setFormData({
-                    ...formData,
-                    payment_method: value === "none" ? null : (value as PaymentMethod),
-                  })
-                }
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Method" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none" className="text-xs">None</SelectItem>
-                  {PAYMENT_METHODS.map((m) => (
-                    <SelectItem key={m.value} value={m.value} className="text-xs">
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          ) : (
+            /* Row 2: Category + Payment */
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Category</Label>
+                {isCustomCategory ? (
+                  <div className="flex gap-1">
+                    <Input
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      placeholder="Type category..."
+                      className="h-8 text-xs flex-1"
+                      autoFocus
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => {
+                        setIsCustomCategory(false);
+                        setCustomCategory("");
+                        setFormData({ ...formData, category: "other" });
+                      }}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => {
+                      if (value === "__custom__") {
+                        setIsCustomCategory(true);
+                        setFormData({ ...formData, category: "__custom__" });
+                      } else {
+                        setFormData({ ...formData, category: value });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredCategories.map((c) => (
+                        <SelectItem key={c.value} value={c.value} className="text-xs">
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Payment</Label>
+                <Select
+                  value={formData.payment_method || "none"}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      payment_method: value === "none" ? null : (value as PaymentMethod),
+                    })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">None</SelectItem>
+                    {PAYMENT_METHODS.map((m) => (
+                      <SelectItem key={m.value} value={m.value} className="text-xs">
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Holder + Owner (for non-transfer) */}
+          {formData.kind !== "transfer" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Holder</Label>
+                <Select
+                  value={formData.holder_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, holder_id: value === "none" ? null : value })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">None</SelectItem>
+                    {filteredHolders?.map((h) => (
+                      <SelectItem key={h.id} value={h.id} className="text-xs">
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Owner</Label>
+                <Select
+                  value={formData.owner_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, owner_id: value === "none" ? null : value })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">None</SelectItem>
+                    {owners?.map((o) => (
+                      <SelectItem key={o.id} value={o.id} className="text-xs">
+                        {o.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {/* Confirmation */}
           <div className="space-y-1">
@@ -401,12 +544,12 @@ export function TransactionModal({
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex items-center gap-2">
               <Checkbox
-                id="is_paid"
-                checked={formData.is_paid}
-                onCheckedChange={(checked) => setFormData({ ...formData, is_paid: !!checked })}
+                id="status"
+                checked={formData.status === "confirmed"}
+                onCheckedChange={(checked) => setFormData({ ...formData, status: checked ? "confirmed" : "pending" })}
               />
-              <Label htmlFor="is_paid" className="text-xs cursor-pointer">
-                {formData.type === "income" ? "Received" : "Paid"}
+              <Label htmlFor="status" className="text-xs cursor-pointer">
+                {formData.kind === "in" ? "Received" : formData.kind === "out" ? "Paid" : "Completed"}
               </Label>
             </div>
             <div className="flex gap-2">

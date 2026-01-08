@@ -39,11 +39,13 @@ import {
 import { useUserRole } from "@/hooks/useUserRole";
 import { cn } from "@/lib/utils";
 import { TransactionModal } from "@/components/finances/TransactionModal";
+import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 
 export default function ConfirmationAttachments() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { role } = useUserRole();
+  const { exchangeRate } = useCurrency();
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
@@ -65,6 +67,7 @@ export default function ConfirmationAttachments() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [invoiceName, setInvoiceName] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
+  const [invoiceCurrency, setInvoiceCurrency] = useState<Currency>("USD");
   
   // Transaction modal state
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
@@ -117,18 +120,26 @@ export default function ConfirmationAttachments() {
   const handleUploadConfirm = useCallback(() => {
     if (!pendingFile || !id) return;
     
+    // Convert amount to USD if entered in GEL
+    let amountInUSD: number | undefined;
+    if (invoiceAmount) {
+      const parsedAmount = parseFloat(invoiceAmount);
+      amountInUSD = invoiceCurrency === "GEL" ? parsedAmount / exchangeRate : parsedAmount;
+    }
+    
     uploadMutation.mutate({
       confirmationId: id,
       file: pendingFile,
       customName: invoiceName,
-      amount: invoiceAmount ? parseFloat(invoiceAmount) : undefined,
+      amount: amountInUSD,
     });
     
     setUploadDialogOpen(false);
     setPendingFile(null);
     setInvoiceName("");
     setInvoiceAmount("");
-  }, [pendingFile, id, invoiceName, invoiceAmount, uploadMutation]);
+    setInvoiceCurrency("USD");
+  }, [pendingFile, id, invoiceName, invoiceAmount, invoiceCurrency, exchangeRate, uploadMutation]);
 
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
     setDownloadingId(attachmentId);
@@ -505,6 +516,7 @@ export default function ConfirmationAttachments() {
             setPendingFile(null);
             setInvoiceName("");
             setInvoiceAmount("");
+            setInvoiceCurrency("USD");
           }
         }}>
           <DialogContent>
@@ -523,17 +535,53 @@ export default function ConfirmationAttachments() {
                 <p className="text-xs text-muted-foreground">.pdf will be added automatically</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-amount">Amount Paid ($)</Label>
-                <Input
-                  id="invoice-amount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={invoiceAmount}
-                  onChange={(e) => setInvoiceAmount(e.target.value)}
-                  placeholder="0.00"
-                />
-                <p className="text-xs text-muted-foreground">This will be recorded as a hotel expense</p>
+                <Label htmlFor="invoice-amount">Amount Paid</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="invoice-amount"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={invoiceAmount}
+                    onChange={(e) => setInvoiceAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="flex-1"
+                  />
+                  <div className="flex rounded-md border border-input bg-background overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceCurrency("USD")}
+                      className={cn(
+                        "px-3 py-2 text-sm font-medium transition-colors",
+                        invoiceCurrency === "USD"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      $
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInvoiceCurrency("GEL")}
+                      className={cn(
+                        "px-3 py-2 text-sm font-medium transition-colors",
+                        invoiceCurrency === "GEL"
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      ₾
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This will be recorded as a hotel expense
+                  {invoiceCurrency === "GEL" && invoiceAmount && (
+                    <span className="text-muted-foreground">
+                      {" "}(≈ ${(parseFloat(invoiceAmount) / exchangeRate).toFixed(2)} USD)
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <DialogFooter>

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { StatusCheckbox } from "./StatusCheckbox";
+import { ConfirmWithResponsiblePopover } from "./ConfirmWithResponsiblePopover";
 import {
   Select,
   SelectContent,
@@ -50,7 +50,7 @@ import {
   TransactionCategory,
   useTransactions,
   useDeleteTransaction,
-  useToggleTransactionPaid,
+  useConfirmTransaction,
   useBulkCreateTransactions,
 } from "@/hooks/useTransactions";
 import { TransactionModal } from "./TransactionModal";
@@ -159,7 +159,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   });
 
   const deleteTransaction = useDeleteTransaction();
-  const togglePaid = useToggleTransactionPaid();
+  const confirmTransaction = useConfirmTransaction();
 
   // Auto-create meals transactions so they show up in the Ledger
   useEffect(() => {
@@ -236,9 +236,13 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     }
   };
 
-  const handleTogglePaid = async (id: string, currentStatus: boolean) => {
+  const handleConfirmTransaction = async (id: string, isCurrentlyConfirmed: boolean, responsibleHolderId: string | null) => {
     try {
-      await togglePaid.mutateAsync({ id, isPaid: !currentStatus });
+      await confirmTransaction.mutateAsync({ 
+        id, 
+        confirm: !isCurrentlyConfirmed,
+        responsibleHolderId: !isCurrentlyConfirmed ? responsibleHolderId : undefined
+      });
     } catch (error) {
       toast({ title: "Error updating status", variant: "destructive" });
     }
@@ -410,9 +414,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       {t.kind === "in" ? "+" : t.kind === "transfer" ? "" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <StatusCheckbox
+                      <ConfirmWithResponsiblePopover
                         checked={t.status === "confirmed"}
-                        onChange={() => handleTogglePaid(t.id, t.status === "confirmed")}
+                        currentResponsibleId={t.responsible_holder_id}
+                        onConfirm={(holderId) => handleConfirmTransaction(t.id, t.status === "confirmed", holderId)}
                       />
                     </TableCell>
                     <TableCell>
@@ -526,9 +531,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       {t.type === "income" ? "+" : "-"}{formatTransactionAmount(t.amount, t.currency)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <StatusCheckbox
+                      <ConfirmWithResponsiblePopover
                         checked={t.is_paid}
-                        onChange={() => handleTogglePaid(t.id, t.is_paid)}
+                        currentResponsibleId={t.responsible_holder_id}
+                        onConfirm={(holderId) => handleConfirmTransaction(t.id, t.is_paid, holderId)}
                       />
                     </TableCell>
                     <TableCell>

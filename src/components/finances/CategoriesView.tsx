@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTransactions, TransactionCategory } from "@/hooks/useTransactions";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface CategoriesViewProps {
   dateFrom?: Date;
@@ -23,6 +24,7 @@ const CATEGORY_CONFIG: Record<TransactionCategory, { label: string; color: strin
 
 export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
   const { data: transactions, isLoading } = useTransactions({ dateFrom, dateTo });
+  const { formatAmount } = useCurrency();
 
   const categoryStats = useMemo(() => {
     if (!transactions) return [];
@@ -106,19 +108,19 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
               <div>
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-xl font-bold text-emerald-600">
-                  ${incomeCategory.totalAmount.toLocaleString()}
+                  {formatAmount(incomeCategory.totalAmount)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Received</p>
                 <p className="text-xl font-bold text-emerald-600">
-                  ${incomeCategory.paidAmount.toLocaleString()}
+                  {formatAmount(incomeCategory.paidAmount)}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Pending</p>
                 <p className="text-xl font-bold text-amber-600">
-                  ${incomeCategory.pendingAmount.toLocaleString()}
+                  {formatAmount(incomeCategory.pendingAmount)}
                 </p>
               </div>
             </div>
@@ -144,7 +146,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                   <div key={cat.category} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className={cn("font-medium", cat.color)}>{cat.label}</span>
-                      <span className="font-bold">${cat.totalAmount.toLocaleString()}</span>
+                      <span className="font-bold">{formatAmount(cat.totalAmount)}</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
@@ -156,7 +158,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                       <span>{cat.count} transactions</span>
                       {cat.pendingAmount > 0 && (
                         <span className="text-amber-600">
-                          (${cat.pendingAmount.toLocaleString()} unpaid)
+                          ({formatAmount(cat.pendingAmount)} unpaid)
                         </span>
                       )}
                     </div>
@@ -166,7 +168,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
               <div className="pt-3 border-t">
                 <div className="flex justify-between text-sm">
                   <span className="font-medium">Total Expenses</span>
-                  <span className="font-bold text-red-600">${totalExpenses.toLocaleString()}</span>
+                  <span className="font-bold text-red-600">{formatAmount(totalExpenses)}</span>
                 </div>
               </div>
             </>
@@ -191,7 +193,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                     <p className="text-xs text-muted-foreground">{c.client || "N/A"}</p>
                   </div>
                   <Badge variant="outline" className="text-amber-600 border-amber-500">
-                    ${c.amount.toLocaleString()}
+                    {formatAmount(c.amount)}
                   </Badge>
                 </div>
               ))}

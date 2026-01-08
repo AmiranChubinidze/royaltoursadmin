@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ArrowDownLeft, ArrowUpRight, CheckCircle, Clock } from "lucide-react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface Transaction {
   id: string;
@@ -37,6 +38,7 @@ export function MobileTransactionCard({
   transaction,
   onTogglePaid,
 }: MobileTransactionCardProps) {
+  const { formatAmount } = useCurrency();
   const isIncome = transaction.type === "income";
   const formattedDate = (() => {
     try {
@@ -84,7 +86,7 @@ export function MobileTransactionCard({
               isIncome ? "text-emerald-600" : "text-red-600"
             )}
           >
-            {isIncome ? "+" : "-"}${transaction.amount.toLocaleString()}
+            {isIncome ? "+" : "-"}{formatAmount(transaction.amount)}
           </p>
           <button
             onClick={() => onTogglePaid?.(transaction.id, transaction.is_paid)}

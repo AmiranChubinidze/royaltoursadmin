@@ -1,6 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { TrendingDown, DollarSign, Clock, Wallet } from "lucide-react";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface MobileSummaryCardsProps {
   received: number;
@@ -17,6 +18,8 @@ export function MobileSummaryCards({
   pending,
   isLoading = false,
 }: MobileSummaryCardsProps) {
+  const { formatAmount } = useCurrency();
+  
   const cards = [
     {
       label: "Received",
@@ -65,7 +68,7 @@ export function MobileSummaryCards({
             <Skeleton className="h-6 w-16" />
           ) : (
             <p className={cn("text-lg font-bold", card.color)}>
-              ${card.value.toLocaleString()}
+              {formatAmount(card.value)}
             </p>
           )}
         </div>

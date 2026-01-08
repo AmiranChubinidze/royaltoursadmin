@@ -56,6 +56,7 @@ import {
 import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface LedgerViewProps {
   dateFrom?: Date;
@@ -123,6 +124,7 @@ const calculateMealsFromPayload = (rawPayload: unknown) => {
 
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { toast } = useToast();
+  const { formatAmount } = useCurrency();
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [paidFilter, setPaidFilter] = useState<"all" | "paid" | "unpaid">("all");
@@ -385,7 +387,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         t.type === "income" ? "text-emerald-600" : "text-red-600"
                       )}
                     >
-                      {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
+                      {t.type === "income" ? "+" : "-"}{formatAmount(t.amount)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch
@@ -501,7 +503,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         t.type === "income" ? "text-emerald-600" : "text-red-600"
                       )}
                     >
-                      {t.type === "income" ? "+" : "-"}${t.amount.toLocaleString()}
+                      {t.type === "income" ? "+" : "-"}{formatAmount(t.amount)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Switch

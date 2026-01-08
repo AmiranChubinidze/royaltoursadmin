@@ -21,6 +21,7 @@ import { TransactionModal } from "@/components/finances/TransactionModal";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator, PullToRefreshContainer } from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
+import { CurrencyToggle } from "@/components/CurrencyToggle";
 
 const DRIVER_RATES: Record<string, number> = {
   driver1: 50,
@@ -362,12 +363,13 @@ export default function FinancesPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-foreground">Finances</h1>
             <p className="text-sm text-muted-foreground">
               Track income, expenses, and profitability
             </p>
           </div>
+          <CurrencyToggle size="default" />
         </div>
 
         {/* Date Filter */}

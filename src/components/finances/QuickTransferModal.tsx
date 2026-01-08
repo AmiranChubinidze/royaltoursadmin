@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, Building2, Wallet, Users, Loader2 } from "lucide-react";
 import { useHolders, HolderType } from "@/hooks/useHolders";
-import { useOwners } from "@/hooks/useOwners";
 import { useCreateTransaction } from "@/hooks/useTransactions";
 import { toast } from "sonner";
 
@@ -51,7 +50,6 @@ export function QuickTransferModal({ open, onOpenChange }: QuickTransferModalPro
   const [currency, setCurrency] = useState<"GEL" | "USD">("GEL");
 
   const { data: holders } = useHolders();
-  const { data: owners } = useOwners();
   const createTransaction = useCreateTransaction();
 
   const resetForm = () => {

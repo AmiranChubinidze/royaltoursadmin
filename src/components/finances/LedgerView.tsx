@@ -336,9 +336,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[90px]">Date</TableHead>
-                <TableHead className="w-[120px]">Confirmation</TableHead>
+                <TableHead className="w-[100px]">Confirmation</TableHead>
                 <TableHead className="w-[70px]">Type</TableHead>
-                <TableHead className="w-[120px]">Category</TableHead>
+                <TableHead className="w-[100px]">Category</TableHead>
+                <TableHead className="w-[100px]">Responsible</TableHead>
                 <TableHead className="w-auto">Description</TableHead>
                 <TableHead className="w-[100px] text-right">Amount</TableHead>
                 <TableHead className="w-[80px] text-center">Status</TableHead>
@@ -349,7 +350,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               {isLoading ? (
                 [...Array(3)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(8)].map((_, j) => (
+                    {[...Array(9)].map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-5 w-full" />
                       </TableCell>
@@ -358,7 +359,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 ))
               ) : !transactions?.filter(t => !t.is_auto_generated).length ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
                     No manual transactions
                   </TableCell>
                 </TableRow>
@@ -391,6 +392,11 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       <Badge className={cn("font-normal", getCategoryColor(t.category))}>
                         {getCategoryLabel(t.category)}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {t.responsible_holder?.name || (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {t.description || "—"}

@@ -182,12 +182,16 @@ export const useDeleteHolder = () => {
   return useMutation({
     mutationFn: async (id: string) => {
       // Soft delete by setting is_active to false
-      const { error } = await supabase
+      const { data, error, count } = await supabase
         .from("holders")
         .update({ is_active: false })
-        .eq("id", id);
+        .eq("id", id)
+        .select();
 
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Permission denied: You don't have access to delete holders");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holders"] });

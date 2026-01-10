@@ -260,6 +260,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   // Handle confirmation payment toggle with responsible holder
   const handleToggleClientPaid = async (id: string, currentStatus: boolean, responsibleHolderId: string | null) => {
     try {
+      const confirmation = confirmations?.find(c => c.id === id);
       const { error } = await supabase
         .from("confirmations")
         .update({
@@ -270,21 +271,53 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
       if (error) throw error;
 
-      // Update the linked income transaction's responsible holder if marking as paid
-      if (!currentStatus && responsibleHolderId) {
-        const incomeTransaction = transactionsForAutogen?.find(
-          (t) => t.confirmation_id === id && t.kind === "in"
-        );
+      // Find or create the linked income transaction
+      const incomeTransaction = transactionsForAutogen?.find(
+        (t) => t.confirmation_id === id && t.kind === "in"
+      );
+
+      if (!currentStatus) {
+        // Marking as paid
+        if (incomeTransaction) {
+          // Update existing transaction
+          await supabase
+            .from("transactions")
+            .update({ 
+              responsible_holder_id: responsibleHolderId,
+              status: "confirmed"
+            })
+            .eq("id", incomeTransaction.id);
+        } else if (confirmation) {
+          // Create new income transaction
+          await supabase
+            .from("transactions")
+            .insert({
+              date: isoDateFromDdMmYyyy(confirmation.arrival_date),
+              kind: "in",
+              type: "income",
+              category: "tour_payment",
+              description: `Tour payment - ${confirmation.confirmation_code}`,
+              amount: confirmation.price || 0,
+              currency: "USD",
+              status: "confirmed",
+              confirmation_id: id,
+              responsible_holder_id: responsibleHolderId,
+              is_auto_generated: true,
+            });
+        }
+      } else {
+        // Unmarking - set transaction back to pending
         if (incomeTransaction) {
           await supabase
             .from("transactions")
-            .update({ responsible_holder_id: responsibleHolderId })
+            .update({ status: "pending" })
             .eq("id", incomeTransaction.id);
-          queryClient.invalidateQueries({ queryKey: ["transactions"] });
         }
       }
 
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["holders"] });
       toast({
         title: !currentStatus ? "Marked as received" : "Marked as pending",
       });

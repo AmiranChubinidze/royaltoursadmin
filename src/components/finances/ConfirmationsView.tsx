@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { format, isWithinInterval } from "date-fns";
+import { format, isWithinInterval, isPast, parseISO } from "date-fns";
 import {
   Table,
   TableBody,
@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -23,8 +22,6 @@ import {
   ChevronRight,
   Plus,
   Download,
-  CheckCircle2,
-  XCircle,
   Sparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +32,8 @@ import { useExpenses } from "@/hooks/useExpenses";
 import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { FinanceSearch } from "./FinanceSearch";
+import { StatusBadge } from "./StatusBadge";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -117,6 +116,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfirmationId, setModalConfirmationId] = useState<string | undefined>();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const bulkCreateTransactions = useBulkCreateTransactions();
   const createdMealsRef = useRef<Set<string>>(new Set());
@@ -329,11 +329,42 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
     a.click();
   };
 
+  // Filter by search query
+  const filteredRows = useMemo(() => {
+    if (!searchQuery.trim()) return confirmationRows;
+    const q = searchQuery.toLowerCase();
+    return confirmationRows.filter(
+      (row) =>
+        row.code.toLowerCase().includes(q) ||
+        (row.client && row.client.toLowerCase().includes(q))
+    );
+  }, [confirmationRows, searchQuery]);
+
+  // Determine payment status for a row
+  const getPaymentStatus = (row: ConfirmationRow): "paid" | "pending" | "overdue" => {
+    if (row.clientPaid) return "paid";
+    if (row.arrivalDate) {
+      const parts = row.arrivalDate.split("/");
+      if (parts.length === 3) {
+        const arrDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        if (isPast(arrDate)) return "overdue";
+      }
+    }
+    return "pending";
+  };
+
   return (
     <div className="space-y-4">
-      {/* Actions */}
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!confirmationRows.length}>
+      {/* Search & Actions */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <FinanceSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search by code or client..."
+          className="sm:w-72"
+        />
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!filteredRows.length}>
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
@@ -343,15 +374,15 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:bg-transparent">
               <TableHead className="w-[40px]" />
-              <TableHead>Code</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Arrival</TableHead>
-              <TableHead className="text-center">Days</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
-              <TableHead className="text-right">Expenses</TableHead>
-              <TableHead className="text-center">Received?</TableHead>
+              <TableHead className="font-semibold">Code</TableHead>
+              <TableHead className="font-semibold">Client</TableHead>
+              <TableHead className="font-semibold">Arrival</TableHead>
+              <TableHead className="text-center font-semibold">Days</TableHead>
+              <TableHead className="text-right font-semibold">Revenue</TableHead>
+              <TableHead className="text-right font-semibold">Expenses</TableHead>
+              <TableHead className="text-center font-semibold">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -365,42 +396,44 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                   ))}
                 </TableRow>
               ))
-            ) : !confirmationRows.length ? (
+            ) : !filteredRows.length ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No confirmations with revenue found
+                  {searchQuery ? "No matching confirmations" : "No confirmations with revenue found"}
                 </TableCell>
               </TableRow>
             ) : (
-              confirmationRows.map((row) => (
+              filteredRows.map((row) => (
                 <Collapsible key={row.id} open={expandedId === row.id} onOpenChange={(open) => setExpandedId(open ? row.id : null)} asChild>
                   <>
                     <CollapsibleTrigger asChild>
-                      <TableRow className="cursor-pointer hover:bg-muted/50">
+                      <TableRow className="cursor-pointer hover:bg-muted/50 group">
                         <TableCell>
                           {expandedId === row.id ? (
-                            <ChevronDown className="h-4 w-4" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
                           ) : (
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                           )}
                         </TableCell>
-                        <TableCell className="font-medium font-mono">
+                        <TableCell className="font-medium font-mono text-primary">
                           {row.code}
                         </TableCell>
-                        <TableCell>{row.client || "—"}</TableCell>
-                        <TableCell>{row.arrivalDate || "—"}</TableCell>
-                        <TableCell className="text-center">{row.days}</TableCell>
-                        <TableCell className="text-right font-medium">
+                        <TableCell className="font-medium">{row.client || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">{row.arrivalDate || "—"}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">{row.days}</TableCell>
+                        <TableCell className="text-right font-semibold text-emerald-600">
                           {formatTransactionAmount(row.revenueExpected, "USD")}
                         </TableCell>
-                        <TableCell className="text-right text-red-600 font-medium">
+                        <TableCell className="text-right font-medium text-red-600">
                           {formatTransactionAmount(row.expenses, "USD")}
                         </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={row.clientPaid}
-                            onCheckedChange={() => handleToggleClientPaid(row.id, row.clientPaid)}
-                          />
+                          <button
+                            onClick={() => handleToggleClientPaid(row.id, row.clientPaid)}
+                            className="transition-transform hover:scale-105"
+                          >
+                            <StatusBadge status={getPaymentStatus(row)} size="sm" />
+                          </button>
                         </TableCell>
                       </TableRow>
                     </CollapsibleTrigger>

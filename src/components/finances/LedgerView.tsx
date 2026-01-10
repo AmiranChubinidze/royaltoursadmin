@@ -57,6 +57,7 @@ import {
 import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useHolders } from "@/hooks/useHolders";
 import { useToast } from "@/hooks/use-toast";
 import { FinanceSearch } from "./FinanceSearch";
 import { StatusCheckbox } from "./StatusCheckbox";
@@ -155,6 +156,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations(500);
   const { data: expenses } = useExpenses();
+  const { data: holders } = useHolders();
   const { data: transactionsForAutogen } = useTransactions({ dateFrom, dateTo });
 
   const bulkCreateTransactions = useBulkCreateTransactions();
@@ -541,6 +543,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-[100px] font-semibold">Code</TableHead>
                 <TableHead className="w-auto font-semibold">Client</TableHead>
+                <TableHead className="w-[100px] font-semibold">Responsible</TableHead>
                 <TableHead className="w-[90px] font-semibold">Arrival</TableHead>
                 <TableHead className="w-[60px] text-center font-semibold">Days</TableHead>
                 <TableHead className="w-[100px] text-right font-semibold">Amount</TableHead>
@@ -551,7 +554,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               {isLoading ? (
                 [...Array(3)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(6)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-5 w-full" />
                       </TableCell>
@@ -560,7 +563,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 ))
               ) : !filteredConfirmations.length ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                     {searchQuery ? "No matching confirmations" : "No confirmations with revenue"}
                   </TableCell>
                 </TableRow>
@@ -572,6 +575,11 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     </TableCell>
                     <TableCell className="font-medium truncate">
                       {row.client || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {row.responsibleHolderId
+                        ? holders?.find(h => h.id === row.responsibleHolderId)?.name || "—"
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {row.arrivalDate || "—"}

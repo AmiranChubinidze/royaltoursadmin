@@ -31,8 +31,10 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
   };
 
   // Filter transactions where this holder is responsible
+  // Include auto-generated income (tour payments) but exclude auto-generated expenses (meals)
   const holderTransactions = transactions?.filter(
-    (t) => t.responsible_holder_id === holder.id && !t.is_auto_generated
+    (t) => t.responsible_holder_id === holder.id && 
+           (!t.is_auto_generated || t.kind === "in")
   ) || [];
 
   const ins = holderTransactions.filter((t) => t.kind === "in");

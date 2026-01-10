@@ -158,14 +158,14 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         // Calculate meals expense for INN MARTVILI and ORBI hotels
         const { mealsNights, mealsExpense } = calculateMealsFromPayload(c.raw_payload);
 
-        // Calculate received (income transactions marked as paid)
+        // Calculate received (confirmed "in" transactions only)
         const received = confirmationTransactions
-          .filter((t) => t.type === "income" && t.is_paid)
+          .filter((t) => t.kind === "in" && t.status === "confirmed")
           .reduce((sum, t) => sum + t.amount, 0);
 
-        // Calculate ALL expense transactions (not just paid ones)
+        // Calculate ALL confirmed expense transactions (kind=out, status=confirmed)
         const allExpenseTransactions = confirmationTransactions
-          .filter((t) => t.type === "expense")
+          .filter((t) => t.kind === "out" && t.status === "confirmed")
           .reduce((sum, t) => sum + t.amount, 0);
 
         // Get invoice expenses from attachments with names
@@ -479,25 +479,29 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                                         variant="outline"
                                         className={cn(
                                           "w-12 justify-center",
-                                          t.type === "income" ? "border-emerald-500" : "border-red-500"
+                                          t.kind === "in" ? "border-emerald-500" : t.kind === "out" ? "border-red-500" : "border-blue-500"
                                         )}
                                       >
-                                        {t.type === "income" ? "In" : "Out"}
+                                        {t.kind === "in" ? "In" : t.kind === "out" ? "Out" : "Transfer"}
+                                      </Badge>
+                                      <Badge
+                                        variant="outline"
+                                        className={cn(
+                                          "w-16 justify-center",
+                                          t.status === "confirmed" ? "border-emerald-500 bg-emerald-50" : "border-amber-500 bg-amber-50"
+                                        )}
+                                      >
+                                        {t.status === "confirmed" ? "Confirmed" : "Pending"}
                                       </Badge>
                                       <span className="flex-1">{t.description || t.category}</span>
                                       <span
                                         className={cn(
                                           "font-medium",
-                                          t.type === "income" ? "text-emerald-600" : "text-red-600"
+                                          t.kind === "in" ? "text-emerald-600" : "text-red-600"
                                         )}
                                       >
                                         {formatTransactionAmount(t.amount, t.currency)}
                                       </span>
-                                      {t.is_paid ? (
-                                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                                      ) : (
-                                        <XCircle className="h-4 w-4 text-muted-foreground" />
-                                      )}
                                     </div>
                                   ))}
                                 </div>

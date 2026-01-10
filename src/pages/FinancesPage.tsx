@@ -24,11 +24,6 @@ import { PullToRefreshIndicator, PullToRefreshContainer } from "@/components/Pul
 import { useQueryClient } from "@tanstack/react-query";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 
-const DRIVER_RATES: Record<string, number> = {
-  driver1: 50,
-  driver2: 60,
-};
-
 export default function FinancesPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -115,26 +110,12 @@ export default function FinancesPage() {
     );
     const totalReceived = received + receivedFromFlags;
 
-    // Expenses: sum of expense transactions marked as paid + auto driver expenses
+    // Expenses: sum of expense transactions marked as paid
     const paidExpenses = transactions
       .filter((t) => t.type === "expense" && t.is_paid)
       .reduce((sum, t) => sum + t.amount, 0);
 
-    // Auto driver expenses for confirmations without driver transactions
-    const driverExpenses = filteredConfirmations
-      .filter((c) => {
-        const hasDriverTransaction = transactions.some(
-          (t) => t.confirmation_id === c.id && t.category === "driver"
-        );
-        return !hasDriverTransaction;
-      })
-      .reduce((sum, c) => {
-        const driverType = (c.raw_payload as any)?.driverType || "driver1";
-        const driverRate = DRIVER_RATES[driverType] || 50;
-        return sum + (c.total_days || 1) * driverRate;
-      }, 0);
-
-    const totalExpenses = paidExpenses + driverExpenses;
+    const totalExpenses = paidExpenses;
 
     // Profit = Received - Expenses
     const profit = totalReceived - totalExpenses;

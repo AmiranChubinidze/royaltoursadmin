@@ -52,10 +52,6 @@ interface ConfirmationsViewProps {
   dateTo?: Date;
 }
 
-const DRIVER_RATES: Record<string, number> = {
-  driver1: 50,
-  driver2: 60,
-};
 const MEALS_RATE_PER_2_ADULTS = 15;
 const MEALS_HOTELS = ["INN MARTVILI", "ORBI"];
 
@@ -96,7 +92,6 @@ interface ConfirmationRow {
   profit: number;
   clientPaid: boolean;
   hotelsPaid: boolean;
-  driverExpense: number;
   mealsExpense: number;
   mealsNights: number;
   invoiceExpenses: { name: string; amount: number }[];
@@ -159,9 +154,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const confirmationExpenses = expenses?.filter((e) => e.confirmation_id === c.id) || [];
         const revenueExpected = Number(c.price) || 0;
         const days = c.total_days || 1;
-        const driverType = (c.raw_payload as any)?.driverType || "driver1";
-        const driverRate = DRIVER_RATES[driverType] || 50;
-        const driverExpense = days * driverRate;
 
         // Calculate meals expense for INN MARTVILI and ORBI hotels
         const { mealsNights, mealsExpense } = calculateMealsFromPayload(c.raw_payload);
@@ -183,23 +175,17 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         }));
         const invoiceExpensesTotal = invoiceExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-        // Get driver expense from transaction or calculate
-        const driverTransaction = confirmationTransactions.find((t) => t.category === "driver");
-        const actualDriverExpense = driverTransaction ? driverTransaction.amount : driverExpense;
-
         // Get meals expense from transaction or calculate
         const mealsTransaction = confirmationTransactions.find((t) => t.category === "breakfast");
         const actualMealsExpense = mealsTransaction ? mealsTransaction.amount : mealsExpense;
 
         // Total expenses = all expense transactions + invoice expenses
-        // If driver/meals transactions exist, they're already in allExpenseTransactions
+        // If meals transactions exist, they're already in allExpenseTransactions
         // If not, add the calculated amounts
-        const hasDriverInTransactions = !!driverTransaction;
         const hasMealsInTransactions = !!mealsTransaction;
         
         const totalExpenses = allExpenseTransactions + 
           invoiceExpensesTotal + 
-          (hasDriverInTransactions ? 0 : actualDriverExpense) +
           (hasMealsInTransactions ? 0 : actualMealsExpense);
 
         return {
@@ -215,7 +201,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           profit: revenueExpected - totalExpenses,
           clientPaid: c.client_paid || false,
           hotelsPaid: c.is_paid || false,
-          driverExpense: actualDriverExpense,
           mealsExpense: actualMealsExpense,
           mealsNights,
           invoiceExpenses,
@@ -447,12 +432,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
 
                             {/* Expense Breakdown */}
                             <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-                              {/* Driver */}
-                              <div className="flex items-center gap-2">
-                                <Sparkles className="h-4 w-4 shrink-0" />
-                                <span>Driver: {formatAmount(row.driverExpense)} ({row.days} days × {symbol}50)</span>
-                              </div>
-
                               {/* Meals */}
                               {row.mealsNights > 0 && (
                                 <div className="flex items-center gap-2">

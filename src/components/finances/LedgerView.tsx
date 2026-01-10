@@ -277,18 +277,15 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       );
 
       if (!currentStatus) {
-        // Marking as paid
+        // Marking as paid - just update the confirmation status
+        // Tour payments are tracked via confirmations, not holder balances
         if (incomeTransaction) {
-          // Update existing transaction
           await supabase
             .from("transactions")
-            .update({ 
-              responsible_holder_id: responsibleHolderId,
-              status: "confirmed"
-            })
+            .update({ status: "confirmed" })
             .eq("id", incomeTransaction.id);
         } else if (confirmation) {
-          // Create new income transaction
+          // Create income transaction for ledger tracking only (not holder-based)
           await supabase
             .from("transactions")
             .insert({
@@ -301,7 +298,6 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               currency: "USD",
               status: "confirmed",
               confirmation_id: id,
-              responsible_holder_id: responsibleHolderId,
               is_auto_generated: true,
             });
         }

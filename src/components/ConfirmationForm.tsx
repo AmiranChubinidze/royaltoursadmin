@@ -33,7 +33,6 @@ import {
   ItineraryDay,
   GuestInfo,
   KidInfo,
-  DriverType,
 } from "@/types/confirmation";
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
 import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSavedData";
@@ -353,7 +352,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     services: initialData?.services || "",
     notes: initialData?.notes || "",
     price: initialData?.price ?? null,
-    driverType: initialData?.driverType || "driver1",
   });
 
   const showTrackingNumber = formData.tourSource === "partner-agency";
@@ -567,7 +565,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         services: filteredData.services,
         notes: filteredData.notes,
         price: filteredData.price,
-        driverType: filteredData.driverType,
       });
 
       // Save custom hotels with activities
@@ -657,23 +654,6 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   />
                 </div>
 
-                <div>
-                  <Label htmlFor="driverType" className="text-sm font-medium mb-1.5 block">Driver</Label>
-                  <Select
-                    value={formData.driverType}
-                    onValueChange={(value: DriverType) => {
-                      setFormData(prev => ({ ...prev, driverType: value }));
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="driver1">Driver 1 ($50/day)</SelectItem>
-                      <SelectItem value="driver2">Driver 2 ($60/day)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 
                 {showTrackingNumber && (
                   <div>

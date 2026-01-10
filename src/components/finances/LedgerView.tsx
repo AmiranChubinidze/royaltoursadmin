@@ -501,14 +501,13 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 <TableHead className="w-[60px] text-center font-semibold">Days</TableHead>
                 <TableHead className="w-[100px] text-right font-semibold">Amount</TableHead>
                 <TableHead className="w-[90px] text-center font-semibold">Status</TableHead>
-                <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 [...Array(3)].map((_, i) => (
                   <TableRow key={i}>
-                    {[...Array(7)].map((_, j) => (
+                    {[...Array(6)].map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-5 w-full" />
                       </TableCell>
@@ -517,7 +516,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 ))
               ) : !filteredConfirmations.length ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     {searchQuery ? "No matching confirmations" : "No confirmations with revenue"}
                   </TableCell>
                 </TableRow>
@@ -546,16 +545,6 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                           onChange={() => handleToggleClientPaid(row.id, row.clientPaid)}
                         />
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleAddTransactionForConfirmation(row.id)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

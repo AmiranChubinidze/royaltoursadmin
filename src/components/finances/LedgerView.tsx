@@ -257,8 +257,8 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     return "pending";
   };
 
-  // Handle confirmation payment toggle
-  const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
+  // Handle confirmation payment toggle with responsible holder
+  const handleToggleClientPaid = async (id: string, currentStatus: boolean, responsibleHolderId: string | null) => {
     try {
       const { error } = await supabase
         .from("confirmations")
@@ -269,6 +269,21 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Update the linked income transaction's responsible holder if marking as paid
+      if (!currentStatus && responsibleHolderId) {
+        const incomeTransaction = transactionsForAutogen?.find(
+          (t) => t.confirmation_id === id && t.kind === "in"
+        );
+        if (incomeTransaction) {
+          await supabase
+            .from("transactions")
+            .update({ responsible_holder_id: responsibleHolderId })
+            .eq("id", incomeTransaction.id);
+          queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
       toast({
         title: !currentStatus ? "Marked as received" : "Marked as pending",
@@ -540,9 +555,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center">
-                        <StatusCheckbox
+                        <ConfirmWithResponsiblePopover
                           checked={row.clientPaid}
-                          onChange={() => handleToggleClientPaid(row.id, row.clientPaid)}
+                          currentResponsibleId={row.responsibleHolderId}
+                          onConfirm={(holderId) => handleToggleClientPaid(row.id, row.clientPaid, holderId)}
                         />
                       </div>
                     </TableCell>

@@ -56,6 +56,8 @@ import {
 import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
+import { FinanceSearch } from "./FinanceSearch";
+import { StatusBadge } from "./StatusBadge";
 
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -139,6 +141,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending">("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
@@ -272,58 +275,91 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     a.click();
   };
 
+  // Filter transactions by search
+  const filteredManualTransactions = (transactions?.filter(t => !t.is_auto_generated) || []).filter(t => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      t.description?.toLowerCase().includes(q) ||
+      t.confirmation?.confirmation_code?.toLowerCase().includes(q) ||
+      t.category?.toLowerCase().includes(q) ||
+      t.counterparty?.toLowerCase().includes(q)
+    );
+  });
+
+  const filteredAutoTransactions = (transactions?.filter(t => t.is_auto_generated) || []).filter(t => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      t.description?.toLowerCase().includes(q) ||
+      t.confirmation?.confirmation_code?.toLowerCase().includes(q) ||
+      t.category?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Kinds</SelectItem>
-            <SelectItem value="in">Income</SelectItem>
-            <SelectItem value="out">Expense</SelectItem>
-            <SelectItem value="transfer">Transfer</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Search & Filters */}
+      <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
+        <FinanceSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search transactions..."
+          className="w-full sm:w-64"
+        />
+        
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
+            <SelectTrigger className="w-[110px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="in">Income</SelectItem>
+              <SelectItem value="out">Expense</SelectItem>
+              <SelectItem value="transfer">Transfer</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as typeof categoryFilter)}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as typeof categoryFilter)}>
+            <SelectTrigger className="w-[130px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="confirmed">Confirmed</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-          </SelectContent>
-        </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+            <SelectTrigger className="w-[110px] h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="confirmed">Confirmed</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="flex-1" />
 
-        <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!transactions?.length}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!transactions?.length}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
 
-        <Button size="sm" onClick={handleAdd}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Transaction
-        </Button>
+          <Button size="sm" onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add
+          </Button>
+        </div>
       </div>
 
       {/* Manual Transactions */}
@@ -332,21 +368,21 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           <div className="h-2 w-2 rounded-full bg-primary" />
           <h3 className="text-sm font-medium text-foreground">Manual Transactions</h3>
           <span className="text-xs text-muted-foreground">
-            ({transactions?.filter(t => !t.is_auto_generated).length || 0})
+            ({filteredManualTransactions.length})
           </span>
         </div>
         <div className="rounded-lg border bg-card">
           <Table className="table-fixed">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[90px]">Date</TableHead>
-                <TableHead className="w-[100px]">Confirmation</TableHead>
-                <TableHead className="w-[70px]">Type</TableHead>
-                <TableHead className="w-[100px]">Category</TableHead>
-                <TableHead className="w-[100px]">Responsible</TableHead>
-                <TableHead className="w-auto">Description</TableHead>
-                <TableHead className="w-[100px] text-right">Amount</TableHead>
-                <TableHead className="w-[80px] text-center">Status</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[90px] font-semibold">Date</TableHead>
+                <TableHead className="w-[100px] font-semibold">Confirmation</TableHead>
+                <TableHead className="w-[70px] font-semibold">Type</TableHead>
+                <TableHead className="w-[100px] font-semibold">Category</TableHead>
+                <TableHead className="w-[100px] font-semibold">Responsible</TableHead>
+                <TableHead className="w-auto font-semibold">Description</TableHead>
+                <TableHead className="w-[100px] text-right font-semibold">Amount</TableHead>
+                <TableHead className="w-[80px] text-center font-semibold">Status</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -361,14 +397,14 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     ))}
                   </TableRow>
                 ))
-              ) : !transactions?.filter(t => !t.is_auto_generated).length ? (
+              ) : !filteredManualTransactions.length ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-6 text-muted-foreground">
-                    No manual transactions
+                    {searchQuery ? "No matching transactions" : "No manual transactions"}
                   </TableCell>
                 </TableRow>
               ) : (
-                transactions.filter(t => !t.is_auto_generated).map((t) => (
+                filteredManualTransactions.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
                       {format(new Date(t.date), "MMM d")}
@@ -456,20 +492,20 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           <Sparkles className="h-3.5 w-3.5 text-amber-500" />
           <h3 className="text-sm font-medium text-foreground">Auto-Calculated</h3>
           <span className="text-xs text-muted-foreground">
-            ({transactions?.filter(t => t.is_auto_generated).length || 0})
+            ({filteredAutoTransactions.length})
           </span>
         </div>
         <div className="rounded-lg border bg-card">
           <Table className="table-fixed">
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[90px]">Date</TableHead>
-                <TableHead className="w-[120px]">Confirmation</TableHead>
-                <TableHead className="w-[70px]">Type</TableHead>
-                <TableHead className="w-[120px]">Category</TableHead>
-                <TableHead className="w-auto">Description</TableHead>
-                <TableHead className="w-[100px] text-right">Amount</TableHead>
-                <TableHead className="w-[80px] text-center">Status</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[90px] font-semibold">Date</TableHead>
+                <TableHead className="w-[120px] font-semibold">Confirmation</TableHead>
+                <TableHead className="w-[70px] font-semibold">Type</TableHead>
+                <TableHead className="w-[120px] font-semibold">Category</TableHead>
+                <TableHead className="w-auto font-semibold">Description</TableHead>
+                <TableHead className="w-[100px] text-right font-semibold">Amount</TableHead>
+                <TableHead className="w-[80px] text-center font-semibold">Status</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
@@ -484,14 +520,14 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     ))}
                   </TableRow>
                 ))
-              ) : !transactions?.filter(t => t.is_auto_generated).length ? (
+              ) : !filteredAutoTransactions.length ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
-                    No auto-calculated transactions
+                    {searchQuery ? "No matching auto-calculated transactions" : "No auto-calculated transactions"}
                   </TableCell>
                 </TableRow>
               ) : (
-                transactions.filter(t => t.is_auto_generated).map((t) => (
+                filteredAutoTransactions.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="font-medium">
                       {format(new Date(t.date), "MMM d")}

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { format } from "date-fns";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { format, isWithinInterval, isPast } from "date-fns";
 import {
   Table,
   TableBody,
@@ -43,6 +43,7 @@ import {
   Trash2,
   Download,
   Sparkles,
+  Receipt,
 } from "lucide-react";
 import {
   Transaction,
@@ -55,9 +56,12 @@ import {
 } from "@/hooks/useTransactions";
 import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
+import { useExpenses } from "@/hooks/useExpenses";
 import { useToast } from "@/hooks/use-toast";
 import { FinanceSearch } from "./FinanceSearch";
 import { StatusBadge } from "./StatusBadge";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -137,6 +141,7 @@ const calculateMealsFromPayload = (rawPayload: unknown) => {
 
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
@@ -146,14 +151,16 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [modalConfirmationId, setModalConfirmationId] = useState<string | undefined>();
 
-  const { data: confirmations } = useConfirmations(500);
+  const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations(500);
+  const { data: expenses } = useExpenses();
   const { data: transactionsForAutogen } = useTransactions({ dateFrom, dateTo });
 
   const bulkCreateTransactions = useBulkCreateTransactions();
   const createdMealsRef = useRef<Set<string>>(new Set());
 
-  const { data: transactions, isLoading } = useTransactions({
+  const { data: transactions, isLoading: transactionsLoading } = useTransactions({
     dateFrom,
     dateTo,
     kind: kindFilter === "all" ? undefined : kindFilter,
@@ -161,8 +168,121 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
 
+  const isLoading = confirmationsLoading || transactionsLoading;
+
   const deleteTransaction = useDeleteTransaction();
   const confirmTransaction = useConfirmTransaction();
+
+  // Parse date from DD/MM/YYYY format
+  const parseConfirmationDate = (dateStr: string | null): Date | null => {
+    if (!dateStr) return null;
+    const parts = dateStr.split("/");
+    if (parts.length !== 3) return null;
+    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+  };
+
+  // Build confirmation rows for the income section
+  interface ConfirmationRow {
+    id: string;
+    code: string;
+    client: string | null;
+    arrivalDate: string | null;
+    days: number;
+    revenueExpected: number;
+    clientPaid: boolean;
+    responsibleHolderId: string | null;
+  }
+
+  const confirmationRows = useMemo<ConfirmationRow[]>(() => {
+    if (!confirmations) return [];
+
+    return confirmations
+      .filter((c) => {
+        // Filter by date range
+        if (dateFrom || dateTo) {
+          const arrivalDate = parseConfirmationDate(c.arrival_date);
+          if (!arrivalDate) return false;
+          if (dateFrom && dateTo) {
+            return isWithinInterval(arrivalDate, { start: dateFrom, end: dateTo });
+          }
+          if (dateFrom) return arrivalDate >= dateFrom;
+          if (dateTo) return arrivalDate <= dateTo;
+        }
+        return true;
+      })
+      .map((c) => {
+        const revenueExpected = Number(c.price) || 0;
+        const days = c.total_days || 1;
+
+        // Find the income transaction for this confirmation to get responsible holder
+        const incomeTransaction = transactionsForAutogen?.find(
+          (t) => t.confirmation_id === c.id && t.kind === "in"
+        );
+
+        return {
+          id: c.id,
+          code: c.confirmation_code,
+          client: c.main_client_name,
+          arrivalDate: c.arrival_date,
+          days,
+          revenueExpected,
+          clientPaid: c.client_paid || false,
+          responsibleHolderId: incomeTransaction?.responsible_holder_id || null,
+        };
+      })
+      .filter((c) => c.revenueExpected > 0);
+  }, [confirmations, transactionsForAutogen, dateFrom, dateTo]);
+
+  // Filter confirmations by search
+  const filteredConfirmations = useMemo(() => {
+    if (!searchQuery.trim()) return confirmationRows;
+    const q = searchQuery.toLowerCase();
+    return confirmationRows.filter(
+      (row) =>
+        row.code.toLowerCase().includes(q) ||
+        (row.client && row.client.toLowerCase().includes(q))
+    );
+  }, [confirmationRows, searchQuery]);
+
+  // Get payment status for a confirmation
+  const getPaymentStatus = (row: ConfirmationRow): "paid" | "pending" | "overdue" => {
+    if (row.clientPaid) return "paid";
+    if (row.arrivalDate) {
+      const parts = row.arrivalDate.split("/");
+      if (parts.length === 3) {
+        const arrDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        if (isPast(arrDate)) return "overdue";
+      }
+    }
+    return "pending";
+  };
+
+  // Handle confirmation payment toggle
+  const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("confirmations")
+        .update({
+          client_paid: !currentStatus,
+          client_paid_at: !currentStatus ? new Date().toISOString() : null,
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      toast({
+        title: !currentStatus ? "Marked as received" : "Marked as pending",
+      });
+    } catch (error) {
+      toast({ title: "Error updating status", variant: "destructive" });
+    }
+  };
+
+  const handleAddTransactionForConfirmation = (confirmationId: string) => {
+    setModalConfirmationId(confirmationId);
+    setEditingTransaction(null);
+    setModalOpen(true);
+  };
 
   // Auto-create meals transactions so they show up in the Ledger
   useEffect(() => {
@@ -298,13 +418,13 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
         <FinanceSearch
           value={searchQuery}
           onChange={setSearchQuery}
-          placeholder="Search transactions..."
+          placeholder="Search..."
           className="w-full sm:w-64"
         />
         
@@ -359,6 +479,89 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <Plus className="h-4 w-4 mr-2" />
             Add
           </Button>
+        </div>
+      </div>
+
+      {/* Confirmations (Income) Section */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 px-1">
+          <Receipt className="h-4 w-4 text-emerald-500" />
+          <h3 className="text-sm font-medium text-foreground">Confirmations</h3>
+          <span className="text-xs text-muted-foreground">
+            ({filteredConfirmations.length})
+          </span>
+        </div>
+        <div className="rounded-lg border bg-card">
+          <Table className="table-fixed">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-[100px] font-semibold">Code</TableHead>
+                <TableHead className="w-auto font-semibold">Client</TableHead>
+                <TableHead className="w-[90px] font-semibold">Arrival</TableHead>
+                <TableHead className="w-[60px] text-center font-semibold">Days</TableHead>
+                <TableHead className="w-[100px] text-right font-semibold">Amount</TableHead>
+                <TableHead className="w-[90px] text-center font-semibold">Status</TableHead>
+                <TableHead className="w-[50px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                [...Array(3)].map((_, i) => (
+                  <TableRow key={i}>
+                    {[...Array(7)].map((_, j) => (
+                      <TableCell key={j}>
+                        <Skeleton className="h-5 w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : !filteredConfirmations.length ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                    {searchQuery ? "No matching confirmations" : "No confirmations with revenue"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredConfirmations.map((row) => (
+                  <TableRow key={row.id} className="group">
+                    <TableCell className="font-medium font-mono text-primary">
+                      {row.code}
+                    </TableCell>
+                    <TableCell className="font-medium truncate">
+                      {row.client || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {row.arrivalDate || "—"}
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">
+                      {row.days}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-emerald-600">
+                      ${Math.round(row.revenueExpected).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <button
+                        onClick={() => handleToggleClientPaid(row.id, row.clientPaid)}
+                        className="transition-transform hover:scale-105"
+                      >
+                        <StatusBadge status={getPaymentStatus(row)} size="sm" />
+                      </button>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleAddTransactionForConfirmation(row.id)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
@@ -606,8 +809,15 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       {/* Modals */}
       <TransactionModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={(open) => {
+          setModalOpen(open);
+          if (!open) {
+            setModalConfirmationId(undefined);
+            setEditingTransaction(null);
+          }
+        }}
         transaction={editingTransaction}
+        defaultConfirmationId={modalConfirmationId}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>

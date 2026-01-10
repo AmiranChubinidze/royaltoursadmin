@@ -406,10 +406,10 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                         <TableCell>{row.arrivalDate || "—"}</TableCell>
                         <TableCell className="text-center">{row.days}</TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatAmount(row.revenueExpected)}
+                          {formatTransactionAmount(row.revenueExpected, "USD")}
                         </TableCell>
                         <TableCell className="text-right text-red-600 font-medium">
-                          {formatAmount(row.expenses)}
+                          {formatTransactionAmount(row.expenses, "USD")}
                         </TableCell>
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           <Checkbox

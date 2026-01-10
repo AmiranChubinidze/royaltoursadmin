@@ -59,7 +59,7 @@ import { useConfirmations } from "@/hooks/useConfirmations";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useToast } from "@/hooks/use-toast";
 import { FinanceSearch } from "./FinanceSearch";
-import { StatusBadge } from "./StatusBadge";
+import { StatusCheckbox } from "./StatusCheckbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -540,12 +540,12 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       ${Math.round(row.revenueExpected).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-center">
-                      <button
-                        onClick={() => handleToggleClientPaid(row.id, row.clientPaid)}
-                        className="transition-transform hover:scale-105"
-                      >
-                        <StatusBadge status={getPaymentStatus(row)} size="sm" />
-                      </button>
+                      <div className="flex justify-center">
+                        <StatusCheckbox
+                          checked={row.clientPaid}
+                          onChange={() => handleToggleClientPaid(row.id, row.clientPaid)}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button

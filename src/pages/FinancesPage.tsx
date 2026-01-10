@@ -10,7 +10,6 @@ import { ArrowLeft, CalendarIcon, Filter, X, Plus, Loader2 } from "lucide-react"
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useTransactions, useUpdateTransaction } from "@/hooks/useTransactions";
 import { FinanceSummaryCards } from "@/components/finances/FinanceSummaryCards";
-import { ConfirmationsView } from "@/components/finances/ConfirmationsView";
 import { LedgerView } from "@/components/finances/LedgerView";
 import { CategoriesView } from "@/components/finances/CategoriesView";
 import { HoldersView } from "@/components/finances/HoldersView";
@@ -434,9 +433,6 @@ export default function FinancesPage() {
             <TabsTrigger value="holders" className="data-[state=active]:bg-background">
               Holdings
             </TabsTrigger>
-            <TabsTrigger value="confirmations" className="data-[state=active]:bg-background">
-              Confirmations
-            </TabsTrigger>
             <TabsTrigger value="ledger" className="data-[state=active]:bg-background">
               Ledger
             </TabsTrigger>
@@ -447,10 +443,6 @@ export default function FinancesPage() {
 
           <TabsContent value="holders" className="mt-4">
             <HoldersView />
-          </TabsContent>
-
-          <TabsContent value="confirmations" className="mt-4">
-            <ConfirmationsView dateFrom={dateFrom} dateTo={dateTo} />
           </TabsContent>
 
           <TabsContent value="ledger" className="mt-4">

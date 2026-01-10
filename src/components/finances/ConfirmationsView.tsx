@@ -29,6 +29,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useBulkCreateTransactions, useTransactions, Transaction } from "@/hooks/useTransactions";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useHolders } from "@/hooks/useHolders";
 import { TransactionModal } from "./TransactionModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -82,6 +83,7 @@ interface ConfirmationRow {
   id: string;
   code: string;
   client: string | null;
+  responsibleHolderId: string | null;
   arrivalDate: string | null;
   days: number;
   revenueExpected: number;
@@ -103,6 +105,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({ dateFrom, dateTo });
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
+  const { data: holders } = useHolders();
   const { formatAmount, symbol, exchangeRate } = useCurrency();
 
   // Convert amount to USD (base currency) for consistent summing
@@ -188,10 +191,15 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           invoiceExpensesTotal + 
           (hasMealsInTransactions ? 0 : actualMealsExpense);
 
+        // Get responsible holder from income transaction
+        const incomeTransaction = confirmationTransactions.find((t) => t.kind === "in");
+        const responsibleHolderId = incomeTransaction?.responsible_holder_id || null;
+
         return {
           id: c.id,
           code: c.confirmation_code,
           client: c.main_client_name,
+          responsibleHolderId,
           arrivalDate: c.arrival_date,
           days,
           revenueExpected,
@@ -378,6 +386,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
               <TableHead className="w-[40px]" />
               <TableHead className="font-semibold">Code</TableHead>
               <TableHead className="font-semibold">Client</TableHead>
+              <TableHead className="font-semibold">Responsible</TableHead>
               <TableHead className="font-semibold">Arrival</TableHead>
               <TableHead className="text-center font-semibold">Days</TableHead>
               <TableHead className="text-right font-semibold">Revenue</TableHead>
@@ -419,6 +428,11 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
                           {row.code}
                         </TableCell>
                         <TableCell className="font-medium">{row.client || "—"}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {row.responsibleHolderId 
+                            ? holders?.find(h => h.id === row.responsibleHolderId)?.name || "—"
+                            : "—"}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{row.arrivalDate || "—"}</TableCell>
                         <TableCell className="text-center text-muted-foreground">{row.days}</TableCell>
                         <TableCell className="text-right font-semibold text-emerald-600">

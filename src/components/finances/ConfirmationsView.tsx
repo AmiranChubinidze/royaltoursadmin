@@ -109,7 +109,15 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({ dateFrom, dateTo });
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
-  const { formatAmount, symbol } = useCurrency();
+  const { formatAmount, symbol, exchangeRate } = useCurrency();
+
+  // Convert amount to USD (base currency) for consistent summing
+  const toUSD = (amount: number, currency?: string): number => {
+    if (currency === "GEL") {
+      return amount / exchangeRate;
+    }
+    return amount; // Already USD
+  };
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -158,15 +166,15 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         // Calculate meals expense for INN MARTVILI and ORBI hotels
         const { mealsNights, mealsExpense } = calculateMealsFromPayload(c.raw_payload);
 
-        // Calculate received (confirmed "in" transactions only)
+        // Calculate received (confirmed "in" transactions only) - convert to USD
         const received = confirmationTransactions
           .filter((t) => t.kind === "in" && t.status === "confirmed")
-          .reduce((sum, t) => sum + t.amount, 0);
+          .reduce((sum, t) => sum + toUSD(t.amount, t.currency), 0);
 
-        // Calculate ALL confirmed expense transactions (kind=out, status=confirmed)
+        // Calculate ALL confirmed expense transactions (kind=out, status=confirmed) - convert to USD
         const allExpenseTransactions = confirmationTransactions
           .filter((t) => t.kind === "out" && t.status === "confirmed")
-          .reduce((sum, t) => sum + t.amount, 0);
+          .reduce((sum, t) => sum + toUSD(t.amount, t.currency), 0);
 
         // Get invoice expenses from attachments with names
         const invoiceExpenses = confirmationExpenses.map((e) => ({

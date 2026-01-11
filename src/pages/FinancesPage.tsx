@@ -33,7 +33,7 @@ export default function FinancesPage() {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [mobileView, setMobileView] = useState<"summary" | "transactions">("summary");
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
-
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({
     dateFrom,
@@ -151,6 +151,14 @@ export default function FinancesPage() {
 
   const handleTogglePaid = async (id: string, currentStatus: boolean) => {
     await updateTransaction.mutateAsync({ id, status: currentStatus ? "pending" : "confirmed" });
+  };
+
+  const handleEditTransaction = (id: string) => {
+    const transaction = transactions?.find((t) => t.id === id);
+    if (transaction) {
+      setEditingTransaction(transaction);
+      setTransactionModalOpen(true);
+    }
   };
 
   const isThisMonth =
@@ -289,6 +297,7 @@ export default function FinancesPage() {
                       key={transaction.id}
                       transaction={transaction}
                       onTogglePaid={handleTogglePaid}
+                      onEdit={handleEditTransaction}
                     />
                   ))
                 ) : (
@@ -317,6 +326,7 @@ export default function FinancesPage() {
                       key={transaction.id}
                       transaction={transaction}
                       onTogglePaid={handleTogglePaid}
+                      onEdit={handleEditTransaction}
                     />
                   ))
                 ) : (
@@ -332,14 +342,21 @@ export default function FinancesPage() {
         {/* FAB for adding transaction */}
         <Button
           className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-          onClick={() => setTransactionModalOpen(true)}
+          onClick={() => {
+            setEditingTransaction(null);
+            setTransactionModalOpen(true);
+          }}
         >
           <Plus className="h-6 w-6" />
         </Button>
 
         <TransactionModal
           open={transactionModalOpen}
-          onOpenChange={setTransactionModalOpen}
+          onOpenChange={(open) => {
+            setTransactionModalOpen(open);
+            if (!open) setEditingTransaction(null);
+          }}
+          transaction={editingTransaction}
         />
       </div>
     );

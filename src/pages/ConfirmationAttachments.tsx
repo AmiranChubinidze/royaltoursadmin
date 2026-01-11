@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, XCircle, Plus, MessageSquare, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +49,7 @@ export default function ConfirmationAttachments() {
   const navigate = useNavigate();
   const { role } = useUserRole();
   const { exchangeRate } = useCurrency();
+  const { toast } = useToast();
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
@@ -155,16 +158,35 @@ export default function ConfirmationAttachments() {
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
     setDownloadingId(attachmentId);
     try {
-      const url = await getAttachmentUrl(filePath);
-      if (url) {
+      const { data, error } = await supabase.storage
+        .from("confirmation-attachments")
+        .download(filePath);
+      
+      if (error) {
+        toast({
+          title: "Download failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (data) {
+        const url = URL.createObjectURL(data);
         const a = document.createElement("a");
         a.href = url;
         a.download = fileName;
-        a.target = "_blank";
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       }
+    } catch (err) {
+      toast({
+        title: "Download failed",
+        description: "Could not download the file.",
+        variant: "destructive",
+      });
     } finally {
       setDownloadingId(null);
     }

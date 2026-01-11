@@ -41,6 +41,15 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
             <h3 className="font-medium text-sm text-foreground">{holder.name}</h3>
           </div>
         </div>
+        <div className="text-right text-xs">
+          <span className={cn("font-medium", isNegativeUSD ? "text-destructive" : "text-muted-foreground")}>
+            {isNegativeUSD && "-"}{formatAmount(holder.balanceUSD, "$")}
+          </span>
+          <span className="text-muted-foreground/50 mx-1">·</span>
+          <span className={cn("font-medium", isNegativeGEL ? "text-destructive" : "text-muted-foreground")}>
+            {isNegativeGEL && "-"}{formatAmount(holder.balanceGEL, "₾")}
+          </span>
+        </div>
       </div>
 
       {/* Balances - Show both currencies */}

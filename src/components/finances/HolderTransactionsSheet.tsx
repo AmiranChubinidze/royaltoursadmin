@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -52,6 +52,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
   const outs = holderTransactions.filter((t) => 
     t.kind === "out" || (t.kind === "transfer" && t.from_holder_id === holder.id)
   );
+  const exchanges = holderTransactions.filter((t) => t.kind === "exchange");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -142,7 +143,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
           <Separator className="my-4" />
 
           {/* Money Out */}
-          <div>
+          <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <ArrowUpRight className="h-4 w-4 text-destructive" />
               <h3 className="font-medium text-sm">Money Out</h3>
@@ -189,6 +190,62 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
               </div>
             )}
           </div>
+
+          {/* Exchanges */}
+          {exchanges.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowLeftRight className="h-4 w-4 text-blue-600" />
+                  <h3 className="font-medium text-sm">Exchanges</h3>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {exchanges.length} transaction{exchanges.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {exchanges.map((t) => {
+                    // Extract exchange rate from notes if available
+                    const rateMatch = t.notes?.match(/Exchange rate: ([\d.]+)/);
+                    const rate = rateMatch ? rateMatch[1] : null;
+                    
+                    return (
+                      <div
+                        key={t.id}
+                        className="flex items-center gap-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg"
+                      >
+                        <ConfirmWithResponsiblePopover
+                          checked={t.status === "confirmed"}
+                          currentResponsibleId={t.responsible_holder_id}
+                          onConfirm={(holderId) => confirmTransaction.mutate({ 
+                            id: t.id, 
+                            confirm: t.status !== "confirmed",
+                            responsibleHolderId: t.status !== "confirmed" ? holderId : undefined
+                          })}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {t.description || "Currency Exchange"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(t.date), "MMM d, yyyy")}
+                            {rate && (
+                              <span className="ml-2 text-blue-600 dark:text-blue-400">
+                                @ {rate}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                          {formatAmount(t.amount, t.currency)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </ScrollArea>
       </SheetContent>
     </Sheet>

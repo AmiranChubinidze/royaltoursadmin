@@ -54,7 +54,7 @@ const CATEGORIES: { value: string; label: string; kind: TransactionKind | "both"
   { value: "fuel", label: "Fuel", kind: "out" },
   { value: "guide", label: "Guide", kind: "out" },
   { value: "salary", label: "Salary", kind: "out" },
-  { value: "transfer_internal", label: "Internal Transfer", kind: "transfer" },
+  { value: "transfer_internal", label: "Transfer", kind: "transfer" },
   { value: "reimbursement", label: "Reimbursement", kind: "transfer" },
   { value: "deposit", label: "Bank Deposit", kind: "transfer" },
   { value: "other", label: "Other", kind: "both" },

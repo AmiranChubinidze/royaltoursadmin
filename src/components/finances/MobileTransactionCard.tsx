@@ -35,6 +35,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   transport: "Transport",
   office: "Office",
   marketing: "Marketing",
+  transfer_internal: "Transfer",
+  reimbursement: "Reimbursement",
+  deposit: "Bank Deposit",
   other: "Other",
 };
 

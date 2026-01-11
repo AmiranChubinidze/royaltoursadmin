@@ -90,6 +90,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   fuel: "Fuel",
   guide: "Guide",
   salary: "Salary",
+  transfer_internal: "Transfer",
+  reimbursement: "Reimbursement",
+  deposit: "Bank Deposit",
   other: "Other",
 };
 

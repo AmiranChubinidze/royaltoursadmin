@@ -31,25 +31,44 @@ export const useConfirmationAttachments = (confirmationId?: string) => {
   });
 };
 
+export interface AttachmentExpense {
+  amount: number;
+  currency: string;
+}
+
 export const useAttachmentExpenses = (confirmationId?: string) => {
   return useQuery({
     queryKey: ["attachment-expenses", confirmationId],
     queryFn: async () => {
       if (!confirmationId) return {};
       
+      // Get from transactions table which has currency info
       const { data, error } = await supabase
-        .from("expenses")
-        .select("attachment_id, amount")
+        .from("transactions")
+        .select("description, amount, currency")
         .eq("confirmation_id", confirmationId)
-        .not("attachment_id", "is", null);
+        .eq("is_auto_generated", true)
+        .eq("type", "expense");
 
       if (error) throw error;
       
-      // Create a map of attachment_id -> amount
-      const expenseMap: Record<string, number> = {};
-      data?.forEach((expense) => {
+      // Also get attachment mapping from expenses table
+      const { data: expenses } = await supabase
+        .from("expenses")
+        .select("attachment_id, amount, description")
+        .eq("confirmation_id", confirmationId)
+        .not("attachment_id", "is", null);
+      
+      // Create a map of attachment_id -> {amount, currency}
+      const expenseMap: Record<string, AttachmentExpense> = {};
+      expenses?.forEach((expense) => {
         if (expense.attachment_id) {
-          expenseMap[expense.attachment_id] = Number(expense.amount);
+          // Find matching transaction to get currency
+          const matchingTx = data?.find(tx => tx.description === expense.description);
+          expenseMap[expense.attachment_id] = {
+            amount: Number(expense.amount),
+            currency: matchingTx?.currency || "USD",
+          };
         }
       });
       return expenseMap;
@@ -68,11 +87,15 @@ export const useUploadAttachment = () => {
       file,
       customName,
       amount,
+      originalCurrency,
+      originalAmount,
     }: { 
       confirmationId: string; 
       file: File;
       customName?: string;
-      amount?: number;
+      amount?: number; // Amount in USD for storage
+      originalCurrency?: string; // Original currency entered
+      originalAmount?: number; // Original amount before conversion
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -106,6 +129,10 @@ export const useUploadAttachment = () => {
 
       // Create transaction for ledger tracking if amount is provided
       if (amount && amount > 0 && data) {
+        // Store in original currency for display, amount is already converted to USD
+        const storageCurrency = originalCurrency || "USD";
+        const storageAmount = originalAmount || amount;
+        
         const { error: transactionError } = await supabase
           .from("transactions")
           .insert({
@@ -114,8 +141,8 @@ export const useUploadAttachment = () => {
             type: "expense",
             category: "hotel",
             description: `Invoice: ${displayName}`,
-            amount: amount,
-            currency: "USD",
+            amount: storageAmount,
+            currency: storageCurrency,
             status: "confirmed",
             confirmation_id: confirmationId,
             is_auto_generated: true,
@@ -133,7 +160,7 @@ export const useUploadAttachment = () => {
             confirmation_id: confirmationId,
             expense_type: "hotel",
             description: `Invoice: ${displayName}`,
-            amount: amount,
+            amount: storageAmount,
             expense_date: new Date().toISOString().split('T')[0],
             created_by: user.id,
             attachment_id: data.id,

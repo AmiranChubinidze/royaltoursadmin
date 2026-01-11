@@ -82,7 +82,7 @@ interface LedgerViewProps {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  tour_payment: "Tour Payment",
+  tour_payment: "Tour",
   hotel: "Hotel",
   driver: "Driver",
   sim: "SIM Card",

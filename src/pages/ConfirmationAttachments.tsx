@@ -372,7 +372,7 @@ export default function ConfirmationAttachments() {
                           {formatFileSize(attachment.file_size)} • {format(new Date(attachment.uploaded_at), "MMM d, yyyy")}
                         </p>
                       </div>
-                      {expenseMap?.[attachment.id] && (
+                      {expenseMap?.[attachment.id]?.amount != null && (
                         <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                           {expenseMap[attachment.id].currency === "GEL" ? "₾" : "$"}
                           {expenseMap[attachment.id].amount.toLocaleString()}

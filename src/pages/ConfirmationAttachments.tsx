@@ -652,7 +652,7 @@ export default function ConfirmationAttachments() {
                   This will be recorded as a hotel expense
                   {invoiceCurrency === "GEL" && invoiceAmount && (
                     <span className="text-muted-foreground">
-                      {" "}(≈ ${(parseFloat(invoiceAmount) / exchangeRate).toFixed(2)} USD)
+                      {" "}(≈ ${(parseFloat(invoiceAmount) * exchangeRate.gel_to_usd).toFixed(2)} USD)
                     </span>
                   )}
                 </p>

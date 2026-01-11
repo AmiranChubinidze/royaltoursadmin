@@ -111,7 +111,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   // Convert amount to USD (base currency) for consistent summing
   const toUSD = (amount: number, currency?: string): number => {
     if (currency === "GEL") {
-      return amount / exchangeRate;
+      return amount * exchangeRate.gel_to_usd;
     }
     return amount; // Already USD
   };

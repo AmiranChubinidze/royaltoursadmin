@@ -150,6 +150,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending">("all");
+  const [responsibleFilter, setResponsibleFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -448,8 +449,14 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     a.click();
   };
 
-  // Filter all transactions by search (merged manual + auto)
+  // Filter all transactions by search and responsible holder
   const filteredTransactions = (transactions || []).filter(t => {
+    // Responsible holder filter
+    if (responsibleFilter !== "all" && t.responsible_holder_id !== responsibleFilter) {
+      return false;
+    }
+    
+    // Search filter
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -506,6 +513,20 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
+            <SelectTrigger className="w-[130px] h-9">
+              <SelectValue placeholder="Responsible" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Holders</SelectItem>
+              {holders?.map((holder) => (
+                <SelectItem key={holder.id} value={holder.id}>
+                  {holder.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

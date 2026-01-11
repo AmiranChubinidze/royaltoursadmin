@@ -130,6 +130,9 @@ export const useUploadAttachment = () => {
         queryKey: ["confirmation-attachments", variables.confirmationId] 
       });
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ 
+        queryKey: ["attachment-expenses", variables.confirmationId] 
+      });
       toast({
         title: "Invoice uploaded",
         description: variables.amount 

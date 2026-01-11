@@ -145,7 +145,7 @@ export const useUploadAttachment = () => {
             currency: storageCurrency,
             status: "confirmed",
             confirmation_id: confirmationId,
-            is_auto_generated: true,
+            is_auto_generated: false,
             is_paid: true,
           });
         

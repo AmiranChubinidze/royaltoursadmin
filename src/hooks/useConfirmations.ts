@@ -273,3 +273,30 @@ export function useDeleteConfirmation() {
     },
   });
 }
+
+export function useUpdateConfirmationNotes() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await supabase
+        .from("confirmations")
+        .update({ notes })
+        .eq("id", id);
+
+      if (error) throw error;
+      return { id, notes };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["confirmation", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}

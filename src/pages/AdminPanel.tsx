@@ -413,7 +413,7 @@ const AdminPanel = () => {
                                 <SelectTrigger className="w-[120px]">
                                   <SelectValue placeholder="Select role">
                                     <Badge variant={getRoleBadgeVariant(currentRole)}>
-                                      {currentRole || "No role"}
+                                      {currentRole === "worker" ? "Manager" : (currentRole || "No role")}
                                     </Badge>
                                   </SelectValue>
                                 </SelectTrigger>

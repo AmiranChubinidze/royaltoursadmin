@@ -104,8 +104,29 @@ export const useUploadAttachment = () => {
 
       if (error) throw error;
 
-      // Create expense if amount is provided, linked to attachment
+      // Create transaction for ledger tracking if amount is provided
       if (amount && amount > 0 && data) {
+        const { error: transactionError } = await supabase
+          .from("transactions")
+          .insert({
+            date: new Date().toISOString().split('T')[0],
+            kind: "out",
+            type: "expense",
+            category: "hotel",
+            description: `Invoice: ${displayName}`,
+            amount: amount,
+            currency: "USD",
+            status: "confirmed",
+            confirmation_id: confirmationId,
+            is_auto_generated: true,
+            is_paid: true,
+          });
+        
+        if (transactionError) {
+          console.error("Failed to create transaction:", transactionError);
+        }
+
+        // Also create expense record linked to attachment for tracking
         const { error: expenseError } = await supabase
           .from("expenses")
           .insert({
@@ -133,6 +154,7 @@ export const useUploadAttachment = () => {
       queryClient.invalidateQueries({ 
         queryKey: ["attachment-expenses", variables.confirmationId] 
       });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
       toast({
         title: "Invoice uploaded",
         description: variables.amount 

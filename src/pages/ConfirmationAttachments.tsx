@@ -1,13 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, XCircle, Plus } from "lucide-react";
+import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, XCircle, Plus, MessageSquare, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,7 +27,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useConfirmation } from "@/hooks/useConfirmations";
+import { useConfirmation, useUpdateConfirmationNotes } from "@/hooks/useConfirmations";
 import { 
   useConfirmationAttachments, 
   useUploadAttachment, 
@@ -55,6 +56,7 @@ export default function ConfirmationAttachments() {
   const markPaidMutation = useMarkAsPaid();
   const unmarkPaidMutation = useUnmarkAsPaid();
   const getAttachmentUrl = useGetAttachmentUrl();
+  const updateNotesMutation = useUpdateConfirmationNotes();
   
   const isAdmin = role === "admin";
   const isWorker = role === "worker";
@@ -71,6 +73,17 @@ export default function ConfirmationAttachments() {
   
   // Transaction modal state
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
+  
+  // Notes state
+  const [notes, setNotes] = useState("");
+  const [notesEditing, setNotesEditing] = useState(false);
+  
+  // Sync notes when confirmation loads
+  useEffect(() => {
+    if (confirmation) {
+      setNotes((confirmation as any).notes || "");
+    }
+  }, [confirmation]);
   
   const canUpload = role === "admin" || role === "worker" || role === "booking";
   const canDelete = role === "admin" || role === "worker";
@@ -253,6 +266,68 @@ export default function ConfirmationAttachments() {
               </p>
             )}
           </CardHeader>
+        </Card>
+
+        {/* Notes Section */}
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              Notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {notesEditing ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes about this confirmation..."
+                  className="min-h-[80px] resize-none"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (id) {
+                        updateNotesMutation.mutate({ id, notes });
+                        setNotesEditing(false);
+                      }
+                    }}
+                    disabled={updateNotesMutation.isPending}
+                  >
+                    {updateNotesMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : (
+                      <Save className="h-3 w-3 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setNotes((confirmation as any)?.notes || "");
+                      setNotesEditing(false);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                className="w-full text-left p-2 rounded-md hover:bg-muted/50 transition-colors min-h-[40px]"
+                onClick={() => setNotesEditing(true)}
+              >
+                {notes ? (
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{notes}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Click to add notes...</p>
+                )}
+              </button>
+            )}
+          </CardContent>
         </Card>
 
         {/* Invoices List */}

@@ -100,6 +100,7 @@ export type Database = {
           id: string
           is_paid: boolean | null
           main_client_name: string | null
+          notes: string | null
           paid_at: string | null
           paid_by: string | null
           price: number | null
@@ -124,6 +125,7 @@ export type Database = {
           id?: string
           is_paid?: boolean | null
           main_client_name?: string | null
+          notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
           price?: number | null
@@ -148,6 +150,7 @@ export type Database = {
           id?: string
           is_paid?: boolean | null
           main_client_name?: string | null
+          notes?: string | null
           paid_at?: string | null
           paid_by?: string | null
           price?: number | null

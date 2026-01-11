@@ -37,13 +37,21 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
     })}`;
   };
 
-  // Filter transactions where this holder is responsible (manual transactions only)
+  // Filter transactions where this holder is responsible OR involved in transfers
   const holderTransactions = transactions?.filter(
-    (t) => t.responsible_holder_id === holder.id && !t.is_auto_generated
+    (t) => 
+      (t.responsible_holder_id === holder.id || 
+       t.from_holder_id === holder.id || 
+       t.to_holder_id === holder.id) && 
+      !t.is_auto_generated
   ) || [];
 
-  const ins = holderTransactions.filter((t) => t.kind === "in");
-  const outs = holderTransactions.filter((t) => t.kind === "out");
+  const ins = holderTransactions.filter((t) => 
+    t.kind === "in" || (t.kind === "transfer" && t.to_holder_id === holder.id)
+  );
+  const outs = holderTransactions.filter((t) => 
+    t.kind === "out" || (t.kind === "transfer" && t.from_holder_id === holder.id)
+  );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

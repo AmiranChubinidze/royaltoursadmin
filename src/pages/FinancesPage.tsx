@@ -22,11 +22,13 @@ import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { PullToRefreshIndicator, PullToRefreshContainer } from "@/components/PullToRefresh";
 import { useQueryClient } from "@tanstack/react-query";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function FinancesPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
+  const { exchangeRate } = useCurrency();
 
   // Date filter state
   const [dateFrom, setDateFrom] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -86,6 +88,14 @@ export default function FinancesPage() {
     );
   };
 
+  // Helper to convert amount to USD for summary (all summaries in USD)
+  const toUSD = (amount: number, currency: string): number => {
+    if (currency === "GEL") {
+      return amount * exchangeRate.gel_to_usd;
+    }
+    return amount; // Already USD
+  };
+
   // Compute summary values
   const summaryData = useMemo(() => {
     if (!confirmations || !transactions) {
@@ -107,18 +117,18 @@ export default function FinancesPage() {
       return true;
     });
 
-    // Revenue Expected: sum of confirmation prices
+    // Revenue Expected: sum of confirmation prices (stored in USD)
     const revenueExpected = filteredConfirmations.reduce(
       (sum, c) => sum + (Number(c.price) || 0),
       0
     );
 
-    // Received: sum of confirmed income transactions
+    // Received: sum of confirmed income transactions (convert to USD)
     const received = transactions
       .filter((t) => t.type === "income" && t.status === "confirmed")
-      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      .reduce((sum, t) => sum + toUSD(Number(t.amount) || 0, t.currency), 0);
 
-    // For confirmations without PAID income transactions, use client_paid flag from confirmation
+    // For confirmations without confirmed income transactions, use client_paid flag
     const confirmationsWithoutPaidIncomeTransactions = filteredConfirmations.filter((c) => {
       const hasConfirmedIncomeTransaction = transactions.some(
         (t) => t.confirmation_id === c.id && t.type === "income" && t.status === "confirmed"
@@ -131,10 +141,10 @@ export default function FinancesPage() {
     );
     const totalReceived = received + receivedFromFlags;
 
-    // Expenses: sum of confirmed expense transactions
+    // Expenses: sum of confirmed expense transactions (convert to USD), exclude internal transfers
     const paidExpenses = transactions
-      .filter((t) => t.type === "expense" && t.status === "confirmed")
-      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.category !== "transfer_internal")
+      .reduce((sum, t) => sum + toUSD(Number(t.amount) || 0, t.currency), 0);
 
     const totalExpenses = paidExpenses;
 
@@ -151,7 +161,7 @@ export default function FinancesPage() {
       profit,
       pending,
     };
-  }, [confirmations, transactions, dateFrom, dateTo]);
+  }, [confirmations, transactions, dateFrom, dateTo, exchangeRate]);
 
   const handleTogglePaid = async (id: string, currentStatus: boolean) => {
     await updateTransaction.mutateAsync({ id, status: currentStatus ? "pending" : "confirmed" });

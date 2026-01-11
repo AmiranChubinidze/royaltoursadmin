@@ -88,7 +88,7 @@ export default function ConfirmationAttachments() {
     }
   }, [confirmation]);
   
-  const canUpload = role === "admin" || role === "worker" || role === "booking";
+  const canUpload = role === "admin" || role === "worker" || role === "accountant";
   const canDelete = role === "admin" || role === "worker";
   const canAddTransaction = role === "admin" || role === "worker" || role === "accountant";
   

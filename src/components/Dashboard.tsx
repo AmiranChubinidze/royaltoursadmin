@@ -55,7 +55,7 @@ export function Dashboard() {
   const effectiveRole = viewAsRole || role;
   const effectiveCanEdit = viewAsRole ? (viewAsRole === "admin" || viewAsRole === "worker") : canEdit;
   const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
-  const effectiveIsBooking = viewAsRole ? viewAsRole === "booking" : role === "booking";
+  const effectiveIsBooking = viewAsRole ? viewAsRole === "accountant" : role === "accountant";
   const effectiveCanManageConfirmations = effectiveCanEdit; // Only admin/worker can edit, duplicate, create, delete, send emails
   
   // Actual permissions - admin always has full access regardless of "View as" setting
@@ -427,7 +427,7 @@ export function Dashboard() {
                       className="w-full justify-start text-sm"
                       onClick={() => setViewAsRole(null)}
                     >
-                      My Role ({role})
+                      My Role ({role === "worker" ? "Manager" : role === "accountant" ? "Coworker" : role})
                     </Button>
                     <Button
                       variant={viewAsRole === "worker" ? "secondary" : "ghost"}
@@ -446,12 +446,12 @@ export function Dashboard() {
                       Visitor
                     </Button>
                     <Button
-                      variant={viewAsRole === "booking" ? "secondary" : "ghost"}
+                      variant={viewAsRole === "accountant" ? "secondary" : "ghost"}
                       size="sm"
                       className="w-full justify-start text-sm"
-                      onClick={() => setViewAsRole("booking")}
+                      onClick={() => setViewAsRole("accountant")}
                     >
-                      Booking
+                      Coworker
                     </Button>
                   </div>
                 </PopoverContent>
@@ -468,15 +468,15 @@ export function Dashboard() {
                 <span className="text-sm text-muted-foreground">{user?.email}</span>
                 {role && (
                   <Badge 
-                    variant={role === "admin" ? "default" : role === "worker" ? "secondary" : "outline"}
+                    variant={role === "admin" ? "default" : role === "worker" || role === "accountant" ? "secondary" : "outline"}
                     className="text-xs capitalize"
                   >
-                    {role === "worker" ? "Manager" : role}
+                    {role === "worker" ? "Manager" : role === "accountant" ? "Coworker" : role}
                   </Badge>
                 )}
                 {viewAsRole && (
                   <Badge variant="outline" className="text-xs">
-                    → {viewAsRole === "worker" ? "Manager" : viewAsRole}
+                    → {viewAsRole === "worker" ? "Manager" : viewAsRole === "accountant" ? "Coworker" : viewAsRole}
                   </Badge>
                 )}
               </div>

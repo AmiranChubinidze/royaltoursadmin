@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type AppRole = "admin" | "worker" | "visitor" | "booking" | "accountant";
+export type AppRole = "admin" | "worker" | "visitor" | "accountant";
 
 export const useUserRole = () => {
   const { user, loading: authLoading } = useAuth();
@@ -13,7 +13,7 @@ export const useUserRole = () => {
       if (!user?.id) return null;
 
       // Check roles in priority order
-      const roles: AppRole[] = ["admin", "accountant", "worker", "visitor", "booking"];
+      const roles: AppRole[] = ["admin", "accountant", "worker", "visitor"];
 
       for (const r of roles) {
         const { data, error } = await supabase.rpc("has_role", {
@@ -44,7 +44,6 @@ export const useUserRole = () => {
   const isAccountant = role === "accountant";
   const isWorker = role === "worker";
   const isVisitor = role === "visitor";
-  const isBooking = role === "booking";
   const canEdit = isAdmin || isWorker;
 
   return {
@@ -54,7 +53,6 @@ export const useUserRole = () => {
     isAccountant,
     isWorker,
     isVisitor,
-    isBooking,
     canEdit,
   };
 };

@@ -156,6 +156,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [modalConfirmationId, setModalConfirmationId] = useState<string | undefined>();
+  const [expandedDescriptionId, setExpandedDescriptionId] = useState<string | null>(null);
 
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations(500);
   const { data: expenses } = useExpenses();
@@ -679,11 +680,22 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell 
-                      className="max-w-[200px] truncate" 
-                      title={t.description || undefined}
-                    >
-                      {t.description || "—"}
+                    <TableCell className="max-w-[200px]">
+                      {t.description ? (
+                        <span
+                          onClick={() => setExpandedDescriptionId(
+                            expandedDescriptionId === t.id ? null : t.id
+                          )}
+                          className={cn(
+                            "cursor-pointer hover:text-primary transition-colors",
+                            expandedDescriptionId === t.id ? "whitespace-normal" : "truncate block"
+                          )}
+                        >
+                          {t.description}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell
                       className={cn(

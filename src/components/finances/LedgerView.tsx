@@ -302,7 +302,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               currency: "USD",
               status: "confirmed",
               confirmation_id: id,
-              is_auto_generated: true,
+              is_auto_generated: false,
               responsible_holder_id: responsibleHolderId,
             });
         }

@@ -207,7 +207,9 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                   {exchanges.map((t) => {
                     // Extract exchange rate from notes if available
                     const rateMatch = t.notes?.match(/Exchange rate: ([\d.]+)/);
-                    const rate = rateMatch ? rateMatch[1] : null;
+                    const rate = rateMatch ? parseFloat(rateMatch[1]) : null;
+                    // Calculate GEL amount: USD amount * rate
+                    const gelAmount = rate ? t.amount * rate : null;
                     
                     return (
                       <div
@@ -236,9 +238,14 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                             )}
                           </p>
                         </div>
-                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
-                          {formatAmount(t.amount, t.currency)}
-                        </span>
+                        <div className="text-right">
+                          <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                            ₾{gelAmount ? Math.round(gelAmount).toLocaleString() : Math.round(t.amount).toLocaleString()}
+                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            ${Math.round(t.amount).toLocaleString()}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}

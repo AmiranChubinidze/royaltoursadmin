@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type HolderType = "cash" | "bank" | "card";
+export type HolderType = "person";
 export type HolderCurrency = "GEL" | "USD";
 
 export interface Holder {
@@ -15,16 +15,22 @@ export interface Holder {
 }
 
 export interface HolderWithBalance extends Holder {
+  balanceUSD: number;
+  balanceGEL: number;
+  pendingInUSD: number;
+  pendingInGEL: number;
+  pendingOutUSD: number;
+  pendingOutGEL: number;
+  lastActivity: string | null;
+  // Legacy fields for compatibility
   balance: number;
   pendingIn: number;
   pendingOut: number;
-  lastActivity: string | null;
 }
 
 export interface CreateHolderData {
   name: string;
-  type: HolderType;
-  currency?: HolderCurrency;
+  type?: HolderType;
   email?: string | null;
   is_active?: boolean;
 }
@@ -70,23 +76,29 @@ export const useHoldersWithBalances = () => {
 
       if (txError) throw txError;
 
-      // Calculate balances for each holder
+      // Calculate balances for each holder - now tracking both currencies
       const holdersWithBalances: HolderWithBalance[] = holders.map((holder) => {
-        let balance = 0;
-        let pendingIn = 0;
-        let pendingOut = 0;
+        let balanceUSD = 0;
+        let balanceGEL = 0;
+        let pendingInUSD = 0;
+        let pendingInGEL = 0;
+        let pendingOutUSD = 0;
+        let pendingOutGEL = 0;
         let lastActivity: string | null = null;
 
         transactions.forEach((tx) => {
           const isConfirmed = tx.status === "confirmed";
           const isResponsible = tx.responsible_holder_id === holder.id;
+          const isUSD = tx.currency === "USD";
           
           // Handle IN transactions - responsible holder receives the money
           if (tx.kind === "in" && isResponsible) {
             if (isConfirmed) {
-              balance += Number(tx.amount);
+              if (isUSD) balanceUSD += Number(tx.amount);
+              else balanceGEL += Number(tx.amount);
             } else if (tx.status === "pending") {
-              pendingIn += Number(tx.amount);
+              if (isUSD) pendingInUSD += Number(tx.amount);
+              else pendingInGEL += Number(tx.amount);
             }
             if (!lastActivity || tx.date > lastActivity) {
               lastActivity = tx.date;
@@ -96,9 +108,11 @@ export const useHoldersWithBalances = () => {
           // Handle OUT transactions - responsible holder spends the money
           if (tx.kind === "out" && isResponsible) {
             if (isConfirmed) {
-              balance -= Number(tx.amount);
+              if (isUSD) balanceUSD -= Number(tx.amount);
+              else balanceGEL -= Number(tx.amount);
             } else if (tx.status === "pending") {
-              pendingOut += Number(tx.amount);
+              if (isUSD) pendingOutUSD += Number(tx.amount);
+              else pendingOutGEL += Number(tx.amount);
             }
             if (!lastActivity || tx.date > lastActivity) {
               lastActivity = tx.date;
@@ -108,13 +122,15 @@ export const useHoldersWithBalances = () => {
           // Handle TRANSFER transactions
           if (tx.kind === "transfer") {
             if (tx.from_holder_id === holder.id && isConfirmed) {
-              balance -= Number(tx.amount);
+              if (isUSD) balanceUSD -= Number(tx.amount);
+              else balanceGEL -= Number(tx.amount);
               if (!lastActivity || tx.date > lastActivity) {
                 lastActivity = tx.date;
               }
             }
             if (tx.to_holder_id === holder.id && isConfirmed) {
-              balance += Number(tx.amount);
+              if (isUSD) balanceUSD += Number(tx.amount);
+              else balanceGEL += Number(tx.amount);
               if (!lastActivity || tx.date > lastActivity) {
                 lastActivity = tx.date;
               }
@@ -124,12 +140,19 @@ export const useHoldersWithBalances = () => {
 
         return {
           ...holder,
-          type: holder.type as HolderType,
+          type: "person" as HolderType,
           currency: holder.currency as HolderCurrency,
-          balance,
-          pendingIn,
-          pendingOut,
+          balanceUSD,
+          balanceGEL,
+          pendingInUSD,
+          pendingInGEL,
+          pendingOutUSD,
+          pendingOutGEL,
           lastActivity,
+          // Legacy fields for compatibility
+          balance: balanceUSD + balanceGEL,
+          pendingIn: pendingInUSD + pendingInGEL,
+          pendingOut: pendingOutUSD + pendingOutGEL,
         };
       });
 
@@ -145,7 +168,12 @@ export const useCreateHolder = () => {
     mutationFn: async (data: CreateHolderData) => {
       const { data: result, error } = await supabase
         .from("holders")
-        .insert(data)
+        .insert({
+          name: data.name,
+          type: data.type || "person",
+          email: data.email,
+          is_active: data.is_active ?? true,
+        })
         .select()
         .single();
 

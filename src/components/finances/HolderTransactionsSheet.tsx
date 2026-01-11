@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTransactions, useConfirmTransaction } from "@/hooks/useTransactions";
 import { HolderWithBalance } from "@/hooks/useHolders";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { ConfirmWithResponsiblePopover } from "./ConfirmWithResponsiblePopover";
 
 interface HolderTransactionsSheetProps {
@@ -21,10 +22,16 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
 
   if (!holder) return null;
 
-  const currencySymbol = holder.currency === "GEL" ? "₾" : "$";
+  const { exchangeRate } = useCurrency();
 
-  const formatAmount = (amount: number) => {
-    return `${currencySymbol}${Math.abs(amount).toLocaleString("en-US", {
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: "$",
+    GEL: "₾",
+  };
+
+  const formatAmount = (amount: number, currency?: string) => {
+    const symbol = CURRENCY_SYMBOLS[currency || "USD"] || "$";
+    return `${symbol}${Math.abs(amount).toLocaleString("en-US", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     })}`;
@@ -45,15 +52,33 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
           <SheetTitle className="flex items-center gap-2">
             {holder.name}
             <Badge variant="outline" className="font-normal">
-              {holder.currency}
+              USD / GEL
             </Badge>
           </SheetTitle>
-          <p className={cn(
-            "text-2xl font-bold",
-            holder.balance < 0 ? "text-destructive" : "text-foreground"
-          )}>
-            {holder.balance < 0 && "-"}{formatAmount(holder.balance)}
-          </p>
+
+          {(() => {
+            const totalInUSD = holder.balanceUSD + holder.balanceGEL * exchangeRate.gel_to_usd;
+            const totalInGEL = holder.balanceGEL + holder.balanceUSD * exchangeRate.usd_to_gel;
+            const isNegative = totalInUSD < 0;
+
+            return (
+              <>
+                <p
+                  className={cn(
+                    "text-2xl font-bold",
+                    isNegative ? "text-destructive" : "text-foreground"
+                  )}
+                >
+                  {isNegative && "-"}${Math.abs(totalInUSD).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  <span className="text-muted-foreground/50 mx-2">/</span>
+                  {isNegative && "-"}₾{Math.abs(totalInGEL).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  USD {holder.balanceUSD < 0 && "-"}{formatAmount(holder.balanceUSD, "USD")} • GEL {holder.balanceGEL < 0 && "-"}{formatAmount(holder.balanceGEL, "GEL")}
+                </p>
+              </>
+            );
+          })()}
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-180px)] pr-4">
@@ -98,7 +123,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                      +{formatAmount(t.amount)}
+                      +{formatAmount(t.amount, t.currency)}
                     </span>
                   </div>
                 ))}
@@ -149,7 +174,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                       </p>
                     </div>
                     <span className="text-sm font-semibold text-destructive">
-                      -{formatAmount(t.amount)}
+                      -{formatAmount(t.amount, t.currency)}
                     </span>
                   </div>
                 ))}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -18,16 +18,12 @@ import { MobileFinanceHeader } from "@/components/finances/MobileFinanceHeader";
 import { MobileSummaryCards } from "@/components/finances/MobileSummaryCards";
 import { MobileTransactionCard } from "@/components/finances/MobileTransactionCard";
 import { TransactionModal } from "@/components/finances/TransactionModal";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { PullToRefreshIndicator, PullToRefreshContainer } from "@/components/PullToRefresh";
-import { useQueryClient } from "@tanstack/react-query";
 import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function FinancesPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const queryClient = useQueryClient();
   const { exchangeRate } = useCurrency();
 
   // Date filter state
@@ -46,17 +42,6 @@ export default function FinancesPage() {
   const updateTransaction = useUpdateTransaction();
 
   const isLoading = confirmationsLoading || transactionsLoading;
-
-  // Pull to refresh
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["confirmations"] });
-    await queryClient.invalidateQueries({ queryKey: ["transactions"] });
-  }, [queryClient]);
-
-  const { containerRef, isRefreshing, pullDistance, pullProgress } = usePullToRefresh({
-    onRefresh: handleRefresh,
-    disabled: !isMobile,
-  });
 
   // Parse dates that might come as DD/MM/YYYY or ISO (YYYY-MM-DD)
   const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
@@ -178,15 +163,7 @@ export default function FinancesPage() {
       <div className="min-h-screen bg-background flex flex-col">
         <MobileFinanceHeader />
 
-        <PullToRefreshContainer
-          ref={containerRef}
-          className="flex-1 overflow-y-auto"
-        >
-          <PullToRefreshIndicator
-            pullProgress={pullProgress}
-            isRefreshing={isRefreshing}
-            pullDistance={pullDistance}
-          />
+        <div className="flex-1 overflow-y-auto">
 
           <div className="px-4 py-4 space-y-4 pb-24">
             {/* Date filter chips */}
@@ -349,7 +326,7 @@ export default function FinancesPage() {
               </div>
             )}
           </div>
-        </PullToRefreshContainer>
+        </div>
 
         {/* FAB for adding transaction */}
         <Button

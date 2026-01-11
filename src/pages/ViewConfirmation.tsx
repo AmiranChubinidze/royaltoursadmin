@@ -26,6 +26,7 @@ import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import { ConfirmationPayload } from "@/types/confirmation";
 import { format } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 
 export default function ViewConfirmation() {
@@ -35,6 +36,7 @@ export default function ViewConfirmation() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"letter" | "tag">("letter");
   const { role } = useUserRole();
+  const isMobile = useIsMobile();
   
   // Only admin and worker can edit, duplicate, delete, send emails
   const canManageConfirmations = role === "admin" || role === "worker";
@@ -162,7 +164,15 @@ export default function ViewConfirmation() {
 
       <div className="confirmation-letter-wrapper">
         {viewMode === "letter" ? (
-          <ConfirmationLetter confirmation={confirmation} />
+          isMobile ? (
+            <div className="overflow-x-auto -mx-4 px-4">
+              <div className="min-w-[960px]">
+                <ConfirmationLetter confirmation={confirmation} />
+              </div>
+            </div>
+          ) : (
+            <ConfirmationLetter confirmation={confirmation} />
+          )
         ) : (
           <LuggageTagView
             clients={(confirmation?.raw_payload as ConfirmationPayload)?.clients || []}

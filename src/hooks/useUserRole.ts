@@ -44,7 +44,7 @@ export const useUserRole = () => {
   const isAccountant = role === "accountant";
   const isWorker = role === "worker";
   const isVisitor = role === "visitor";
-  const canEdit = isAdmin || isWorker;
+  const canEdit = isAdmin || isWorker || isAccountant;
 
   return {
     role,

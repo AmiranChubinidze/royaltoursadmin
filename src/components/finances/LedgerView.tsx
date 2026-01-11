@@ -700,7 +700,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
-                      {t.responsible_holder?.name || (
+                      {t.from_holder?.name || t.responsible_holder?.name || (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>

@@ -126,9 +126,10 @@ export default function FinancesPage() {
     );
     const totalReceived = received + receivedFromFlags;
 
-    // Expenses: sum of confirmed expense transactions (convert to USD), exclude internal transfers
+    // Expenses: sum of confirmed expense transactions (convert to USD)
+    // Exclude internal transfers and currency exchanges (they don't represent actual spending)
     const paidExpenses = transactions
-      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.category !== "transfer_internal")
+      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
       .reduce((sum, t) => sum + toUSD(Number(t.amount) || 0, t.currency), 0);
 
     const totalExpenses = paidExpenses;

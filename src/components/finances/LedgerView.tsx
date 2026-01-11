@@ -93,6 +93,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   transfer_internal: "Transfer",
   reimbursement: "Reimbursement",
   deposit: "Bank Deposit",
+  currency_exchange: "Exchange",
   other: "Other",
 };
 

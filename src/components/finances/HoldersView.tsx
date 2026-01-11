@@ -41,19 +41,21 @@ export function HoldersView() {
     );
   }
 
-  // Calculate totals by currency
+  // Calculate totals for both currencies
   const totals = holders.reduce(
     (acc, holder) => {
-      const currency = holder.currency;
-      if (!acc[currency]) {
-        acc[currency] = { balance: 0, pendingIn: 0, pendingOut: 0 };
-      }
-      acc[currency].balance += holder.balance;
-      acc[currency].pendingIn += holder.pendingIn;
-      acc[currency].pendingOut += holder.pendingOut;
+      acc.USD.balance += holder.balanceUSD;
+      acc.USD.pendingIn += holder.pendingInUSD;
+      acc.USD.pendingOut += holder.pendingOutUSD;
+      acc.GEL.balance += holder.balanceGEL;
+      acc.GEL.pendingIn += holder.pendingInGEL;
+      acc.GEL.pendingOut += holder.pendingOutGEL;
       return acc;
     },
-    {} as Record<string, { balance: number; pendingIn: number; pendingOut: number }>
+    {
+      USD: { balance: 0, pendingIn: 0, pendingOut: 0 },
+      GEL: { balance: 0, pendingIn: 0, pendingOut: 0 },
+    }
   );
 
   return (
@@ -66,7 +68,7 @@ export function HoldersView() {
         </Button>
         <Button variant="outline" onClick={() => setHolderModalOpen(true)} className="gap-2">
           <Settings className="h-4 w-4" />
-          Manage Holders
+          Manage People
         </Button>
       </div>
 
@@ -77,38 +79,58 @@ export function HoldersView() {
           Total Holdings
         </h3>
         <div className="flex flex-wrap gap-6">
-          {Object.entries(totals).map(([currency, data]) => {
-            const symbol = currency === "GEL" ? "₾" : "$";
-            const isNegative = data.balance < 0;
-            return (
-              <div key={currency} className="flex-1 min-w-[120px]">
-                <div className="flex items-baseline gap-2">
-                  <span
-                    className={`text-2xl font-bold ${
-                      isNegative ? "text-destructive" : "text-foreground"
-                    }`}
-                  >
-                    {isNegative && "-"}
-                    {symbol}
-                    {Math.abs(data.balance).toLocaleString()}
-                  </span>
-                  <span className="text-sm text-muted-foreground">{currency}</span>
-                </div>
-                <div className="flex gap-3 mt-1 text-xs">
-                  {data.pendingIn > 0 && (
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      +{symbol}{data.pendingIn.toLocaleString()} pending
-                    </span>
-                  )}
-                  {data.pendingOut > 0 && (
-                    <span className="text-destructive">
-                      -{symbol}{data.pendingOut.toLocaleString()} pending
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {/* USD Total */}
+          <div className="flex-1 min-w-[120px]">
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-2xl font-bold ${
+                  totals.USD.balance < 0 ? "text-destructive" : "text-foreground"
+                }`}
+              >
+                {totals.USD.balance < 0 && "-"}
+                ${Math.abs(totals.USD.balance).toLocaleString()}
+              </span>
+              <span className="text-sm text-muted-foreground">USD</span>
+            </div>
+            <div className="flex gap-3 mt-1 text-xs">
+              {totals.USD.pendingIn > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  +${totals.USD.pendingIn.toLocaleString()} pending
+                </span>
+              )}
+              {totals.USD.pendingOut > 0 && (
+                <span className="text-destructive">
+                  -${totals.USD.pendingOut.toLocaleString()} pending
+                </span>
+              )}
+            </div>
+          </div>
+          {/* GEL Total */}
+          <div className="flex-1 min-w-[120px]">
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-2xl font-bold ${
+                  totals.GEL.balance < 0 ? "text-destructive" : "text-foreground"
+                }`}
+              >
+                {totals.GEL.balance < 0 && "-"}
+                ₾{Math.abs(totals.GEL.balance).toLocaleString()}
+              </span>
+              <span className="text-sm text-muted-foreground">GEL</span>
+            </div>
+            <div className="flex gap-3 mt-1 text-xs">
+              {totals.GEL.pendingIn > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  +₾{totals.GEL.pendingIn.toLocaleString()} pending
+                </span>
+              )}
+              {totals.GEL.pendingOut > 0 && (
+                <span className="text-destructive">
+                  -₾{totals.GEL.pendingOut.toLocaleString()} pending
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

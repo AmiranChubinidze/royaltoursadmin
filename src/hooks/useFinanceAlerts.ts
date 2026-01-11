@@ -87,20 +87,21 @@ export const useFinanceAlerts = (
       }
     });
 
-    // Check for cash not deposited (cash holders with high balance)
+    // Check for high balance (any holder with high balance and no recent activity)
     holders.forEach((holder) => {
-      if (holder.type === "cash" && holder.balance > CASH_THRESHOLD) {
+      const totalBalance = holder.balance;
+      if (totalBalance > CASH_THRESHOLD) {
         // Check if last activity was more than 7 days ago
         if (holder.lastActivity) {
           const lastDate = new Date(holder.lastActivity);
           const daysSinceActivity = Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
           if (daysSinceActivity > PENDING_DAYS_THRESHOLD) {
             alerts.push({
-              id: `cash-deposit-${holder.id}`,
+              id: `high-balance-${holder.id}`,
               type: "cash_not_deposited",
               severity: "warning",
-              title: "Cash Not Deposited",
-              description: `${holder.name} has ${holder.balance.toFixed(2)} ${holder.currency} with no activity for ${daysSinceActivity} days. Consider depositing to bank.`,
+              title: "High Balance Alert",
+              description: `${holder.name} has high balance with no activity for ${daysSinceActivity} days.`,
               holderId: holder.id,
             });
           }

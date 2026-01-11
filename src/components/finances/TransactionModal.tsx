@@ -199,11 +199,19 @@ export function TransactionModal({
       return;
     }
 
+    // For exchange transactions, store the exchange rate in notes
+    let finalNotes = formData.notes || "";
+    if (formData.kind === "exchange") {
+      const rate = parseFloat(exchangeRate);
+      finalNotes = `Exchange rate: ${rate}${finalNotes ? ` | ${finalNotes}` : ""}`;
+    }
+
     const submitData = { 
       ...formData, 
       category: finalCategory, 
       amount: formData.amount,
       currency: inputCurrency,
+      notes: finalNotes,
     };
 
     try {

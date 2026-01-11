@@ -679,7 +679,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="max-w-[200px] truncate">
+                    <TableCell 
+                      className="max-w-[200px] truncate" 
+                      title={t.description || undefined}
+                    >
                       {t.description || "—"}
                     </TableCell>
                     <TableCell

@@ -451,9 +451,13 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
   // Filter all transactions by search and responsible holder
   const filteredTransactions = (transactions || []).filter(t => {
-    // Responsible holder filter
-    if (responsibleFilter !== "all" && t.responsible_holder_id !== responsibleFilter) {
-      return false;
+    // Holder filter - check all holder fields (from, to, responsible)
+    if (responsibleFilter !== "all") {
+      const matchesHolder = 
+        t.from_holder_id === responsibleFilter ||
+        t.to_holder_id === responsibleFilter ||
+        t.responsible_holder_id === responsibleFilter;
+      if (!matchesHolder) return false;
     }
     
     // Search filter

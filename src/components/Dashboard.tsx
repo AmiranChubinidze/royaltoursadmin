@@ -70,6 +70,7 @@ export function Dashboard() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
 
   const handleDuplicate = async (id: string) => {
     const result = await duplicateMutation.mutateAsync(id);
@@ -265,6 +266,7 @@ export function Dashboard() {
                         setFilterMonth(filter);
                         setDateFrom(undefined);
                         setDateTo(undefined);
+                        setShowCustomDatePicker(false);
                       }}
                     >
                       {filter === "all" && "All"}
@@ -273,6 +275,53 @@ export function Dashboard() {
                       {filter === "next-month" && "Next Month"}
                     </Button>
                   ))}
+                  <Popover open={showCustomDatePicker} onOpenChange={setShowCustomDatePicker}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={(dateFrom || dateTo) ? "secondary" : "outline"}
+                        size="sm"
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5 mr-1.5" />
+                        {dateFrom && dateTo
+                          ? `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d")}`
+                          : "Custom"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-3" align="start">
+                      <div className="space-y-3">
+                        <div className="text-sm font-medium text-muted-foreground">Select date range</div>
+                        <Calendar
+                          mode="range"
+                          selected={{ from: dateFrom, to: dateTo }}
+                          onSelect={(range) => {
+                            setDateFrom(range?.from);
+                            setDateTo(range?.to);
+                            if (range?.from && range?.to) {
+                              setFilterMonth("custom");
+                            }
+                          }}
+                          numberOfMonths={1}
+                          className="pointer-events-auto"
+                        />
+                        {(dateFrom || dateTo) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              setDateFrom(undefined);
+                              setDateTo(undefined);
+                              setFilterMonth("all");
+                              setShowCustomDatePicker(false);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5 mr-1" />
+                            Clear
+                          </Button>
+                        )}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 {hasActiveFilters && (
                   <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">

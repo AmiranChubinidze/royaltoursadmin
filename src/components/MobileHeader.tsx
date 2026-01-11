@@ -82,7 +82,7 @@ export function MobileHeader({
                   }
                   className="text-xs capitalize flex-shrink-0"
                 >
-                  {role}
+                  {role === "worker" ? "Manager" : role}
                 </Badge>
               )}
             </div>

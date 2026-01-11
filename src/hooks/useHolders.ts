@@ -88,13 +88,17 @@ export const useHoldersWithBalances = () => {
 
         transactions.forEach((tx) => {
           const isConfirmed = tx.status === "confirmed";
-          // The responsible holder is the one in from_holder_id field
-          const isFromHolder = tx.from_holder_id === holder.id;
-          const isToHolder = tx.to_holder_id === holder.id;
           const isUSD = tx.currency === "USD";
           
-          // Handle IN transactions - from_holder receives the money
-          if (tx.kind === "in" && isFromHolder) {
+          // For in/out/exchange: use responsible_holder_id (or fallback to from_holder_id)
+          // For transfer: use from_holder_id and to_holder_id
+          const isResponsible = tx.responsible_holder_id === holder.id || 
+                               (tx.from_holder_id === holder.id && !tx.responsible_holder_id);
+          const isFromHolder = tx.from_holder_id === holder.id;
+          const isToHolder = tx.to_holder_id === holder.id;
+          
+          // Handle IN transactions - responsible_holder receives the money
+          if (tx.kind === "in" && isResponsible) {
             if (isConfirmed) {
               if (isUSD) balanceUSD += Number(tx.amount);
               else balanceGEL += Number(tx.amount);
@@ -107,8 +111,8 @@ export const useHoldersWithBalances = () => {
             }
           }
           
-          // Handle OUT transactions - from_holder spends the money
-          if (tx.kind === "out" && isFromHolder) {
+          // Handle OUT transactions - responsible_holder spends the money
+          if (tx.kind === "out" && isResponsible) {
             if (isConfirmed) {
               if (isUSD) balanceUSD -= Number(tx.amount);
               else balanceGEL -= Number(tx.amount);
@@ -121,7 +125,7 @@ export const useHoldersWithBalances = () => {
             }
           }
           
-          // Handle TRANSFER transactions
+          // Handle TRANSFER transactions - from_holder loses, to_holder gains
           if (tx.kind === "transfer") {
             if (isFromHolder && isConfirmed) {
               if (isUSD) balanceUSD -= Number(tx.amount);
@@ -139,8 +143,8 @@ export const useHoldersWithBalances = () => {
             }
           }
           
-          // Handle EXCHANGE transactions - from_holder exchanges USD to GEL
-          if (tx.kind === "exchange" && isFromHolder) {
+          // Handle EXCHANGE transactions - responsible_holder exchanges USD to GEL
+          if (tx.kind === "exchange" && isResponsible) {
             // Extract exchange rate from notes
             const rateMatch = tx.notes?.match(/Exchange rate: ([\d.]+)/);
             const rate = rateMatch ? parseFloat(rateMatch[1]) : null;

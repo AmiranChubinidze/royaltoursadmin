@@ -11,7 +11,7 @@ export function BookingRoute({ children }: BookingRouteProps) {
   const { role, isLoading: loading } = useUserRole();
   const navigate = useNavigate();
 
-  const hasAccess = role === "admin" || role === "worker" || role === "booking";
+  const hasAccess = role === "admin" || role === "worker" || role === "accountant";
 
   useEffect(() => {
     if (!loading && !hasAccess) {

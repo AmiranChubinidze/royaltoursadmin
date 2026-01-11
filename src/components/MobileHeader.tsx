@@ -76,13 +76,13 @@ export function MobileHeader({
                   variant={
                     role === "admin"
                       ? "default"
-                      : role === "worker"
+                      : role === "worker" || role === "accountant"
                       ? "secondary"
                       : "outline"
                   }
                   className="text-xs capitalize flex-shrink-0"
                 >
-                  {role === "worker" ? "Manager" : role}
+                  {role === "worker" ? "Manager" : role === "accountant" ? "Coworker" : role}
                 </Badge>
               )}
             </div>

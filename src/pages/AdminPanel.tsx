@@ -25,7 +25,7 @@ import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban } from "lucide-reac
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
-type AppRole = "admin" | "worker" | "visitor" | "booking" | "accountant";
+type AppRole = "admin" | "worker" | "visitor" | "accountant";
 
 interface Profile {
   id: string;
@@ -199,7 +199,6 @@ const AdminPanel = () => {
       case "accountant": return "secondary";
       case "worker": return "secondary";
       case "visitor": return "outline";
-      case "booking": return "outline";
       default: return "outline";
     }
   };
@@ -413,16 +412,15 @@ const AdminPanel = () => {
                                 <SelectTrigger className="w-[120px]">
                                   <SelectValue placeholder="Select role">
                                     <Badge variant={getRoleBadgeVariant(currentRole)}>
-                                      {currentRole === "worker" ? "Manager" : (currentRole || "No role")}
+                                      {currentRole === "worker" ? "Manager" : currentRole === "accountant" ? "Coworker" : (currentRole || "No role")}
                                     </Badge>
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="accountant">Accountant</SelectItem>
+                                  <SelectItem value="accountant">Coworker</SelectItem>
                                   <SelectItem value="worker">Manager</SelectItem>
                                   <SelectItem value="visitor">Visitor</SelectItem>
-                                  <SelectItem value="booking">Booking</SelectItem>
                                 </SelectContent>
                               </Select>
                             )}

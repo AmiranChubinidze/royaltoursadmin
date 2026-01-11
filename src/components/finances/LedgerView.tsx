@@ -686,10 +686,12 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                             ? "border-emerald-500 text-emerald-600"
                             : t.kind === "transfer"
                             ? "border-blue-500 text-blue-600"
+                            : t.kind === "exchange"
+                            ? "border-purple-500 text-purple-600"
                             : "border-red-500 text-red-600"
                         )}
                       >
-                        {t.kind === "in" ? "In" : t.kind === "transfer" ? "Transfer" : "Out"}
+                        {t.kind === "in" ? "In" : t.kind === "transfer" ? "Transfer" : t.kind === "exchange" ? "Exchange" : "Out"}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -722,10 +724,23 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                     <TableCell
                       className={cn(
                         "text-right font-medium whitespace-nowrap",
-                        t.kind === "in" ? "text-emerald-600" : t.kind === "transfer" ? "text-blue-600" : "text-red-600"
+                        t.kind === "in" ? "text-emerald-600" : t.kind === "transfer" ? "text-blue-600" : t.kind === "exchange" ? "text-purple-600" : "text-red-600"
                       )}
                     >
-                      {t.kind === "in" ? "+" : t.kind === "transfer" ? "" : "-"}{formatTransactionAmount(t.amount, t.currency)}
+                      {(() => {
+                        if (t.kind === "exchange") {
+                          // Extract rate and compute GEL amount
+                          const rateMatch = t.notes?.match(/Exchange rate: ([\d.]+)/);
+                          const rate = rateMatch ? parseFloat(rateMatch[1]) : null;
+                          const gelAmount = rate ? t.amount * rate : null;
+                          return (
+                            <span title={`$${Math.round(t.amount).toLocaleString()} @ ${rate || "?"}`}>
+                              ₾{gelAmount ? Math.round(gelAmount).toLocaleString() : Math.round(t.amount).toLocaleString()}
+                            </span>
+                          );
+                        }
+                        return `${t.kind === "in" ? "+" : t.kind === "transfer" ? "" : "-"}${formatTransactionAmount(t.amount, t.currency)}`;
+                      })()}
                     </TableCell>
                     <TableCell className="text-center">
                       <ConfirmWithResponsiblePopover

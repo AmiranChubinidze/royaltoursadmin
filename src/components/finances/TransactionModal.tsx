@@ -445,6 +445,15 @@ export function TransactionModal({
             </div>
           )}
 
+          {/* Exchange Preview */}
+          {formData.kind === "exchange" && formData.amount > 0 && parseFloat(exchangeRate) > 0 && (
+            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <p className="text-sm text-center font-medium text-blue-600 dark:text-blue-400">
+                ${Math.round(formData.amount).toLocaleString()} × {exchangeRate} = ₾{Math.round(formData.amount * parseFloat(exchangeRate)).toLocaleString()}
+              </p>
+            </div>
+          )}
+
           {/* Category + Payment for in/out */}
           {(formData.kind === "in" || formData.kind === "out") && (
             <div className="grid grid-cols-2 gap-2">

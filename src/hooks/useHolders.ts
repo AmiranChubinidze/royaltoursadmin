@@ -136,6 +136,24 @@ export const useHoldersWithBalances = () => {
               }
             }
           }
+          
+          // Handle EXCHANGE transactions - deduct USD, add computed GEL
+          if (tx.kind === "exchange" && isResponsible) {
+            // Extract exchange rate from notes
+            const rateMatch = tx.notes?.match(/Exchange rate: ([\d.]+)/);
+            const rate = rateMatch ? parseFloat(rateMatch[1]) : null;
+            const gelAmount = rate ? Number(tx.amount) * rate : 0;
+            
+            if (isConfirmed) {
+              // Deduct USD
+              balanceUSD -= Number(tx.amount);
+              // Add GEL (computed from USD * rate)
+              balanceGEL += gelAmount;
+            }
+            if (!lastActivity || tx.date > lastActivity) {
+              lastActivity = tx.date;
+            }
+          }
         });
 
         return {

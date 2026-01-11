@@ -75,15 +75,7 @@ export function MobileTransactionCard({
   })();
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 relative group">
-      {onEdit && (
-        <button
-          onClick={() => onEdit(transaction.id)}
-          className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-      )}
+    <div className="bg-card border border-border rounded-xl p-4 pb-3">
       <div className="flex items-start justify-between gap-3">
         {/* Left side: Icon + Info */}
         <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -158,6 +150,17 @@ export function MobileTransactionCard({
           </button>
         </div>
       </div>
+      {onEdit && (
+        <div className="flex justify-start mt-2 pt-2 border-t border-border/50">
+          <button
+            onClick={() => onEdit(transaction.id)}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/60 hover:text-foreground transition-colors"
+          >
+            <Pencil className="h-3 w-3" />
+            <span>Edit</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

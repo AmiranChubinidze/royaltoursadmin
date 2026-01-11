@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { User, TrendingUp, TrendingDown, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HolderWithBalance } from "@/hooks/useHolders";
-import { useExchangeRate } from "@/hooks/useExchangeRate";
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 interface HolderCardProps {
   holder: HolderWithBalance;
@@ -10,10 +10,10 @@ interface HolderCardProps {
 }
 
 export function HolderCard({ holder, onClick }: HolderCardProps) {
-  const { data: exchangeRate } = useExchangeRate();
+  const { exchangeRate } = useCurrency();
   
-  const GEL_TO_USD_RATE = exchangeRate?.gel_to_usd ?? 0.36;
-  const USD_TO_GEL_RATE = exchangeRate?.usd_to_gel ?? 2.78;
+  const GEL_TO_USD_RATE = exchangeRate.gel_to_usd;
+  const USD_TO_GEL_RATE = exchangeRate.usd_to_gel;
   
   const hasUSD = holder.balanceUSD !== 0 || holder.pendingInUSD > 0 || holder.pendingOutUSD > 0;
   const hasGEL = holder.balanceGEL !== 0 || holder.pendingInGEL > 0 || holder.pendingOutGEL > 0;

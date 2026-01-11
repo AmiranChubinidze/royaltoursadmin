@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Currency = "USD" | "GEL";
+
+interface ExchangeRateData {
+  gel_to_usd: number;
+  usd_to_gel: number;
+}
 
 interface CurrencyContextType {
   currency: Currency;
@@ -8,9 +15,10 @@ interface CurrencyContextType {
   formatAmount: (amount: number, showSign?: boolean) => string;
   convertAmount: (amount: number) => number;
   symbol: string;
-  exchangeRate: number;
-  setExchangeRate: (rate: number) => void;
+  exchangeRate: ExchangeRateData;
+  updateExchangeRate: (rate: ExchangeRateData) => Promise<void>;
   baseCurrency: Currency;
+  isLoading: boolean;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -20,50 +28,73 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
   GEL: "₾",
 };
 
-// Default exchange rate: 1 USD = 2.73 GEL (approximate)
-const DEFAULT_EXCHANGE_RATE = 2.73;
+const DEFAULT_EXCHANGE_RATE: ExchangeRateData = {
+  gel_to_usd: 0.36,
+  usd_to_gel: 2.78,
+};
 
-// Base currency for stored amounts (most amounts are stored in USD)
 const BASE_CURRENCY: Currency = "USD";
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  
   const [currency, setCurrencyState] = useState<Currency>(() => {
     const saved = localStorage.getItem("preferred-currency");
     return (saved as Currency) || "USD";
   });
 
-  const [exchangeRate, setExchangeRateState] = useState<number>(() => {
-    const saved = localStorage.getItem("exchange-rate-usd-gel");
-    return saved ? parseFloat(saved) : DEFAULT_EXCHANGE_RATE;
+  const { data: exchangeRate = DEFAULT_EXCHANGE_RATE, isLoading } = useQuery({
+    queryKey: ["exchange-rate"],
+    queryFn: async (): Promise<ExchangeRateData> => {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "exchange_rate")
+        .maybeSingle();
+
+      if (error || !data) {
+        console.error("Failed to fetch exchange rate:", error);
+        return DEFAULT_EXCHANGE_RATE;
+      }
+
+      const value = data.value as unknown as ExchangeRateData;
+      return value;
+    },
+    staleTime: 1000 * 60 * 5,
   });
 
   useEffect(() => {
     localStorage.setItem("preferred-currency", currency);
   }, [currency]);
 
-  useEffect(() => {
-    localStorage.setItem("exchange-rate-usd-gel", exchangeRate.toString());
-  }, [exchangeRate]);
-
   const setCurrency = (newCurrency: Currency) => {
     setCurrencyState(newCurrency);
   };
 
-  const setExchangeRate = (rate: number) => {
-    if (rate > 0) {
-      setExchangeRateState(rate);
-    }
+  const updateExchangeRate = async (rate: ExchangeRateData) => {
+    const { data: user } = await supabase.auth.getUser();
+    
+    const { error } = await supabase
+      .from("app_settings")
+      .update({
+        value: JSON.parse(JSON.stringify(rate)),
+        updated_at: new Date().toISOString(),
+        updated_by: user.user?.id,
+      })
+      .eq("key", "exchange_rate");
+
+    if (error) throw error;
+    
+    queryClient.invalidateQueries({ queryKey: ["exchange-rate"] });
   };
 
   const symbol = CURRENCY_SYMBOLS[currency];
 
-  // Convert amount from base currency (USD) to display currency
   const convertAmount = (amount: number): number => {
     if (currency === BASE_CURRENCY) {
       return amount;
     }
-    // Convert USD to GEL
-    return amount * exchangeRate;
+    return amount * exchangeRate.usd_to_gel;
   };
 
   const formatAmount = (amount: number, showSign = false): string => {
@@ -83,8 +114,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         convertAmount,
         symbol, 
         exchangeRate, 
-        setExchangeRate,
+        updateExchangeRate,
         baseCurrency: BASE_CURRENCY,
+        isLoading,
       }}
     >
       {children}

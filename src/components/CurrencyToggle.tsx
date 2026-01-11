@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +9,7 @@ import {
 import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 import { cn } from "@/lib/utils";
 import { Settings2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface CurrencyToggleProps {
   className?: string;
@@ -16,16 +17,29 @@ interface CurrencyToggleProps {
 }
 
 export function CurrencyToggle({ className, size = "sm" }: CurrencyToggleProps) {
-  const { currency, setCurrency, exchangeRate, setExchangeRate } = useCurrency();
-  const [rateInput, setRateInput] = useState(exchangeRate.toString());
+  const { currency, setCurrency, exchangeRate, updateExchangeRate } = useCurrency();
+  const [rateInput, setRateInput] = useState(exchangeRate.usd_to_gel.toString());
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleRateChange = () => {
+  useEffect(() => {
+    setRateInput(exchangeRate.usd_to_gel.toString());
+  }, [exchangeRate.usd_to_gel]);
+
+  const handleRateChange = async () => {
     const newRate = parseFloat(rateInput);
     if (!isNaN(newRate) && newRate > 0) {
-      setExchangeRate(newRate);
+      try {
+        await updateExchangeRate({
+          usd_to_gel: newRate,
+          gel_to_usd: 1 / newRate,
+        });
+        toast.success("Exchange rate updated");
+      } catch (error) {
+        toast.error("Failed to update exchange rate");
+        setRateInput(exchangeRate.usd_to_gel.toString());
+      }
     } else {
-      setRateInput(exchangeRate.toString());
+      setRateInput(exchangeRate.usd_to_gel.toString());
     }
   };
 
@@ -95,7 +109,7 @@ export function CurrencyToggle({ className, size = "sm" }: CurrencyToggleProps) 
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Current: 1 USD = {exchangeRate.toFixed(2)} GEL
+              Current: 1 USD = {exchangeRate.usd_to_gel.toFixed(2)} GEL
             </p>
           </div>
         </PopoverContent>

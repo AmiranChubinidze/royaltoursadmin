@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useExchangeRate, useUpdateExchangeRate } from "@/hooks/useExchangeRate";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import { toast } from "sonner";
 import { RefreshCw } from "lucide-react";
 
@@ -13,18 +13,18 @@ interface ExchangeRateModalProps {
 }
 
 export function ExchangeRateModal({ open, onOpenChange }: ExchangeRateModalProps) {
-  const { data: rate, isLoading } = useExchangeRate();
-  const updateRate = useUpdateExchangeRate();
+  const { exchangeRate, updateExchangeRate, isLoading } = useCurrency();
+  const [isPending, setIsPending] = useState(false);
   
   const [gelToUsd, setGelToUsd] = useState("");
   const [usdToGel, setUsdToGel] = useState("");
 
   useEffect(() => {
-    if (rate) {
-      setGelToUsd(rate.gel_to_usd.toString());
-      setUsdToGel(rate.usd_to_gel.toString());
+    if (exchangeRate) {
+      setGelToUsd(exchangeRate.gel_to_usd.toString());
+      setUsdToGel(exchangeRate.usd_to_gel.toString());
     }
-  }, [rate]);
+  }, [exchangeRate]);
 
   const handleSave = async () => {
     const gel = parseFloat(gelToUsd);
@@ -36,11 +36,14 @@ export function ExchangeRateModal({ open, onOpenChange }: ExchangeRateModalProps
     }
 
     try {
-      await updateRate.mutateAsync({ gel_to_usd: gel, usd_to_gel: usd });
+      setIsPending(true);
+      await updateExchangeRate({ gel_to_usd: gel, usd_to_gel: usd });
       toast.success("Exchange rate updated");
       onOpenChange(false);
     } catch (error) {
       toast.error("Failed to update exchange rate");
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -97,8 +100,8 @@ export function ExchangeRateModal({ open, onOpenChange }: ExchangeRateModalProps
               <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
                 Cancel
               </Button>
-              <Button onClick={handleSave} disabled={updateRate.isPending} className="flex-1">
-                {updateRate.isPending ? "Saving..." : "Save"}
+              <Button onClick={handleSave} disabled={isPending} className="flex-1">
+                {isPending ? "Saving..." : "Save"}
               </Button>
             </div>
           </div>

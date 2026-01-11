@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ArrowDownLeft, ArrowUpRight, CheckCircle, Clock } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CheckCircle, Clock, Pencil } from "lucide-react";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -23,6 +23,7 @@ interface Transaction {
 interface MobileTransactionCardProps {
   transaction: Transaction;
   onTogglePaid?: (id: string, currentStatus: boolean) => void;
+  onEdit?: (id: string) => void;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -46,6 +47,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function MobileTransactionCard({
   transaction,
   onTogglePaid,
+  onEdit,
 }: MobileTransactionCardProps) {
   const isIncome = transaction.type === "income";
   const isExchange = transaction.category === "currency_exchange";
@@ -73,7 +75,15 @@ export function MobileTransactionCard({
   })();
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4">
+    <div className="bg-card border border-border rounded-xl p-4 relative group">
+      {onEdit && (
+        <button
+          onClick={() => onEdit(transaction.id)}
+          className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted/50 transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
       <div className="flex items-start justify-between gap-3">
         {/* Left side: Icon + Info */}
         <div className="flex items-start gap-3 flex-1 min-w-0">

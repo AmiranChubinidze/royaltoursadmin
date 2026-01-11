@@ -9,12 +9,18 @@ interface HolderCardProps {
 }
 
 export function HolderCard({ holder, onClick }: HolderCardProps) {
+  const GEL_TO_USD_RATE = 0.36; // Approximate conversion rate
+  
   const hasUSD = holder.balanceUSD !== 0 || holder.pendingInUSD > 0 || holder.pendingOutUSD > 0;
   const hasGEL = holder.balanceGEL !== 0 || holder.pendingInGEL > 0 || holder.pendingOutGEL > 0;
   
   const isNegativeUSD = holder.balanceUSD < 0;
   const isNegativeGEL = holder.balanceGEL < 0;
   const hasAnyNegative = isNegativeUSD || isNegativeGEL;
+  
+  // Combined total in USD
+  const totalInUSD = holder.balanceUSD + (holder.balanceGEL * GEL_TO_USD_RATE);
+  const isTotalNegative = totalInUSD < 0;
 
   const formatAmount = (amount: number, symbol: string) => {
     return `${symbol}${Math.abs(amount).toLocaleString("en-US", {
@@ -41,13 +47,9 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
             <h3 className="font-medium text-sm text-foreground">{holder.name}</h3>
           </div>
         </div>
-        <div className="text-right text-xs">
-          <span className={cn("font-medium", isNegativeUSD ? "text-destructive" : "text-muted-foreground")}>
-            {isNegativeUSD && "-"}{formatAmount(holder.balanceUSD, "$")}
-          </span>
-          <span className="text-muted-foreground/50 mx-1">·</span>
-          <span className={cn("font-medium", isNegativeGEL ? "text-destructive" : "text-muted-foreground")}>
-            {isNegativeGEL && "-"}{formatAmount(holder.balanceGEL, "₾")}
+        <div className="text-right">
+          <span className={cn("text-sm font-semibold", isTotalNegative ? "text-destructive" : "text-foreground")}>
+            {isTotalNegative && "-"}${Math.abs(totalInUSD).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </span>
         </div>
       </div>

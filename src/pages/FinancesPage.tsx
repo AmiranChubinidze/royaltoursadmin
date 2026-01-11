@@ -56,12 +56,34 @@ export default function FinancesPage() {
     disabled: !isMobile,
   });
 
-  // Parse date from DD/MM/YYYY format
-  const parseConfirmationDate = (dateStr: string | null): Date | null => {
+  // Parse dates that might come as DD/MM/YYYY or ISO (YYYY-MM-DD)
+  const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
     if (!dateStr) return null;
-    const parts = dateStr.split("/");
-    if (parts.length !== 3) return null;
-    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+
+    // DD/MM/YYYY
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length !== 3) return null;
+      const d = new Date(
+        parseInt(parts[2], 10),
+        parseInt(parts[1], 10) - 1,
+        parseInt(parts[0], 10)
+      );
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    // ISO / other formats that Date can parse
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const getConfirmationFilterDate = (c: any): Date | null => {
+    // Prefer arrival_date; fallback to confirmation_date; fallback to created_at
+    return (
+      parseDateFlexible(c.arrival_date) ||
+      parseDateFlexible(c.confirmation_date) ||
+      parseDateFlexible(c.created_at)
+    );
   };
 
   // Compute summary values
@@ -73,15 +95,15 @@ export default function FinancesPage() {
     // Filter confirmations by date range
     const filteredConfirmations = confirmations.filter((c) => {
       if (!c.price || Number(c.price) <= 0) return false;
+
       if (dateFrom || dateTo) {
-        const arrivalDate = parseConfirmationDate(c.arrival_date);
-        if (!arrivalDate) return false;
-        if (dateFrom && dateTo) {
-          return isWithinInterval(arrivalDate, { start: dateFrom, end: dateTo });
-        }
-        if (dateFrom) return arrivalDate >= dateFrom;
-        if (dateTo) return arrivalDate <= dateTo;
+        const d = getConfirmationFilterDate(c);
+        if (!d) return false;
+        if (dateFrom && dateTo) return isWithinInterval(d, { start: dateFrom, end: dateTo });
+        if (dateFrom) return d >= dateFrom;
+        if (dateTo) return d <= dateTo;
       }
+
       return true;
     });
 
@@ -91,28 +113,28 @@ export default function FinancesPage() {
       0
     );
 
-    // Received: sum of income transactions marked as paid
+    // Received: sum of confirmed income transactions
     const received = transactions
-      .filter((t) => t.type === "income" && t.is_paid)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t) => t.type === "income" && t.status === "confirmed")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // For confirmations without income transactions, use client_paid flag from confirmation
-    const confirmationsWithoutIncomeTransactions = filteredConfirmations.filter((c) => {
-      const hasIncomeTransaction = transactions.some(
-        (t) => t.confirmation_id === c.id && t.type === "income"
+    // For confirmations without PAID income transactions, use client_paid flag from confirmation
+    const confirmationsWithoutPaidIncomeTransactions = filteredConfirmations.filter((c) => {
+      const hasConfirmedIncomeTransaction = transactions.some(
+        (t) => t.confirmation_id === c.id && t.type === "income" && t.status === "confirmed"
       );
-      return !hasIncomeTransaction && c.client_paid;
+      return !hasConfirmedIncomeTransaction && c.client_paid;
     });
-    const receivedFromFlags = confirmationsWithoutIncomeTransactions.reduce(
+    const receivedFromFlags = confirmationsWithoutPaidIncomeTransactions.reduce(
       (sum, c) => sum + (Number(c.price) || 0),
       0
     );
     const totalReceived = received + receivedFromFlags;
 
-    // Expenses: sum of expense transactions marked as paid
+    // Expenses: sum of confirmed expense transactions
     const paidExpenses = transactions
-      .filter((t) => t.type === "expense" && t.is_paid)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter((t) => t.type === "expense" && t.status === "confirmed")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
     const totalExpenses = paidExpenses;
 

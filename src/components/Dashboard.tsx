@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parse, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -39,9 +39,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileHeader } from "@/components/MobileHeader";
 import { MobileConfirmationCard } from "@/components/MobileConfirmationCard";
-import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import { PullToRefreshIndicator, PullToRefreshContainer } from "@/components/PullToRefresh";
-import { useQueryClient } from "@tanstack/react-query";
 import rtgLogoFull from "@/assets/rtg-logo-full.png";
 
 export function Dashboard() {
@@ -50,7 +47,6 @@ export function Dashboard() {
   const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const isMobile = useIsMobile();
-  const queryClient = useQueryClient();
   
   // Admin "View as" feature
   const [viewAsRole, setViewAsRole] = useState<string | null>(null);
@@ -74,16 +70,6 @@ export function Dashboard() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-
-  // Pull to refresh
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["confirmations"] });
-  }, [queryClient]);
-
-  const { containerRef, isRefreshing, pullDistance, pullProgress } = usePullToRefresh({
-    onRefresh: handleRefresh,
-    disabled: !isMobile,
-  });
 
   const handleDuplicate = async (id: string) => {
     const result = await duplicateMutation.mutateAsync(id);
@@ -214,15 +200,7 @@ export function Dashboard() {
           signOut={signOut}
         />
 
-        <PullToRefreshContainer
-          ref={containerRef}
-          className="flex-1 overflow-y-auto"
-        >
-          <PullToRefreshIndicator
-            pullProgress={pullProgress}
-            isRefreshing={isRefreshing}
-            pullDistance={pullDistance}
-          />
+        <div className="flex-1 overflow-y-auto">
 
           {/* Mobile Stats - Horizontal scroll */}
           <div className="px-4 py-4 overflow-x-auto">
@@ -343,7 +321,7 @@ export function Dashboard() {
               ))
             )}
           </div>
-        </PullToRefreshContainer>
+        </div>
 
         {/* Mobile FAB for new confirmation */}
         {effectiveCanManageConfirmations && (

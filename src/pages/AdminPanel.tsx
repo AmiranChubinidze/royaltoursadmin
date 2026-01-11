@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban } from "lucide-react";
+import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban, Shield, Eye, FileText, DollarSign, Upload, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
@@ -289,6 +289,105 @@ const AdminPanel = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Role Permissions Matrix */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Role Permissions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Feature</TableHead>
+                    <TableHead className="text-center">Admin</TableHead>
+                    <TableHead className="text-center">Manager</TableHead>
+                    <TableHead className="text-center">Coworker</TableHead>
+                    <TableHead className="text-center">Visitor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        View Confirmations
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        Create/Edit Confirmations
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-muted-foreground" />
+                        Upload Attachments
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Database className="h-4 w-4 text-muted-foreground" />
+                        Saved Data / Hotels
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        Finances
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        Admin Panel
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                    <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Pending Users */}
         <Card className="mb-6">

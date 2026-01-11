@@ -147,7 +147,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer">("all");
+  const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer" | "exchange">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending">("all");
   const [responsibleFilter, setResponsibleFilter] = useState<string>("all");
@@ -488,6 +488,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               <SelectItem value="in">Income</SelectItem>
               <SelectItem value="out">Expense</SelectItem>
               <SelectItem value="transfer">Transfer</SelectItem>
+              <SelectItem value="exchange">Exchange</SelectItem>
             </SelectContent>
           </Select>
 

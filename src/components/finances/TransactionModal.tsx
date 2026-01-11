@@ -57,6 +57,7 @@ const CATEGORIES: { value: string; label: string; kind: TransactionKind | "both"
   { value: "transfer_internal", label: "Transfer", kind: "transfer" },
   { value: "reimbursement", label: "Reimbursement", kind: "transfer" },
   { value: "deposit", label: "Bank Deposit", kind: "transfer" },
+  { value: "currency_exchange", label: "Currency Exchange", kind: "exchange" },
   { value: "other", label: "Other", kind: "both" },
   { value: "__custom__", label: "Custom...", kind: "both" },
 ];
@@ -173,10 +174,10 @@ export function TransactionModal({
       return;
     }
 
-    // Validate transfer fields
-    if (formData.kind === "transfer") {
+    // Validate transfer/exchange fields
+    if (formData.kind === "transfer" || formData.kind === "exchange") {
       if (!formData.from_holder_id || !formData.to_holder_id) {
-        toast({ title: "Please select both source and destination holders", variant: "destructive" });
+        toast({ title: "Please select both holders", variant: "destructive" });
         return;
       }
     }
@@ -222,12 +223,12 @@ export function TransactionModal({
 
         <div className="space-y-3">
           {/* Kind Toggle */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-1">
             <Button
               type="button"
               variant={formData.kind === "in" ? "default" : "outline"}
               size="sm"
-              className="flex-1 h-8 text-xs"
+              className="flex-1 h-8 text-xs px-2"
               onClick={() => setFormData({ ...formData, kind: "in", category: "tour_payment" })}
             >
               Income
@@ -236,7 +237,7 @@ export function TransactionModal({
               type="button"
               variant={formData.kind === "out" ? "default" : "outline"}
               size="sm"
-              className="flex-1 h-8 text-xs"
+              className="flex-1 h-8 text-xs px-2"
               onClick={() => setFormData({ ...formData, kind: "out", category: "other" })}
             >
               Expense
@@ -245,10 +246,19 @@ export function TransactionModal({
               type="button"
               variant={formData.kind === "transfer" ? "default" : "outline"}
               size="sm"
-              className="flex-1 h-8 text-xs"
+              className="flex-1 h-8 text-xs px-2"
               onClick={() => setFormData({ ...formData, kind: "transfer", category: "transfer_internal" })}
             >
               Transfer
+            </Button>
+            <Button
+              type="button"
+              variant={formData.kind === "exchange" ? "default" : "outline"}
+              size="sm"
+              className="flex-1 h-8 text-xs px-2"
+              onClick={() => setFormData({ ...formData, kind: "exchange", category: "currency_exchange" })}
+            >
+              Exchange
             </Button>
           </div>
 
@@ -330,11 +340,11 @@ export function TransactionModal({
             </div>
           </div>
 
-          {/* Transfer: From/To Holders */}
-          {formData.kind === "transfer" ? (
+          {/* Transfer/Exchange: From/To Holders */}
+          {(formData.kind === "transfer" || formData.kind === "exchange") ? (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">From</Label>
+                <Label className="text-xs">{formData.kind === "exchange" ? "Holder (USD)" : "From"}</Label>
                 <Select
                   value={formData.from_holder_id || "none"}
                   onValueChange={(value) =>
@@ -346,7 +356,7 @@ export function TransactionModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" className="text-xs">Select...</SelectItem>
-                    {holders?.map((h) => (
+                    {holders?.filter(h => formData.kind !== "exchange" || h.currency === "USD").map((h) => (
                       <SelectItem key={h.id} value={h.id} className="text-xs">
                         {h.name}
                       </SelectItem>
@@ -355,7 +365,7 @@ export function TransactionModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">To</Label>
+                <Label className="text-xs">{formData.kind === "exchange" ? "Holder (GEL)" : "To"}</Label>
                 <Select
                   value={formData.to_holder_id || "none"}
                   onValueChange={(value) =>
@@ -367,7 +377,7 @@ export function TransactionModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" className="text-xs">Select...</SelectItem>
-                    {holders?.map((h) => (
+                    {holders?.filter(h => formData.kind !== "exchange" || h.currency === "GEL").map((h) => (
                       <SelectItem key={h.id} value={h.id} className="text-xs">
                         {h.name}
                       </SelectItem>

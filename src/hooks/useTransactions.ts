@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export type TransactionKind = "in" | "out" | "transfer";
+export type TransactionKind = "in" | "out" | "transfer" | "exchange";
 export type TransactionStatus = "pending" | "confirmed" | "void";
 export type TransactionCategory = "tour_payment" | "hotel" | "driver" | "sim" | "breakfast" | "fuel" | "guide" | "transfer_internal" | "reimbursement" | "deposit" | "other" | string;
 export type PaymentMethod = "cash" | "bank" | "card" | "online" | "personal";
@@ -88,6 +88,7 @@ export interface UpdateTransactionData extends Partial<CreateTransactionData> {
 // Map kind to legacy type for backward compatibility
 const kindToType = (kind: TransactionKind): TransactionType => {
   if (kind === "in") return "income";
+  if (kind === "exchange") return "expense"; // Exchange is tracked as expense for legacy
   return "expense";
 };
 

@@ -133,18 +133,16 @@ export default function ConfirmationAttachments() {
   const handleUploadConfirm = useCallback(() => {
     if (!pendingFile || !id) return;
     
-    // Convert amount to USD if entered in GEL
-    let amountInUSD: number | undefined;
-    if (invoiceAmount) {
-      const parsedAmount = parseFloat(invoiceAmount);
-      amountInUSD = invoiceCurrency === "GEL" ? parsedAmount / exchangeRate : parsedAmount;
-    }
+    // Store amount in original currency
+    const parsedAmount = invoiceAmount ? parseFloat(invoiceAmount) : undefined;
     
     uploadMutation.mutate({
       confirmationId: id,
       file: pendingFile,
       customName: invoiceName,
-      amount: amountInUSD,
+      amount: parsedAmount,
+      originalCurrency: invoiceCurrency,
+      originalAmount: parsedAmount,
     });
     
     setUploadDialogOpen(false);
@@ -152,7 +150,7 @@ export default function ConfirmationAttachments() {
     setInvoiceName("");
     setInvoiceAmount("");
     setInvoiceCurrency("USD");
-  }, [pendingFile, id, invoiceName, invoiceAmount, invoiceCurrency, exchangeRate, uploadMutation]);
+  }, [pendingFile, id, invoiceName, invoiceAmount, invoiceCurrency, uploadMutation]);
 
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
     setDownloadingId(attachmentId);
@@ -376,7 +374,8 @@ export default function ConfirmationAttachments() {
                       </div>
                       {expenseMap?.[attachment.id] && (
                         <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                          ${expenseMap[attachment.id].toLocaleString()}
+                          {expenseMap[attachment.id].currency === "GEL" ? "₾" : "$"}
+                          {expenseMap[attachment.id].amount.toLocaleString()}
                         </Badge>
                       )}
                     </div>

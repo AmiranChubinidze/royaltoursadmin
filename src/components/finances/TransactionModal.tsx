@@ -406,15 +406,15 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Exchange: Responsible + Exchange Rate */}
+          {/* Exchange: From (Responsible) + Exchange Rate */}
           {formData.kind === "exchange" && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">Responsible</Label>
+                <Label className="text-xs">From (Responsible)</Label>
                 <Select
-                  value={formData.responsible_holder_id || "none"}
+                  value={formData.from_holder_id || "none"}
                   onValueChange={(value) =>
-                    setFormData({ ...formData, responsible_holder_id: value === "none" ? null : value })
+                    setFormData({ ...formData, from_holder_id: value === "none" ? null : value })
                   }
                 >
                   <SelectTrigger className="h-8 text-xs">

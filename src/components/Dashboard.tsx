@@ -202,16 +202,16 @@ export function Dashboard() {
 
         <div className="flex-1 overflow-y-auto">
 
-          {/* Mobile Stats - Horizontal scroll */}
-          <div className="px-4 py-4 overflow-x-auto">
-            <div className="flex gap-3 min-w-max">
-              <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
+          {/* Mobile Stats */}
+          <div className="px-4 py-4">
+            <div className="flex gap-3">
+              <div className="bg-card border border-border rounded-xl p-4 flex-1">
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold text-foreground">
                   {isLoading ? "..." : confirmations?.length || 0}
                 </p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
+              <div className="bg-card border border-border rounded-xl p-4 flex-1">
                 <p className="text-xs text-muted-foreground">This Month</p>
                 <p className="text-2xl font-bold text-emerald-600">
                   {isLoading
@@ -225,12 +225,6 @@ export function Dashboard() {
                           arrivalDate.getFullYear() === now.getFullYear()
                         );
                       }).length || 0}
-                </p>
-              </div>
-              <div className="bg-card border border-border rounded-xl p-4 min-w-[140px]">
-                <p className="text-xs text-muted-foreground">Showing</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {filteredConfirmations.length}
                 </p>
               </div>
             </div>

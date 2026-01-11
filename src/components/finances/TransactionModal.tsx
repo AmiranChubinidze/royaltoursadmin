@@ -105,6 +105,7 @@ export function TransactionModal({
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [customCategory, setCustomCategory] = useState("");
   const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState<string>("2.78");
 
   useEffect(() => {
     if (transaction) {
@@ -174,10 +175,19 @@ export function TransactionModal({
       return;
     }
 
-    // Validate transfer/exchange fields
-    if (formData.kind === "transfer" || formData.kind === "exchange") {
+    // Validate transfer fields
+    if (formData.kind === "transfer") {
       if (!formData.from_holder_id || !formData.to_holder_id) {
         toast({ title: "Please select both holders", variant: "destructive" });
+        return;
+      }
+    }
+
+    // Validate exchange fields
+    if (formData.kind === "exchange") {
+      const rate = parseFloat(exchangeRate);
+      if (!rate || rate <= 0) {
+        toast({ title: "Please enter a valid exchange rate", variant: "destructive" });
         return;
       }
     }
@@ -340,11 +350,11 @@ export function TransactionModal({
             </div>
           </div>
 
-          {/* Transfer/Exchange: From/To Holders */}
-          {(formData.kind === "transfer" || formData.kind === "exchange") ? (
+          {/* Transfer: From/To Holders */}
+          {formData.kind === "transfer" && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label className="text-xs">{formData.kind === "exchange" ? "Holder (USD)" : "From"}</Label>
+                <Label className="text-xs">From</Label>
                 <Select
                   value={formData.from_holder_id || "none"}
                   onValueChange={(value) =>
@@ -356,7 +366,7 @@ export function TransactionModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" className="text-xs">Select...</SelectItem>
-                    {holders?.filter(h => formData.kind !== "exchange" || h.currency === "USD").map((h) => (
+                    {holders?.map((h) => (
                       <SelectItem key={h.id} value={h.id} className="text-xs">
                         {h.name}
                       </SelectItem>
@@ -365,7 +375,7 @@ export function TransactionModal({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">{formData.kind === "exchange" ? "Holder (GEL)" : "To"}</Label>
+                <Label className="text-xs">To</Label>
                 <Select
                   value={formData.to_holder_id || "none"}
                   onValueChange={(value) =>
@@ -377,7 +387,7 @@ export function TransactionModal({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none" className="text-xs">Select...</SelectItem>
-                    {holders?.filter(h => formData.kind !== "exchange" || h.currency === "GEL").map((h) => (
+                    {holders?.map((h) => (
                       <SelectItem key={h.id} value={h.id} className="text-xs">
                         {h.name}
                       </SelectItem>
@@ -386,8 +396,49 @@ export function TransactionModal({
                 </Select>
               </div>
             </div>
-          ) : (
-            /* Row 2: Category + Payment */
+          )}
+
+          {/* Exchange: Responsible + Exchange Rate */}
+          {formData.kind === "exchange" && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Responsible</Label>
+                <Select
+                  value={formData.responsible_holder_id || "none"}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, responsible_holder_id: value === "none" ? null : value })
+                  }
+                >
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Who exchanged?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none" className="text-xs">None</SelectItem>
+                    {holders?.map((h) => (
+                      <SelectItem key={h.id} value={h.id} className="text-xs">
+                        {h.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Exchange Rate</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  placeholder="2.78"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Category + Payment for in/out */}
+          {(formData.kind === "in" || formData.kind === "out") && (
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs">Category</Label>
@@ -466,8 +517,8 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Responsible (for non-transfer) - who holds the money */}
-          {formData.kind !== "transfer" && (
+          {/* Responsible (for in/out only) - who holds the money */}
+          {(formData.kind === "in" || formData.kind === "out") && (
             <div className="space-y-1">
               <Label className="text-xs">Responsible</Label>
               <Select
@@ -491,28 +542,30 @@ export function TransactionModal({
             </div>
           )}
 
-          {/* Confirmation */}
-          <div className="space-y-1">
-            <Label className="text-xs">Confirmation</Label>
-            <Select
-              value={formData.confirmation_id || "none"}
-              onValueChange={(value) =>
-                setFormData({ ...formData, confirmation_id: value === "none" ? null : value })
-              }
-            >
-              <SelectTrigger className="h-8 text-xs">
-                <SelectValue placeholder="Select..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" className="text-xs">General</SelectItem>
-                {confirmations?.map((c) => (
-                  <SelectItem key={c.id} value={c.id} className="text-xs">
-                    {c.confirmation_code} - {c.main_client_name?.split(" ")[0] || "N/A"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Confirmation (not for exchange) */}
+          {formData.kind !== "exchange" && (
+            <div className="space-y-1">
+              <Label className="text-xs">Confirmation</Label>
+              <Select
+                value={formData.confirmation_id || "none"}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, confirmation_id: value === "none" ? null : value })
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" className="text-xs">General</SelectItem>
+                  {confirmations?.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                      {c.confirmation_code} - {c.main_client_name?.split(" ")[0] || "N/A"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-1">

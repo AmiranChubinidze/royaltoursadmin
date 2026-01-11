@@ -420,7 +420,7 @@ const AdminPanel = () => {
                                 <SelectContent>
                                   <SelectItem value="admin">Admin</SelectItem>
                                   <SelectItem value="accountant">Accountant</SelectItem>
-                                  <SelectItem value="worker">Worker</SelectItem>
+                                  <SelectItem value="worker">Manager</SelectItem>
                                   <SelectItem value="visitor">Visitor</SelectItem>
                                   <SelectItem value="booking">Booking</SelectItem>
                                 </SelectContent>

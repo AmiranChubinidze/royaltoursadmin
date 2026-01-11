@@ -386,7 +386,7 @@ export function Dashboard() {
                       className="w-full justify-start text-sm"
                       onClick={() => setViewAsRole("worker")}
                     >
-                      Worker
+                      Manager
                     </Button>
                     <Button
                       variant={viewAsRole === "visitor" ? "secondary" : "ghost"}
@@ -422,12 +422,12 @@ export function Dashboard() {
                     variant={role === "admin" ? "default" : role === "worker" ? "secondary" : "outline"}
                     className="text-xs capitalize"
                   >
-                    {role}
+                    {role === "worker" ? "Manager" : role}
                   </Badge>
                 )}
                 {viewAsRole && (
                   <Badge variant="outline" className="text-xs">
-                    → {viewAsRole}
+                    → {viewAsRole === "worker" ? "Manager" : viewAsRole}
                   </Badge>
                 )}
               </div>

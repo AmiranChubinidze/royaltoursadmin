@@ -47,7 +47,6 @@ export const useAttachmentExpenses = (confirmationId?: string) => {
         .from("transactions")
         .select("description, amount, currency")
         .eq("confirmation_id", confirmationId)
-        .eq("is_auto_generated", true)
         .eq("type", "expense");
 
       if (error) throw error;

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type HolderType = "person";
+export type HolderType = "cash" | "bank" | "card";
 export type HolderCurrency = "GEL" | "USD";
 
 export interface Holder {
@@ -164,7 +164,7 @@ export const useHoldersWithBalances = () => {
 
         return {
           ...holder,
-          type: "person" as HolderType,
+          type: holder.type as HolderType,
           currency: holder.currency as HolderCurrency,
           balanceUSD,
           balanceGEL,
@@ -194,7 +194,7 @@ export const useCreateHolder = () => {
         .from("holders")
         .insert({
           name: data.name,
-          type: data.type || "person",
+          type: data.type || "cash",
           email: data.email,
           is_active: data.is_active ?? true,
         })

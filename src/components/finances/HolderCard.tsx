@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { User, TrendingUp, TrendingDown, Clock } from "lucide-react";
+import { Wallet, TrendingUp, TrendingDown, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HolderWithBalance } from "@/hooks/useHolders";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -15,9 +15,6 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
   const GEL_TO_USD_RATE = exchangeRate.gel_to_usd;
   const USD_TO_GEL_RATE = exchangeRate.usd_to_gel;
   
-  const hasUSD = holder.balanceUSD !== 0 || holder.pendingInUSD > 0 || holder.pendingOutUSD > 0;
-  const hasGEL = holder.balanceGEL !== 0 || holder.pendingInGEL > 0 || holder.pendingOutGEL > 0;
-  
   const isNegativeUSD = holder.balanceUSD < 0;
   const isNegativeGEL = holder.balanceGEL < 0;
   const hasAnyNegative = isNegativeUSD || isNegativeGEL;
@@ -27,110 +24,124 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
   const totalInGEL = holder.balanceGEL + (holder.balanceUSD * USD_TO_GEL_RATE);
   const isTotalNegative = totalInUSD < 0;
 
-  const formatAmount = (amount: number, symbol: string) => {
-    return `${symbol}${Math.abs(amount).toLocaleString("en-US", {
+  const formatAmount = (amount: number) => {
+    return Math.abs(amount).toLocaleString("en-US", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    })}`;
+    });
   };
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "bg-card border border-border rounded-xl p-4 cursor-pointer transition-all hover:shadow-md hover:border-primary/30",
-        hasAnyNegative && "border-destructive/30 bg-destructive/5"
+        "group bg-card border rounded-2xl overflow-hidden cursor-pointer transition-all duration-200",
+        "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 hover:-translate-y-0.5",
+        hasAnyNegative 
+          ? "border-destructive/40 bg-gradient-to-br from-destructive/5 to-transparent" 
+          : "border-border/60"
       )}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
-            <User className="h-4 w-4" />
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "p-2.5 rounded-xl transition-colors",
+            hasAnyNegative 
+              ? "bg-destructive/10 text-destructive" 
+              : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+          )}>
+            <Wallet className="h-4 w-4" />
           </div>
-          <div>
-            <h3 className="font-medium text-sm text-foreground">{holder.name}</h3>
-          </div>
+          <h3 className="font-semibold text-foreground">{holder.name}</h3>
         </div>
-        <div className="text-right text-xs">
-          <span className={cn("font-semibold", isTotalNegative ? "text-destructive" : "text-foreground")}>
-            {isTotalNegative && "-"}${Math.abs(totalInUSD).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-          </span>
-          <span className="text-muted-foreground/50 mx-1">/</span>
-          <span className={cn("font-semibold", isTotalNegative ? "text-destructive" : "text-foreground")}>
-            {isTotalNegative && "-"}₾{Math.abs(totalInGEL).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-          </span>
-        </div>
+        <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
       </div>
 
-      {/* Balances - Grid layout for alignment */}
-      <div className="space-y-1.5 mb-3 bg-muted/30 rounded-lg p-2.5">
-        {/* USD Balance */}
-        <div className="grid grid-cols-[32px_1fr_auto_auto] items-center gap-1.5">
-          <span className="text-xs text-muted-foreground font-medium">USD</span>
-          <span
-            className={cn(
-              "text-lg font-bold tabular-nums text-right",
-              isNegativeUSD ? "text-destructive" : "text-foreground"
-            )}
-          >
-            {isNegativeUSD && "-"}{formatAmount(holder.balanceUSD, "$")}
-          </span>
-          <span className="min-w-[60px] text-right">
-            {holder.pendingInUSD > 0 && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-0.5 tabular-nums">
-                <TrendingUp className="h-3 w-3" />
-                +{formatAmount(holder.pendingInUSD, "$")}
+      {/* Balances */}
+      <div className="px-4 pb-4">
+        <div className="bg-muted/40 rounded-xl p-3 space-y-2">
+          {/* USD Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide w-8">USD</span>
+              <span className={cn(
+                "text-xl font-bold tabular-nums",
+                isNegativeUSD ? "text-destructive" : "text-foreground"
+              )}>
+                {isNegativeUSD && "−"}${formatAmount(holder.balanceUSD)}
               </span>
-            )}
-          </span>
-          <span className="min-w-[60px] text-right">
-            {holder.pendingOutUSD > 0 && (
-              <span className="text-xs text-destructive inline-flex items-center gap-0.5 tabular-nums">
-                <TrendingDown className="h-3 w-3" />
-                -{formatAmount(holder.pendingOutUSD, "$")}
+            </div>
+            <div className="flex items-center gap-1.5">
+              {holder.pendingInUSD > 0 && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md tabular-nums">
+                  <TrendingUp className="h-3 w-3" />
+                  +${formatAmount(holder.pendingInUSD)}
+                </span>
+              )}
+              {holder.pendingOutUSD > 0 && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-md tabular-nums">
+                  <TrendingDown className="h-3 w-3" />
+                  −${formatAmount(holder.pendingOutUSD)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border/50" />
+
+          {/* GEL Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide w-8">GEL</span>
+              <span className={cn(
+                "text-xl font-bold tabular-nums",
+                isNegativeGEL ? "text-destructive" : "text-foreground"
+              )}>
+                {isNegativeGEL && "−"}₾{formatAmount(holder.balanceGEL)}
               </span>
-            )}
-          </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {holder.pendingInGEL > 0 && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md tabular-nums">
+                  <TrendingUp className="h-3 w-3" />
+                  +₾{formatAmount(holder.pendingInGEL)}
+                </span>
+              )}
+              {holder.pendingOutGEL > 0 && (
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-md tabular-nums">
+                  <TrendingDown className="h-3 w-3" />
+                  −₾{formatAmount(holder.pendingOutGEL)}
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* GEL Balance */}
-        <div className="grid grid-cols-[32px_1fr_auto_auto] items-center gap-1.5">
-          <span className="text-xs text-muted-foreground font-medium">GEL</span>
-          <span
-            className={cn(
-              "text-lg font-bold tabular-nums text-right",
-              isNegativeGEL ? "text-destructive" : "text-foreground"
+        {/* Footer - Combined Total */}
+        <div className="mt-3 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            {holder.lastActivity ? (
+              <>
+                <Clock className="h-3 w-3" />
+                <span>{format(new Date(holder.lastActivity), "MMM d")}</span>
+              </>
+            ) : (
+              <span className="text-muted-foreground/50">No activity</span>
             )}
-          >
-            {isNegativeGEL && "-"}{formatAmount(holder.balanceGEL, "₾")}
-          </span>
-          <span className="min-w-[60px] text-right">
-            {holder.pendingInGEL > 0 && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-0.5 tabular-nums">
-                <TrendingUp className="h-3 w-3" />
-                +{formatAmount(holder.pendingInGEL, "₾")}
-              </span>
-            )}
-          </span>
-          <span className="min-w-[60px] text-right">
-            {holder.pendingOutGEL > 0 && (
-              <span className="text-xs text-destructive inline-flex items-center gap-0.5 tabular-nums">
-                <TrendingDown className="h-3 w-3" />
-                -{formatAmount(holder.pendingOutGEL, "₾")}
-              </span>
-            )}
-          </span>
+          </div>
+          <div className={cn(
+            "font-semibold tabular-nums",
+            isTotalNegative ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {isTotalNegative && "−"}
+            ${formatAmount(totalInUSD)} 
+            <span className="text-muted-foreground/40 mx-1">≈</span>
+            ₾{formatAmount(totalInGEL)}
+          </div>
         </div>
       </div>
-
-      {/* Last Activity */}
-      {holder.lastActivity && (
-        <div className="pt-3 border-t border-border flex items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="h-3 w-3" />
-          <span>Last: {format(new Date(holder.lastActivity), "MMM d, yyyy")}</span>
-        </div>
-      )}
     </div>
   );
 }

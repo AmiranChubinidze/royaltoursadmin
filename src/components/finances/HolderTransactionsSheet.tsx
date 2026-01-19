@@ -252,18 +252,36 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
           {exchanges.length > 0 && (
             <>
               <Separator className="my-4" />
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <ArrowLeftRight className="h-4 w-4 text-blue-600" />
-                  <h3 className="font-medium text-sm">Exchanges</h3>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {exchanges.length} transaction{exchanges.length !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {exchanges.map((t) => renderTransaction(t, 'exchange'))}
-                </div>
-              </div>
+              {(() => {
+                const confirmedExchanges = exchanges.filter(t => t.status === 'confirmed');
+                const totalUSD = confirmedExchanges.reduce((sum, t) => sum + Number(t.amount), 0);
+                const totalGEL = confirmedExchanges.reduce((sum, t) => {
+                  const rateMatch = t.notes?.match(/Exchange rate: ([\d.]+)/);
+                  const rate = rateMatch ? parseFloat(rateMatch[1]) : 0;
+                  return sum + (Number(t.amount) * rate);
+                }, 0);
+                return (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <ArrowLeftRight className="h-4 w-4 text-blue-600" />
+                      <h3 className="font-medium text-sm">Exchanges</h3>
+                      <div className="flex items-center gap-2 ml-auto">
+                        {totalUSD > 0 && (
+                          <span className="text-sm font-medium text-blue-600">
+                            ${Math.round(totalUSD).toLocaleString()} → ₾{Math.round(totalGEL).toLocaleString()}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {exchanges.length} transaction{exchanges.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {exchanges.map((t) => renderTransaction(t, 'exchange'))}
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
         </ScrollArea>

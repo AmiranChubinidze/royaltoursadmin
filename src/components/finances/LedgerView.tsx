@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, isWithinInterval, isPast } from "date-fns";
+import * as XLSX from "xlsx-js-style";
 import {
   Table,
   TableBody,
@@ -63,7 +64,6 @@ import { FinanceSearch } from "./FinanceSearch";
 import { StatusCheckbox } from "./StatusCheckbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -426,28 +426,229 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     }
   };
 
-  const handleExportCSV = () => {
+  const handleExportExcel = () => {
     if (!transactions?.length) return;
 
-    const headers = ["Date", "Confirmation", "Type", "Category", "Description", "Amount", "Status", "Method"];
-    const rows = transactions.map((t) => [
-      t.date,
-      t.confirmation?.confirmation_code || "General",
-      t.type,
-      getCategoryLabel(t.category),
-      t.description || "",
-      t.amount,
-      t.is_paid ? (t.type === "income" ? "Received" : "Paid") : "Pending",
-      t.payment_method || "",
+    // Styles
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11 },
+      fill: { fgColor: { rgb: "1E3A5F" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      border: {
+        top: { style: "thin", color: { rgb: "CCCCCC" } },
+        bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+        left: { style: "thin", color: { rgb: "CCCCCC" } },
+        right: { style: "thin", color: { rgb: "CCCCCC" } },
+      },
+    };
+
+    const incomeRowStyle = { fill: { fgColor: { rgb: "E6F4EA" } } };
+    const expenseRowStyle = { fill: { fgColor: { rgb: "FCE8E6" } } };
+    const transferRowStyle = { fill: { fgColor: { rgb: "E8F0FE" } } };
+    const exchangeRowStyle = { fill: { fgColor: { rgb: "F3E8FD" } } };
+    const pendingStyle = { fill: { fgColor: { rgb: "FFF9E6" } } };
+
+    const cellBorder = {
+      border: {
+        top: { style: "thin", color: { rgb: "E0E0E0" } },
+        bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+        left: { style: "thin", color: { rgb: "E0E0E0" } },
+        right: { style: "thin", color: { rgb: "E0E0E0" } },
+      },
+    };
+
+    const titleStyle = {
+      font: { bold: true, sz: 16, color: { rgb: "1E3A5F" } },
+      alignment: { horizontal: "left" },
+    };
+
+    const subtitleStyle = {
+      font: { sz: 11, color: { rgb: "666666" } },
+      alignment: { horizontal: "left" },
+    };
+
+    const summaryHeaderStyle = {
+      font: { bold: true, sz: 12, color: { rgb: "1E3A5F" } },
+      fill: { fgColor: { rgb: "F8F9FA" } },
+    };
+
+    const amountStyle = {
+      numFmt: "#,##0.00",
+      alignment: { horizontal: "right" },
+    };
+
+    // Calculate totals
+    const totals = { incomeUSD: 0, incomeGEL: 0, expenseUSD: 0, expenseGEL: 0 };
+    const categoryTotals: Record<string, { usd: number; gel: number }> = {};
+
+    transactions.forEach((t) => {
+      const currency = t.currency || "USD";
+      if (t.kind === "in") {
+        if (currency === "USD") totals.incomeUSD += t.amount;
+        else totals.incomeGEL += t.amount;
+      } else if (t.kind === "out") {
+        if (currency === "USD") totals.expenseUSD += t.amount;
+        else totals.expenseGEL += t.amount;
+        
+        // Track by category
+        if (!categoryTotals[t.category]) categoryTotals[t.category] = { usd: 0, gel: 0 };
+        if (currency === "USD") categoryTotals[t.category].usd += t.amount;
+        else categoryTotals[t.category].gel += t.amount;
+      }
+    });
+
+    const dateRangeText = dateFrom && dateTo
+      ? `${format(dateFrom, "MMM d, yyyy")} to ${format(dateTo, "MMM d, yyyy")}`
+      : "All Time";
+
+    // ===== SHEET 1: Summary Dashboard =====
+    const summaryData: any[][] = [
+      [{ v: "LEDGER REPORT", s: titleStyle }],
+      [{ v: dateRangeText, s: subtitleStyle }],
+      [{ v: `Generated: ${format(new Date(), "MMM d, yyyy 'at' HH:mm")}`, s: subtitleStyle }],
+      [],
+      [{ v: "FINANCIAL SUMMARY", s: summaryHeaderStyle }],
+      [],
+      ["", "USD", "GEL"],
+      ["Total Income", { v: totals.incomeUSD, s: amountStyle }, { v: totals.incomeGEL, s: amountStyle }],
+      ["Total Expenses", { v: totals.expenseUSD, s: amountStyle }, { v: totals.expenseGEL, s: amountStyle }],
+      ["Net Balance", { v: totals.incomeUSD - totals.expenseUSD, s: amountStyle }, { v: totals.incomeGEL - totals.expenseGEL, s: amountStyle }],
+      [],
+      [{ v: "EXPENSES BY CATEGORY", s: summaryHeaderStyle }],
+      [],
+      ["Category", "USD", "GEL"],
+    ];
+
+    Object.entries(categoryTotals)
+      .sort((a, b) => (b[1].usd + b[1].gel) - (a[1].usd + a[1].gel))
+      .forEach(([cat, amounts]) => {
+        summaryData.push([getCategoryLabel(cat), { v: amounts.usd, s: amountStyle }, { v: amounts.gel, s: amountStyle }]);
+      });
+
+    summaryData.push([]);
+    summaryData.push(["Transaction Count", transactions.length]);
+
+    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+    summarySheet["!cols"] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }];
+
+    // ===== SHEET 2: All Transactions =====
+    const headers = [
+      "Date", "Confirmation", "Client", "Kind", "Category", "Description",
+      "Counterparty", "Amount", "Currency", "Status", "Method",
+      "Responsible", "From", "To", "Notes"
+    ];
+
+    const transactionRows: any[][] = [headers.map(h => ({ v: h, s: headerStyle }))];
+
+    transactions.forEach((t) => {
+      const rowStyle = t.status === "pending" ? pendingStyle :
+        t.kind === "in" ? incomeRowStyle :
+        t.kind === "out" ? expenseRowStyle :
+        t.kind === "transfer" ? transferRowStyle :
+        t.category === "currency_exchange" ? exchangeRowStyle : {};
+
+      const row = [
+        { v: t.date, s: { ...cellBorder, ...rowStyle } },
+        { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...rowStyle } },
+        { v: t.confirmation?.main_client_name || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.kind.toUpperCase(), s: { ...cellBorder, ...rowStyle, font: { bold: true } } },
+        { v: getCategoryLabel(t.category), s: { ...cellBorder, ...rowStyle } },
+        { v: t.description || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.counterparty || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.amount, s: { ...cellBorder, ...rowStyle, ...amountStyle } },
+        { v: t.currency || "USD", s: { ...cellBorder, ...rowStyle, alignment: { horizontal: "center" } } },
+        { v: t.status === "confirmed" ? "✓ Confirmed" : t.status === "pending" ? "○ Pending" : t.status, s: { ...cellBorder, ...rowStyle } },
+        { v: t.payment_method || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.responsible_holder?.name || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.from_holder?.name || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.to_holder?.name || "", s: { ...cellBorder, ...rowStyle } },
+        { v: t.notes || "", s: { ...cellBorder, ...rowStyle } },
+      ];
+      transactionRows.push(row);
+    });
+
+    const allTransactionsSheet = XLSX.utils.aoa_to_sheet(transactionRows);
+    allTransactionsSheet["!cols"] = [
+      { wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 14 }, { wch: 30 },
+      { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 10 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 25 }
+    ];
+    allTransactionsSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
+
+    // ===== SHEET 3: Income Only =====
+    const incomeTransactions = transactions.filter(t => t.kind === "in");
+    const incomeRows: any[][] = [["Date", "Confirmation", "Client", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
+    
+    incomeTransactions.forEach((t) => {
+      incomeRows.push([
+        { v: t.date, s: { ...cellBorder, ...incomeRowStyle } },
+        { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...incomeRowStyle } },
+        { v: t.confirmation?.main_client_name || "", s: { ...cellBorder, ...incomeRowStyle } },
+        { v: getCategoryLabel(t.category), s: { ...cellBorder, ...incomeRowStyle } },
+        { v: t.description || "", s: { ...cellBorder, ...incomeRowStyle } },
+        { v: t.amount, s: { ...cellBorder, ...incomeRowStyle, ...amountStyle } },
+        { v: t.currency || "USD", s: { ...cellBorder, ...incomeRowStyle } },
+        { v: t.status === "confirmed" ? "✓ Received" : "○ Pending", s: { ...cellBorder, ...incomeRowStyle } },
+      ]);
+    });
+
+    incomeRows.push([]);
+    incomeRows.push([{ v: "TOTAL", s: { font: { bold: true } } }, "", "", "", "", 
+      { v: incomeTransactions.reduce((sum, t) => sum + (t.currency === "USD" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
+      "USD"
+    ]);
+    incomeRows.push(["", "", "", "", "", 
+      { v: incomeTransactions.reduce((sum, t) => sum + (t.currency === "GEL" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
+      "GEL"
     ]);
 
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ledger-${format(new Date(), "yyyy-MM-dd")}.csv`;
-    a.click();
+    const incomeSheet = XLSX.utils.aoa_to_sheet(incomeRows);
+    incomeSheet["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 20 }, { wch: 14 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
+
+    // ===== SHEET 4: Expenses Only =====
+    const expenseTransactions = transactions.filter(t => t.kind === "out");
+    const expenseRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Counterparty", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
+    
+    expenseTransactions.forEach((t) => {
+      expenseRows.push([
+        { v: t.date, s: { ...cellBorder, ...expenseRowStyle } },
+        { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...expenseRowStyle } },
+        { v: getCategoryLabel(t.category), s: { ...cellBorder, ...expenseRowStyle } },
+        { v: t.description || "", s: { ...cellBorder, ...expenseRowStyle } },
+        { v: t.counterparty || "", s: { ...cellBorder, ...expenseRowStyle } },
+        { v: t.amount, s: { ...cellBorder, ...expenseRowStyle, ...amountStyle } },
+        { v: t.currency || "USD", s: { ...cellBorder, ...expenseRowStyle } },
+        { v: t.status === "confirmed" ? "✓ Paid" : "○ Pending", s: { ...cellBorder, ...expenseRowStyle } },
+      ]);
+    });
+
+    expenseRows.push([]);
+    expenseRows.push([{ v: "TOTAL", s: { font: { bold: true } } }, "", "", "", "", 
+      { v: expenseTransactions.reduce((sum, t) => sum + (t.currency === "USD" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
+      "USD"
+    ]);
+    expenseRows.push(["", "", "", "", "", 
+      { v: expenseTransactions.reduce((sum, t) => sum + (t.currency === "GEL" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
+      "GEL"
+    ]);
+
+    const expenseSheet = XLSX.utils.aoa_to_sheet(expenseRows);
+    expenseSheet["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 30 }, { wch: 18 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
+
+    // Create workbook and add sheets
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
+    XLSX.utils.book_append_sheet(workbook, allTransactionsSheet, "All Transactions");
+    XLSX.utils.book_append_sheet(workbook, incomeSheet, "Income");
+    XLSX.utils.book_append_sheet(workbook, expenseSheet, "Expenses");
+
+    // Generate filename
+    const fromStr = dateFrom ? format(dateFrom, "yyyy-MM-dd") : "all";
+    const toStr = dateTo ? format(dateTo, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+    const filename = `Royal-Georgian-Ledger_${fromStr}_to_${toStr}.xlsx`;
+
+    // Download
+    XLSX.writeFile(workbook, filename);
   };
 
   // Filter all transactions by search and responsible holder
@@ -540,9 +741,9 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         <div className="flex-1" />
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={!transactions?.length}>
+          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!transactions?.length}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export Excel
           </Button>
 
           <Button size="sm" onClick={handleAdd}>

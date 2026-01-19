@@ -78,86 +78,73 @@ export function HoldersView() {
         </Button>
       </div>
 
-      {/* Summary Header - Premium Design */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card border border-border/60 rounded-2xl">
-        {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/3 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+      {/* Summary Header - Compact Design */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card border border-border/60 rounded-xl">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
         
-        <div className="relative p-6">
+        <div className="relative p-4">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
-              <Wallet className="h-5 w-5" />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <Wallet className="h-4 w-4" />
             </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Total Holdings</h3>
-              <p className="text-xs text-muted-foreground">Combined balance across all accounts</p>
-            </div>
+            <h3 className="font-medium text-sm text-foreground">Total Holdings</h3>
           </div>
 
           {/* Currency Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             {/* USD Card */}
-            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-5 overflow-hidden">
-              <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest text-primary/40">USD</div>
+            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg p-3">
+              <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-primary/40">USD</div>
               
-              <div className="mb-4">
-                <span className={`text-3xl font-bold tabular-nums tracking-tight ${
+              <div className="mb-2">
+                <span className={`text-xl font-bold tabular-nums tracking-tight ${
                   totals.USD.balance < 0 ? "text-destructive" : "text-foreground"
                 }`}>
-                  {totals.USD.balance < 0 && "−"}
-                  ${Math.abs(Math.round(totals.USD.balance)).toLocaleString()}
+                  {totals.USD.balance < 0 && "−"}${Math.abs(Math.round(totals.USD.balance)).toLocaleString()}
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1">
                 {totals.USD.pendingIn > 0 && (
-                  <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">
-                    <TrendingUp className="h-3 w-3" />
+                  <div className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    <TrendingUp className="h-2.5 w-2.5" />
                     +${Math.round(totals.USD.pendingIn).toLocaleString()}
                   </div>
                 )}
                 {totals.USD.pendingOut > 0 && (
-                  <div className="inline-flex items-center gap-1 text-xs font-medium text-destructive bg-destructive/10 px-2 py-1 rounded-lg">
-                    <TrendingDown className="h-3 w-3" />
+                  <div className="inline-flex items-center gap-0.5 text-[10px] font-medium text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+                    <TrendingDown className="h-2.5 w-2.5" />
                     −${Math.round(totals.USD.pendingOut).toLocaleString()}
                   </div>
-                )}
-                {totals.USD.pendingIn === 0 && totals.USD.pendingOut === 0 && (
-                  <span className="text-xs text-muted-foreground/50">No pending</span>
                 )}
               </div>
             </div>
 
             {/* GEL Card */}
-            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-5 overflow-hidden">
-              <div className="absolute top-3 right-3 text-[10px] font-bold uppercase tracking-widest text-primary/40">GEL</div>
+            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg p-3">
+              <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-primary/40">GEL</div>
               
-              <div className="mb-4">
-                <span className={`text-3xl font-bold tabular-nums tracking-tight ${
+              <div className="mb-2">
+                <span className={`text-xl font-bold tabular-nums tracking-tight ${
                   totals.GEL.balance < 0 ? "text-destructive" : "text-foreground"
                 }`}>
-                  {totals.GEL.balance < 0 && "−"}
-                  ₾{Math.abs(Math.round(totals.GEL.balance)).toLocaleString()}
+                  {totals.GEL.balance < 0 && "−"}₾{Math.abs(Math.round(totals.GEL.balance)).toLocaleString()}
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1">
                 {totals.GEL.pendingIn > 0 && (
-                  <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">
-                    <TrendingUp className="h-3 w-3" />
+                  <div className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                    <TrendingUp className="h-2.5 w-2.5" />
                     +₾{Math.round(totals.GEL.pendingIn).toLocaleString()}
                   </div>
                 )}
                 {totals.GEL.pendingOut > 0 && (
-                  <div className="inline-flex items-center gap-1 text-xs font-medium text-destructive bg-destructive/10 px-2 py-1 rounded-lg">
-                    <TrendingDown className="h-3 w-3" />
+                  <div className="inline-flex items-center gap-0.5 text-[10px] font-medium text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
+                    <TrendingDown className="h-2.5 w-2.5" />
                     −₾{Math.round(totals.GEL.pendingOut).toLocaleString()}
                   </div>
-                )}
-                {totals.GEL.pendingIn === 0 && totals.GEL.pendingOut === 0 && (
-                  <span className="text-xs text-muted-foreground/50">No pending</span>
                 )}
               </div>
             </div>

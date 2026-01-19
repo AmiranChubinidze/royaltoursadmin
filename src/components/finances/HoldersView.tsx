@@ -14,7 +14,10 @@ export function HoldersView() {
   const [exchangeRateModalOpen, setExchangeRateModalOpen] = useState(false);
   const [selectedHolder, setSelectedHolder] = useState<HolderWithBalance | null>(null);
 
-  const { data: holders, isLoading, error } = useHoldersWithBalances();
+  const { data, isLoading, error } = useHoldersWithBalances();
+
+  const holders = data?.holders;
+  const unassignedPendingIn = data?.unassignedPendingIn;
 
   if (isLoading) {
     return (
@@ -43,7 +46,7 @@ export function HoldersView() {
     );
   }
 
-  // Calculate totals for both currencies
+  // Calculate totals for both currencies (including unassigned pending)
   const totals = holders.reduce(
     (acc, holder) => {
       acc.USD.balance += holder.balanceUSD;
@@ -55,8 +58,8 @@ export function HoldersView() {
       return acc;
     },
     {
-      USD: { balance: 0, pendingIn: 0, pendingOut: 0 },
-      GEL: { balance: 0, pendingIn: 0, pendingOut: 0 },
+      USD: { balance: 0, pendingIn: unassignedPendingIn?.USD || 0, pendingOut: 0 },
+      GEL: { balance: 0, pendingIn: unassignedPendingIn?.GEL || 0, pendingOut: 0 },
     }
   );
 

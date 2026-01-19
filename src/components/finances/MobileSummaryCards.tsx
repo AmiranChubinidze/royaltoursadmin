@@ -2,12 +2,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { 
   TrendingDown, 
-  TrendingUp, 
-  DollarSign, 
   Clock, 
   Wallet, 
-  LucideIcon,
-  Minus 
+  type LucideIcon,
 } from "lucide-react";
 
 interface CurrencyValue {
@@ -30,38 +27,11 @@ interface CardConfig {
   iconColor: string;
   iconBg: string;
   valueColor: string;
-  getDelta: () => { value: string; type: "positive" | "negative" | "neutral" } | null;
 }
 
 function formatValue(value: number, symbol: string): string {
   const formatted = Math.abs(Math.round(value)).toLocaleString();
   return `${value < 0 ? "−" : ""}${symbol}${formatted}`;
-}
-
-function DeltaBadge({ 
-  value, 
-  type 
-}: { 
-  value: string; 
-  type: "positive" | "negative" | "neutral";
-}) {
-  const styles = {
-    positive: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    negative: "bg-red-500/10 text-red-600 dark:text-red-400",
-    neutral: "bg-muted text-muted-foreground",
-  };
-
-  const Icon = type === "positive" ? TrendingUp : type === "negative" ? TrendingDown : Minus;
-
-  return (
-    <div className={cn(
-      "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium",
-      styles[type]
-    )}>
-      <Icon className="h-2.5 w-2.5" />
-      <span>{value}</span>
-    </div>
-  );
 }
 
 function ValueDisplay({ 
@@ -76,7 +46,7 @@ function ValueDisplay({
 
   if (!hasUSD && !hasGEL) {
     return (
-      <span className="text-xl font-bold tracking-tight text-muted-foreground/40">
+      <span className="text-base font-bold tracking-tight text-muted-foreground/40">
         $0
       </span>
     );
@@ -88,11 +58,11 @@ function ValueDisplay({
 
   if (hasUSD && hasGEL) {
     return (
-      <div className="space-y-0">
-        <span className={cn("text-xl font-bold tracking-tight block", valueColor)}>
+      <div className="flex items-baseline gap-1.5">
+        <span className={cn("text-base font-bold tracking-tight", valueColor)}>
           {formatValue(showUSDPrimary ? value.USD : value.GEL, showUSDPrimary ? "$" : "₾")}
         </span>
-        <span className="text-xs font-medium text-muted-foreground">
+        <span className="text-xs font-semibold text-muted-foreground">
           {formatValue(showUSDPrimary ? value.GEL : value.USD, showUSDPrimary ? "₾" : "$")}
         </span>
       </div>
@@ -100,7 +70,7 @@ function ValueDisplay({
   }
 
   return (
-    <span className={cn("text-xl font-bold tracking-tight", valueColor)}>
+    <span className={cn("text-base font-bold tracking-tight", valueColor)}>
       {hasUSD ? formatValue(value.USD, "$") : formatValue(value.GEL, "₾")}
     </span>
   );
@@ -109,7 +79,6 @@ function ValueDisplay({
 export function MobileSummaryCards({
   received,
   expenses,
-  profit,
   pending,
   isLoading = false,
 }: MobileSummaryCardsProps) {
@@ -121,11 +90,6 @@ export function MobileSummaryCards({
       iconColor: "text-emerald-600 dark:text-emerald-400",
       iconBg: "bg-emerald-500/10",
       valueColor: "text-foreground",
-      getDelta: () => {
-        const total = received.USD + received.GEL;
-        if (total > 0) return { value: "Active", type: "positive" };
-        return null;
-      },
     },
     {
       label: "Expenses",
@@ -134,25 +98,6 @@ export function MobileSummaryCards({
       iconColor: "text-red-600 dark:text-red-400",
       iconBg: "bg-red-500/10",
       valueColor: "text-foreground",
-      getDelta: () => null,
-    },
-    {
-      label: "Profit",
-      value: profit,
-      icon: DollarSign,
-      iconColor: profit.USD + profit.GEL >= 0 
-        ? "text-emerald-600 dark:text-emerald-400" 
-        : "text-red-600 dark:text-red-400",
-      iconBg: profit.USD + profit.GEL >= 0 ? "bg-emerald-500/10" : "bg-red-500/10",
-      valueColor: profit.USD + profit.GEL >= 0 
-        ? "text-emerald-600 dark:text-emerald-400" 
-        : "text-red-600 dark:text-red-400",
-      getDelta: () => {
-        const total = profit.USD + profit.GEL;
-        if (total > 0) return { value: "↑", type: "positive" };
-        if (total < 0) return { value: "↓", type: "negative" };
-        return null;
-      },
     },
     {
       label: "Pending",
@@ -161,48 +106,32 @@ export function MobileSummaryCards({
       iconColor: "text-amber-600 dark:text-amber-400",
       iconBg: "bg-amber-500/10",
       valueColor: "text-amber-600 dark:text-amber-400",
-      getDelta: () => {
-        const total = pending.USD + pending.GEL;
-        if (total <= 0) return { value: "✓", type: "positive" };
-        return null;
-      },
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-3 gap-2">
       {cards.map((card) => {
-        const delta = card.getDelta();
+        const IconComponent = card.icon;
         
         return (
           <div
             key={card.label}
-            className="relative bg-card border border-border/50 rounded-xl p-3 overflow-hidden"
+            className="bg-card border border-border/50 rounded-lg p-2.5"
           >
-            <div className="flex items-start gap-3">
-              {/* Icon */}
+            <div className="flex items-center gap-2">
               <div className={cn(
-                "flex-shrink-0 p-2 rounded-lg",
+                "flex-shrink-0 p-1.5 rounded-md",
                 card.iconBg
               )}>
-                <card.icon className={cn("h-4 w-4", card.iconColor)} />
+                <IconComponent className={cn("h-3.5 w-3.5", card.iconColor)} />
               </div>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0 space-y-0.5">
-                {/* Label + Delta */}
-                <div className="flex items-center gap-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {card.label}
-                  </p>
-                  {!isLoading && delta && (
-                    <DeltaBadge value={delta.value} type={delta.type} />
-                  )}
-                </div>
-
-                {/* Value */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  {card.label}
+                </p>
                 {isLoading ? (
-                  <Skeleton className="h-6 w-16" />
+                  <Skeleton className="h-4 w-12" />
                 ) : (
                   <ValueDisplay value={card.value} valueColor={card.valueColor} />
                 )}

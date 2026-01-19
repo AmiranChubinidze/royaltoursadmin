@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useTransactions, TransactionCategory } from "@/hooks/useTransactions";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Receipt, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Receipt, Wallet, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
 
 interface CategoriesViewProps {
   dateFrom?: Date;
@@ -24,9 +24,82 @@ const CATEGORY_CONFIG: Record<TransactionCategory, { label: string; color: strin
   other: { label: "Other", color: "text-gray-600", bgColor: "bg-gray-500", chartColor: "#6b7280" },
 };
 
+// Calculate percentage change
+function calcChange(current: number, previous: number): { percent: number; direction: 'up' | 'down' | 'same' } {
+  if (previous === 0 && current === 0) return { percent: 0, direction: 'same' };
+  if (previous === 0) return { percent: 100, direction: 'up' };
+  const percent = ((current - previous) / previous) * 100;
+  return {
+    percent: Math.abs(percent),
+    direction: percent > 0.5 ? 'up' : percent < -0.5 ? 'down' : 'same',
+  };
+}
+
+// Change indicator component
+function ChangeIndicator({ current, previous, invertColors = false }: { current: number; previous: number; invertColors?: boolean }) {
+  const { percent, direction } = calcChange(current, previous);
+  
+  if (direction === 'same') {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+        <Minus className="h-3 w-3" />
+        <span>0%</span>
+      </span>
+    );
+  }
+
+  const isPositive = direction === 'up';
+  // For expenses, "up" is bad (red), for income "up" is good (green)
+  const colorClass = invertColors
+    ? isPositive ? 'text-rose-600' : 'text-emerald-600'
+    : isPositive ? 'text-emerald-600' : 'text-rose-600';
+
+  return (
+    <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", colorClass)}>
+      {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+      <span>{percent.toFixed(1)}%</span>
+    </span>
+  );
+}
+
 export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
-  const { data: transactions, isLoading } = useTransactions({ dateFrom, dateTo });
   const { formatAmount } = useCurrency();
+
+  // Calculate previous period dates
+  const { prevDateFrom, prevDateTo } = useMemo(() => {
+    if (!dateFrom || !dateTo) {
+      // Default: this month vs last month
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      
+      return {
+        prevDateFrom: lastMonthStart,
+        prevDateTo: lastMonthEnd,
+      };
+    }
+
+    // Calculate the same duration for the previous period
+    const duration = dateTo.getTime() - dateFrom.getTime();
+    const prevEnd = new Date(dateFrom.getTime() - 1); // Day before current start
+    const prevStart = new Date(prevEnd.getTime() - duration);
+    
+    return {
+      prevDateFrom: prevStart,
+      prevDateTo: prevEnd,
+    };
+  }, [dateFrom, dateTo]);
+
+  // Fetch current period transactions
+  const { data: transactions, isLoading } = useTransactions({ dateFrom, dateTo });
+  
+  // Fetch previous period transactions for comparison
+  const { data: prevTransactions, isLoading: isPrevLoading } = useTransactions({ 
+    dateFrom: prevDateFrom, 
+    dateTo: prevDateTo 
+  });
 
   const categoryStats = useMemo(() => {
     if (!transactions) return [];
@@ -40,6 +113,10 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
         .reduce((sum, t) => sum + t.amount, 0);
       const count = categoryTransactions.length;
 
+      // Previous period stats
+      const prevCategoryTransactions = prevTransactions?.filter((t) => t.category === cat) || [];
+      const prevTotalAmount = prevCategoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+
       return {
         category: cat,
         ...CATEGORY_CONFIG[cat],
@@ -47,18 +124,29 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
         paidAmount,
         pendingAmount: totalAmount - paidAmount,
         count,
+        prevTotalAmount,
       };
     });
 
     return stats.sort((a, b) => b.totalAmount - a.totalAmount);
-  }, [transactions]);
+  }, [transactions, prevTransactions]);
 
   const expenseCategories = categoryStats.filter((c) => c.category !== "tour_payment" && c.totalAmount > 0);
   const incomeCategory = categoryStats.find((c) => c.category === "tour_payment");
 
   const totalExpenses = expenseCategories.reduce((sum, c) => sum + c.totalAmount, 0);
+  const prevTotalExpenses = expenseCategories.reduce((sum, c) => sum + c.prevTotalAmount, 0);
   const totalPendingExpenses = expenseCategories.reduce((sum, c) => sum + c.pendingAmount, 0);
   const maxExpense = Math.max(...expenseCategories.map((c) => c.totalAmount), 1);
+
+  // Previous period income
+  const prevIncomeCategory = useMemo(() => {
+    if (!prevTransactions) return { totalAmount: 0, pendingAmount: 0 };
+    const txs = prevTransactions.filter((t) => t.category === "tour_payment");
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    const paid = txs.filter((t) => t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+    return { totalAmount: total, pendingAmount: total - paid };
+  }, [prevTransactions]);
 
   // Prepare chart data
   const chartData = expenseCategories.map((cat) => ({
@@ -68,8 +156,10 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
   }));
 
   // Calculate profit margin
+  const currentProfit = (incomeCategory?.totalAmount || 0) - totalExpenses;
+  const prevProfit = (prevIncomeCategory.totalAmount || 0) - prevTotalExpenses;
   const profitMargin = incomeCategory && incomeCategory.totalAmount > 0
-    ? ((incomeCategory.totalAmount - totalExpenses) / incomeCategory.totalAmount * 100).toFixed(1)
+    ? ((currentProfit) / incomeCategory.totalAmount * 100).toFixed(1)
     : 0;
 
   // Top pending confirmations
@@ -92,7 +182,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
       .slice(0, 5);
   }, [transactions]);
 
-  if (isLoading) {
+  if (isLoading || isPrevLoading) {
     return (
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-4">
@@ -119,7 +209,13 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                 <ArrowDownRight className="h-5 w-5 text-emerald-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-emerald-700/70 dark:text-emerald-400/70">Total Income</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-emerald-700/70 dark:text-emerald-400/70">Total Income</p>
+                  <ChangeIndicator 
+                    current={incomeCategory?.totalAmount || 0} 
+                    previous={prevIncomeCategory.totalAmount} 
+                  />
+                </div>
                 <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400 truncate">
                   {formatAmount(incomeCategory?.totalAmount || 0)}
                 </p>
@@ -135,7 +231,14 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                 <ArrowUpRight className="h-5 w-5 text-rose-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-rose-700/70 dark:text-rose-400/70">Total Expenses</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-rose-700/70 dark:text-rose-400/70">Total Expenses</p>
+                  <ChangeIndicator 
+                    current={totalExpenses} 
+                    previous={prevTotalExpenses}
+                    invertColors 
+                  />
+                </div>
                 <p className="text-xl font-bold text-rose-700 dark:text-rose-400 truncate">
                   {formatAmount(totalExpenses)}
                 </p>
@@ -151,7 +254,14 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                 <Clock className="h-5 w-5 text-amber-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-amber-700/70 dark:text-amber-400/70">Pending</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-amber-700/70 dark:text-amber-400/70">Pending</p>
+                  <ChangeIndicator 
+                    current={(incomeCategory?.pendingAmount || 0) + totalPendingExpenses} 
+                    previous={prevIncomeCategory.pendingAmount}
+                    invertColors
+                  />
+                </div>
                 <p className="text-xl font-bold text-amber-700 dark:text-amber-400 truncate">
                   {formatAmount((incomeCategory?.pendingAmount || 0) + totalPendingExpenses)}
                 </p>
@@ -171,7 +281,13 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-blue-700/70 dark:text-blue-400/70">Profit Margin</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs font-medium text-blue-700/70 dark:text-blue-400/70">Profit Margin</p>
+                  <ChangeIndicator 
+                    current={currentProfit} 
+                    previous={prevProfit} 
+                  />
+                </div>
                 <p className="text-xl font-bold text-blue-700 dark:text-blue-400">
                   {profitMargin}%
                 </p>
@@ -282,6 +398,11 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                       <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                         {cat.count}
                       </Badge>
+                      <ChangeIndicator 
+                        current={cat.totalAmount} 
+                        previous={cat.prevTotalAmount}
+                        invertColors
+                      />
                     </div>
                     <span className="text-sm font-semibold">{formatAmount(cat.totalAmount)}</span>
                   </div>
@@ -367,7 +488,13 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">Total Transactions</p>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs text-muted-foreground">Total Transactions</p>
+                  <ChangeIndicator 
+                    current={transactions?.length || 0} 
+                    previous={prevTransactions?.length || 0} 
+                  />
+                </div>
                 <p className="text-3xl font-bold">{transactions?.length || 0}</p>
               </div>
               <div className="p-4 rounded-xl bg-muted/50">

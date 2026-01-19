@@ -94,19 +94,19 @@ export function HoldersView() {
                 }`}
               >
                 {totals.USD.balance < 0 && "-"}
-                ${Math.abs(totals.USD.balance).toLocaleString()}
+                ${Math.abs(Math.round(totals.USD.balance)).toLocaleString()}
               </span>
               <span className="text-sm text-muted-foreground">USD</span>
             </div>
             <div className="flex gap-3 mt-1 text-xs">
               {totals.USD.pendingIn > 0 && (
                 <span className="text-emerald-600 dark:text-emerald-400">
-                  +${totals.USD.pendingIn.toLocaleString()} pending
+                  +${Math.round(totals.USD.pendingIn).toLocaleString()} pending
                 </span>
               )}
               {totals.USD.pendingOut > 0 && (
                 <span className="text-destructive">
-                  -${totals.USD.pendingOut.toLocaleString()} pending
+                  -${Math.round(totals.USD.pendingOut).toLocaleString()} pending
                 </span>
               )}
             </div>
@@ -120,19 +120,19 @@ export function HoldersView() {
                 }`}
               >
                 {totals.GEL.balance < 0 && "-"}
-                ₾{Math.abs(totals.GEL.balance).toLocaleString()}
+                ₾{Math.abs(Math.round(totals.GEL.balance)).toLocaleString()}
               </span>
               <span className="text-sm text-muted-foreground">GEL</span>
             </div>
             <div className="flex gap-3 mt-1 text-xs">
               {totals.GEL.pendingIn > 0 && (
                 <span className="text-emerald-600 dark:text-emerald-400">
-                  +₾{totals.GEL.pendingIn.toLocaleString()} pending
+                  +₾{Math.round(totals.GEL.pendingIn).toLocaleString()} pending
                 </span>
               )}
               {totals.GEL.pendingOut > 0 && (
                 <span className="text-destructive">
-                  -₾{totals.GEL.pendingOut.toLocaleString()} pending
+                  -₾{Math.round(totals.GEL.pendingOut).toLocaleString()} pending
                 </span>
               )}
             </div>

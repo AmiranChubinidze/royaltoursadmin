@@ -167,7 +167,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
     if (!transactions) return [];
 
     const grouped = transactions
-      .filter((t) => t.type === "income" && !t.is_paid && t.confirmation)
+      .filter((t) => t.type === "income" && t.status === "pending" && t.confirmation)
       .reduce((acc, t) => {
         const code = t.confirmation?.confirmation_code || "General";
         if (!acc[code]) {

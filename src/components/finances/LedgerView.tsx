@@ -501,117 +501,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       ? `${format(dateFrom, "MMM d, yyyy")} to ${format(dateTo, "MMM d, yyyy")}`
       : "All Time";
 
-    // ===== SHEET 1: Summary Dashboard - Clean & Minimal =====
-    const summaryData: any[][] = [];
-
-    // Title area - simple and elegant
-    summaryData.push([{ v: "Financial Summary", s: { font: { bold: true, sz: 24, color: { rgb: "333333" } } } }]);
-    summaryData.push([{ v: dateRangeText, s: { font: { sz: 12, color: { rgb: "888888" } } } }]);
-    summaryData.push([]);
-    summaryData.push([]);
-
-    // Main metrics - big numbers
-    const bigNumberStyle = {
-      font: { bold: true, sz: 20, color: { rgb: "2F5597" } },
-      alignment: { horizontal: "center", vertical: "center" },
-      numFmt: "#,##0",
-    };
-
-    const labelSmall = {
-      font: { sz: 10, color: { rgb: "999999" } },
-      alignment: { horizontal: "center", vertical: "center" },
-    };
-
-    const metricBox = {
-      fill: { fgColor: { rgb: "F8F9FA" } },
-      alignment: { horizontal: "center", vertical: "center" },
-    };
-
-    summaryData.push([
-      { v: "INCOME", s: { ...labelSmall, fill: { fgColor: { rgb: "E6F4EA" } } } },
-      "",
-      { v: "EXPENSES", s: { ...labelSmall, fill: { fgColor: { rgb: "FCE8E6" } } } },
-      "",
-      { v: "NET", s: { ...labelSmall, fill: { fgColor: { rgb: "E8F0FE" } } } },
-    ]);
-    summaryData.push([
-      { v: totals.incomeUSD, s: { ...bigNumberStyle, fill: { fgColor: { rgb: "E6F4EA" } }, color: { rgb: "1B7F37" } } },
-      "",
-      { v: totals.expenseUSD, s: { ...bigNumberStyle, fill: { fgColor: { rgb: "FCE8E6" } }, color: { rgb: "C53929" } } },
-      "",
-      { v: totals.incomeUSD - totals.expenseUSD, s: { ...bigNumberStyle, fill: { fgColor: { rgb: "E8F0FE" } } } },
-    ]);
-    summaryData.push([
-      { v: "USD", s: { font: { sz: 9, color: { rgb: "666666" } }, alignment: { horizontal: "center" }, fill: { fgColor: { rgb: "E6F4EA" } } } },
-      "",
-      { v: "USD", s: { font: { sz: 9, color: { rgb: "666666" } }, alignment: { horizontal: "center" }, fill: { fgColor: { rgb: "FCE8E6" } } } },
-      "",
-      { v: "USD", s: { font: { sz: 9, color: { rgb: "666666" } }, alignment: { horizontal: "center" }, fill: { fgColor: { rgb: "E8F0FE" } } } },
-    ]);
-    summaryData.push([]);
-
-    // GEL row
-    summaryData.push([
-      { v: totals.incomeGEL, s: { font: { bold: true, sz: 14, color: { rgb: "1B7F37" } }, alignment: { horizontal: "center" }, numFmt: "#,##0" } },
-      "",
-      { v: totals.expenseGEL, s: { font: { bold: true, sz: 14, color: { rgb: "C53929" } }, alignment: { horizontal: "center" }, numFmt: "#,##0" } },
-      "",
-      { v: totals.incomeGEL - totals.expenseGEL, s: { font: { bold: true, sz: 14, color: { rgb: "2F5597" } }, alignment: { horizontal: "center" }, numFmt: "#,##0" } },
-    ]);
-    summaryData.push([
-      { v: "GEL", s: { font: { sz: 9, color: { rgb: "999999" } }, alignment: { horizontal: "center" } } },
-      "",
-      { v: "GEL", s: { font: { sz: 9, color: { rgb: "999999" } }, alignment: { horizontal: "center" } } },
-      "",
-      { v: "GEL", s: { font: { sz: 9, color: { rgb: "999999" } }, alignment: { horizontal: "center" } } },
-    ]);
-
-    summaryData.push([]);
-    summaryData.push([]);
-
-    // Expense breakdown - minimal table
-    summaryData.push([{ v: "Expenses by Category", s: { font: { bold: true, sz: 14, color: { rgb: "333333" } } } }]);
-    summaryData.push([]);
-
-    const catHeaderStyle = {
-      font: { bold: true, sz: 10, color: { rgb: "666666" } },
-      alignment: { horizontal: "left" },
-      border: { bottom: { style: "thin", color: { rgb: "DDDDDD" } } },
-    };
-
-    summaryData.push([
-      { v: "Category", s: catHeaderStyle },
-      { v: "USD", s: { ...catHeaderStyle, alignment: { horizontal: "right" } } },
-      { v: "GEL", s: { ...catHeaderStyle, alignment: { horizontal: "right" } } },
-    ]);
-
-    const sortedCategories = Object.entries(categoryTotals)
-      .sort((a, b) => (b[1].usd + b[1].gel) - (a[1].usd + a[1].gel));
-
-    sortedCategories.forEach(([cat, amounts], idx) => {
-      const isLast = idx === sortedCategories.length - 1;
-      const rowBorder = isLast ? {} : { border: { bottom: { style: "thin", color: { rgb: "F0F0F0" } } } };
-      summaryData.push([
-        { v: getCategoryLabel(cat), s: { font: { sz: 11 }, ...rowBorder } },
-        { v: amounts.usd, s: { font: { sz: 11 }, alignment: { horizontal: "right" }, numFmt: "#,##0", ...rowBorder } },
-        { v: amounts.gel, s: { font: { sz: 11 }, alignment: { horizontal: "right" }, numFmt: "#,##0", ...rowBorder } },
-      ]);
-    });
-
-    summaryData.push([]);
-    summaryData.push([]);
-
-    // Footer
-    summaryData.push([
-      { v: `${transactions.length} transactions`, s: { font: { sz: 10, color: { rgb: "AAAAAA" } } } },
-      "",
-      { v: `Generated ${format(new Date(), "MMM d, yyyy")}`, s: { font: { sz: 10, color: { rgb: "AAAAAA" } }, alignment: { horizontal: "right" } } },
-    ]);
-
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    summarySheet["!cols"] = [{ wch: 18 }, { wch: 4 }, { wch: 18 }, { wch: 4 }, { wch: 18 }];
-
-    // ===== SHEET 2: All Transactions =====
+    // ===== SHEET 1: All Transactions =====
     const headers = [
       "Date", "Confirmation", "Kind", "Category", "Description",
       "Amount", "Currency", "Status", "Method", "Responsible", "From", "To", "Notes"
@@ -659,7 +549,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     ];
     allTransactionsSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 
-    // ===== SHEET 3: Income Only =====
+    // ===== SHEET 2: Income Only =====
     const incomeTransactions = transactions.filter(t => t.kind === "in");
     const incomeRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
     
@@ -688,7 +578,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     const incomeSheet = XLSX.utils.aoa_to_sheet(incomeRows);
     incomeSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
 
-    // ===== SHEET 4: Expenses Only =====
+    // ===== SHEET 3: Expenses Only =====
     const expenseTransactions = transactions.filter(t => t.kind === "out");
     const expenseRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status", "Responsible"].map(h => ({ v: h, s: headerStyle }))];
     
@@ -720,8 +610,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
     // Create workbook and add sheets
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
-    XLSX.utils.book_append_sheet(workbook, allTransactionsSheet, "All Transactions");
+    XLSX.utils.book_append_sheet(workbook, allTransactionsSheet, "Transactions");
     XLSX.utils.book_append_sheet(workbook, incomeSheet, "Income");
     XLSX.utils.book_append_sheet(workbook, expenseSheet, "Expenses");
 

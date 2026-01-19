@@ -6,55 +6,105 @@ import {
   DollarSign,
   Clock,
   Wallet,
+  LucideIcon,
 } from "lucide-react";
-import { useCurrency } from "@/contexts/CurrencyContext";
+
+interface CurrencyValue {
+  USD: number;
+  GEL: number;
+}
 
 interface FinanceSummaryCardsProps {
-  revenueExpected: number;
-  received: number;
-  expenses: number;
-  profit: number;
-  pending: number;
+  received: CurrencyValue;
+  expenses: CurrencyValue;
+  profit: CurrencyValue;
+  pending: CurrencyValue;
   isLoading?: boolean;
 }
 
+interface CardConfig {
+  label: string;
+  value: CurrencyValue;
+  icon: LucideIcon;
+  getColor: (val: number) => string;
+  bgColor: string;
+}
+
+function formatCurrencyValue(value: number, symbol: string): string {
+  const formatted = Math.abs(Math.round(value)).toLocaleString();
+  return `${value < 0 ? "−" : ""}${symbol}${formatted}`;
+}
+
+function CurrencyDisplay({ 
+  value, 
+  getColor 
+}: { 
+  value: CurrencyValue; 
+  getColor: (val: number) => string;
+}) {
+  const hasUSD = value.USD !== 0;
+  const hasGEL = value.GEL !== 0;
+
+  if (!hasUSD && !hasGEL) {
+    return (
+      <p className="text-xl font-bold text-muted-foreground/50">$0</p>
+    );
+  }
+
+  return (
+    <div className="space-y-0.5">
+      {hasUSD && (
+        <p className={cn("text-xl font-bold", getColor(value.USD))}>
+          {formatCurrencyValue(value.USD, "$")}
+        </p>
+      )}
+      {hasGEL && (
+        <p className={cn(
+          "font-semibold",
+          hasUSD ? "text-sm" : "text-xl",
+          getColor(value.GEL)
+        )}>
+          {formatCurrencyValue(value.GEL, "₾")}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function FinanceSummaryCards({
-  revenueExpected,
   received,
   expenses,
   profit,
   pending,
   isLoading = false,
 }: FinanceSummaryCardsProps) {
-  const { formatAmount } = useCurrency();
-  
-  const cards = [
+  const cards: CardConfig[] = [
     {
       label: "Received (Cash In)",
       value: received,
       icon: Wallet,
-      color: "text-emerald-600",
+      getColor: () => "text-emerald-600",
       bgColor: "bg-emerald-500/10",
     },
     {
       label: "Expenses (Cash Out)",
       value: expenses,
       icon: TrendingDown,
-      color: "text-red-600",
+      getColor: () => "text-red-600",
       bgColor: "bg-red-500/10",
     },
     {
       label: "Profit (Actual)",
       value: profit,
       icon: DollarSign,
-      color: profit >= 0 ? "text-emerald-600" : "text-red-600",
-      bgColor: profit >= 0 ? "bg-emerald-500/10" : "bg-red-500/10",
+      getColor: (val: number) => val >= 0 ? "text-emerald-600" : "text-red-600",
+      bgColor: profit.USD >= 0 && profit.GEL >= 0 ? "bg-emerald-500/10" : "bg-red-500/10",
     },
     {
       label: "Pending",
       value: pending,
       icon: Clock,
-      color: "text-amber-600",
+      getColor: () => "text-amber-600",
       bgColor: "bg-amber-500/10",
     },
   ];
@@ -66,7 +116,7 @@ export function FinanceSummaryCards({
           <CardContent className="pt-5 pb-4">
             <div className="flex items-start gap-3">
               <div className={cn("p-2.5 rounded-lg", card.bgColor)}>
-                <card.icon className={cn("h-5 w-5", card.color)} />
+                <card.icon className={cn("h-5 w-5", card.getColor(card.value.USD + card.value.GEL))} />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-muted-foreground truncate">
@@ -75,9 +125,9 @@ export function FinanceSummaryCards({
                 {isLoading ? (
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
-                  <p className={cn("text-xl font-bold mt-0.5", card.color)}>
-                    {formatAmount(card.value)}
-                  </p>
+                  <div className="mt-0.5">
+                    <CurrencyDisplay value={card.value} getColor={card.getColor} />
+                  </div>
                 )}
               </div>
             </div>

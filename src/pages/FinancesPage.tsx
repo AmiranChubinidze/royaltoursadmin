@@ -80,10 +80,16 @@ export default function FinancesPage() {
     return amount; // Already USD
   };
 
-  // Compute summary values
+  // Compute summary values with separate USD and GEL totals
   const summaryData = useMemo(() => {
+    const empty = { USD: 0, GEL: 0 };
     if (!confirmations || !transactions) {
-      return { revenueExpected: 0, received: 0, expenses: 0, profit: 0, pending: 0 };
+      return { 
+        received: { ...empty }, 
+        expenses: { ...empty }, 
+        profit: { ...empty }, 
+        pending: { ...empty } 
+      };
     }
 
     // Filter confirmations by date range
@@ -101,18 +107,16 @@ export default function FinancesPage() {
       return true;
     });
 
-    // Revenue Expected: sum of confirmation prices (stored in USD)
-    const revenueExpected = filteredConfirmations.reduce(
-      (sum, c) => sum + (Number(c.price) || 0),
-      0
-    );
+    // Received: sum of confirmed income transactions by currency
+    const receivedUSD = transactions
+      .filter((t) => t.type === "income" && t.status === "confirmed" && t.currency === "USD")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    
+    const receivedGEL = transactions
+      .filter((t) => t.type === "income" && t.status === "confirmed" && t.currency === "GEL")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // Received: sum of confirmed income transactions (convert to USD)
-    const received = transactions
-      .filter((t) => t.type === "income" && t.status === "confirmed")
-      .reduce((sum, t) => sum + toUSD(Number(t.amount) || 0, t.currency), 0);
-
-    // For confirmations without confirmed income transactions, use client_paid flag
+    // For confirmations without confirmed income transactions, use client_paid flag (prices are in USD)
     const confirmationsWithoutPaidIncomeTransactions = filteredConfirmations.filter((c) => {
       const hasConfirmedIncomeTransaction = transactions.some(
         (t) => t.confirmation_id === c.id && t.type === "income" && t.status === "confirmed"
@@ -123,30 +127,42 @@ export default function FinancesPage() {
       (sum, c) => sum + (Number(c.price) || 0),
       0
     );
-    const totalReceived = received + receivedFromFlags;
 
-    // Expenses: sum of confirmed expense transactions (convert to USD)
-    // Exclude internal transfers and currency exchanges (they don't represent actual spending)
-    const paidExpenses = transactions
-      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
-      .reduce((sum, t) => sum + toUSD(Number(t.amount) || 0, t.currency), 0);
-
-    const totalExpenses = paidExpenses;
-
-    // Profit = Received - Expenses
-    const profit = totalReceived - totalExpenses;
-
-    // Pending = Revenue Expected - Received
-    const pending = revenueExpected - totalReceived;
-
-    return {
-      revenueExpected,
-      received: totalReceived,
-      expenses: totalExpenses,
-      profit,
-      pending,
+    const received = {
+      USD: receivedUSD + receivedFromFlags,
+      GEL: receivedGEL,
     };
-  }, [confirmations, transactions, dateFrom, dateTo, exchangeRate]);
+
+    // Expenses: sum of confirmed expense transactions by currency
+    // Exclude internal transfers and currency exchanges
+    const expensesUSD = transactions
+      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.currency === "USD" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    
+    const expensesGEL = transactions
+      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.currency === "GEL" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    const expenses = { USD: expensesUSD, GEL: expensesGEL };
+
+    // Profit = Received - Expenses (per currency)
+    const profit = {
+      USD: received.USD - expenses.USD,
+      GEL: received.GEL - expenses.GEL,
+    };
+
+    // Pending: Revenue Expected (USD) - Received USD (confirmations prices are in USD)
+    const revenueExpected = filteredConfirmations.reduce(
+      (sum, c) => sum + (Number(c.price) || 0),
+      0
+    );
+    const pending = {
+      USD: revenueExpected - received.USD,
+      GEL: 0, // No GEL pending from confirmations
+    };
+
+    return { received, expenses, profit, pending };
+  }, [confirmations, transactions, dateFrom, dateTo]);
 
   const handleTogglePaid = async (id: string, currentStatus: boolean) => {
     await updateTransaction.mutateAsync({ id, status: currentStatus ? "pending" : "confirmed" });
@@ -445,7 +461,6 @@ export default function FinancesPage() {
 
         {/* Summary Cards */}
         <FinanceSummaryCards
-          revenueExpected={summaryData.revenueExpected}
           received={summaryData.received}
           expenses={summaryData.expenses}
           profit={summaryData.profit}

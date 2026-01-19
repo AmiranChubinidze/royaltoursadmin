@@ -185,11 +185,6 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
   if (isLoading || isPrevLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
-          ))}
-        </div>
         <div className="grid gap-6 md:grid-cols-2">
           <Skeleton className="h-80 w-full rounded-xl" />
           <Skeleton className="h-80 w-full rounded-xl" />
@@ -200,103 +195,6 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Stats Row */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/10">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10">
-                <ArrowDownRight className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-medium text-emerald-700/70 dark:text-emerald-400/70">Total Income</p>
-                  <ChangeIndicator 
-                    current={incomeCategory?.totalAmount || 0} 
-                    previous={prevIncomeCategory.totalAmount} 
-                  />
-                </div>
-                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400 truncate">
-                  {formatAmount(incomeCategory?.totalAmount || 0)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-rose-50 to-rose-100/50 dark:from-rose-900/20 dark:to-rose-800/10">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-500/10">
-                <ArrowUpRight className="h-5 w-5 text-rose-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-medium text-rose-700/70 dark:text-rose-400/70">Total Expenses</p>
-                  <ChangeIndicator 
-                    current={totalExpenses} 
-                    previous={prevTotalExpenses}
-                    invertColors 
-                  />
-                </div>
-                <p className="text-xl font-bold text-rose-700 dark:text-rose-400 truncate">
-                  {formatAmount(totalExpenses)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10">
-                <Clock className="h-5 w-5 text-amber-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-medium text-amber-700/70 dark:text-amber-400/70">Pending</p>
-                  <ChangeIndicator 
-                    current={(incomeCategory?.pendingAmount || 0) + totalPendingExpenses} 
-                    previous={prevIncomeCategory.pendingAmount}
-                    invertColors
-                  />
-                </div>
-                <p className="text-xl font-bold text-amber-700 dark:text-amber-400 truncate">
-                  {formatAmount((incomeCategory?.pendingAmount || 0) + totalPendingExpenses)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10">
-          <CardContent className="pt-5 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-500/10">
-                {Number(profitMargin) >= 0 ? (
-                  <TrendingUp className="h-5 w-5 text-blue-600" />
-                ) : (
-                  <TrendingDown className="h-5 w-5 text-blue-600" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-medium text-blue-700/70 dark:text-blue-400/70">Profit Margin</p>
-                  <ChangeIndicator 
-                    current={currentProfit} 
-                    previous={prevProfit} 
-                  />
-                </div>
-                <p className="text-xl font-bold text-blue-700 dark:text-blue-400">
-                  {profitMargin}%
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expense Donut Chart */}

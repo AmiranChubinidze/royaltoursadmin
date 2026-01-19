@@ -55,6 +55,7 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
     try {
       const submitData = {
         name: formData.name,
+        type: "person" as const,
         email: formData.email.trim() || null,
       };
       if (mode === "create") {

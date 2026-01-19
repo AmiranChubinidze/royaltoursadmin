@@ -18,7 +18,6 @@ import { MobileFinanceHeader } from "@/components/finances/MobileFinanceHeader";
 import { MobileSummaryCards } from "@/components/finances/MobileSummaryCards";
 import { MobileTransactionCard } from "@/components/finances/MobileTransactionCard";
 import { TransactionModal } from "@/components/finances/TransactionModal";
-import { CurrencyToggle } from "@/components/CurrencyToggle";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function FinancesPage() {
@@ -377,7 +376,7 @@ export default function FinancesPage() {
               Track income, expenses, and profitability
             </p>
           </div>
-          <CurrencyToggle size="default" />
+          
         </div>
 
         {/* Date Filter */}

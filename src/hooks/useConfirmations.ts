@@ -91,10 +91,29 @@ export function useCreateConfirmation() {
         .single();
 
       if (error) throw error;
+
+      // Auto-create "Tour IN" transaction if price is set
+      if (payload.price && payload.price > 0) {
+        await supabase.from("transactions").insert({
+          date: arrivalDate,
+          confirmation_id: data.id,
+          kind: "in",
+          type: "income",
+          status: "pending",
+          category: "tour_payment",
+          description: `Tour payment - ${mainClientName || confirmationCode}`,
+          amount: payload.price,
+          currency: "USD",
+          is_paid: false,
+          is_auto_generated: true,
+        });
+      }
+
       return toConfirmation(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
       toast({
         title: "Success",
         description: "Confirmation created successfully",
@@ -168,11 +187,41 @@ export function useUpdateConfirmation() {
         .single();
 
       if (error) throw error;
+
+      // When completing a draft (status becomes "confirmed") with a price, create the Tour IN transaction
+      if (status === "confirmed" && payload.price && payload.price > 0) {
+        // Check if auto-generated transaction already exists
+        const { data: existingTx } = await supabase
+          .from("transactions")
+          .select("id")
+          .eq("confirmation_id", id)
+          .eq("category", "tour_payment")
+          .eq("is_auto_generated", true)
+          .maybeSingle();
+
+        if (!existingTx) {
+          await supabase.from("transactions").insert({
+            date: arrivalDate,
+            confirmation_id: id,
+            kind: "in",
+            type: "income",
+            status: "pending",
+            category: "tour_payment",
+            description: `Tour payment - ${mainClientName || confirmationCode}`,
+            amount: payload.price,
+            currency: "USD",
+            is_paid: false,
+            is_auto_generated: true,
+          });
+        }
+      }
+
       return toConfirmation(data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
       queryClient.invalidateQueries({ queryKey: ["confirmation", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
     },
     onError: (error) => {
       toast({

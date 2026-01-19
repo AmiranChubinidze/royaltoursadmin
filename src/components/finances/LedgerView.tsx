@@ -501,83 +501,119 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       ? `${format(dateFrom, "MMM d, yyyy")} to ${format(dateTo, "MMM d, yyyy")}`
       : "All Time";
 
-    // ===== SHEET 1: Summary Dashboard =====
-    const labelStyle = {
-      font: { bold: true, sz: 11 },
-      alignment: { horizontal: "left", vertical: "center" },
+    // ===== SHEET 1: Summary Dashboard - Clean & Minimal =====
+    const summaryData: any[][] = [];
+
+    // Title area - simple and elegant
+    summaryData.push([{ v: "Financial Summary", s: { font: { bold: true, sz: 24, color: { rgb: "333333" } } } }]);
+    summaryData.push([{ v: dateRangeText, s: { font: { sz: 12, color: { rgb: "888888" } } } }]);
+    summaryData.push([]);
+    summaryData.push([]);
+
+    // Main metrics - big numbers
+    const bigNumberStyle = {
+      font: { bold: true, sz: 20, color: { rgb: "2F5597" } },
+      alignment: { horizontal: "center", vertical: "center" },
+      numFmt: "#,##0",
     };
 
-    const summaryAmountStyle = {
-      numFmt: "#,##0.00",
-      alignment: { horizontal: "right", vertical: "center" },
-      font: { sz: 11 },
-    };
-
-    const summaryTotalStyle = {
-      numFmt: "#,##0.00",
-      alignment: { horizontal: "right", vertical: "center" },
-      font: { bold: true, sz: 12, color: { rgb: "2F5597" } },
-      fill: { fgColor: { rgb: "E8F0FE" } },
-    };
-
-    const sectionDivider = {
-      fill: { fgColor: { rgb: "2F5597" } },
-    };
-
-    const currencyHeaderStyle = {
-      font: { bold: true, sz: 10, color: { rgb: "666666" } },
+    const labelSmall = {
+      font: { sz: 10, color: { rgb: "999999" } },
       alignment: { horizontal: "center", vertical: "center" },
     };
 
-    const categoryRowStyle = {
-      font: { sz: 10 },
-      alignment: { horizontal: "left", vertical: "center" },
+    const metricBox = {
+      fill: { fgColor: { rgb: "F8F9FA" } },
+      alignment: { horizontal: "center", vertical: "center" },
     };
 
-    const summaryData: any[][] = [
-      [{ v: "ROYAL GEORGIAN TOURS", s: { font: { bold: true, sz: 18, color: { rgb: "2F5597" } }, alignment: { horizontal: "left" } } }],
-      [{ v: "Financial Ledger Report", s: { font: { sz: 14, color: { rgb: "666666" } }, alignment: { horizontal: "left" } } }],
-      [],
-      [{ v: dateRangeText, s: { font: { bold: true, sz: 11 } } }, "", { v: `Generated: ${format(new Date(), "MMM d, yyyy")}`, s: { font: { sz: 10, color: { rgb: "999999" } }, alignment: { horizontal: "right" } } }],
-      [],
-      [{ v: "", s: sectionDivider }, { v: "", s: sectionDivider }, { v: "", s: sectionDivider }],
-      [],
-      [{ v: "OVERVIEW", s: { font: { bold: true, sz: 12, color: { rgb: "2F5597" } } } }],
-      [],
-      [{ v: "", s: labelStyle }, { v: "USD ($)", s: currencyHeaderStyle }, { v: "GEL (₾)", s: currencyHeaderStyle }],
-      [{ v: "Income", s: labelStyle }, { v: totals.incomeUSD, s: summaryAmountStyle }, { v: totals.incomeGEL, s: summaryAmountStyle }],
-      [{ v: "Expenses", s: labelStyle }, { v: totals.expenseUSD, s: summaryAmountStyle }, { v: totals.expenseGEL, s: summaryAmountStyle }],
-      [],
-      [{ v: "Net Balance", s: { font: { bold: true, sz: 12 } } }, { v: totals.incomeUSD - totals.expenseUSD, s: summaryTotalStyle }, { v: totals.incomeGEL - totals.expenseGEL, s: summaryTotalStyle }],
-      [],
-      [{ v: "", s: sectionDivider }, { v: "", s: sectionDivider }, { v: "", s: sectionDivider }],
-      [],
-      [{ v: "EXPENSE BREAKDOWN", s: { font: { bold: true, sz: 12, color: { rgb: "2F5597" } } } }],
-      [],
-      [{ v: "Category", s: { font: { bold: true, sz: 10, color: { rgb: "666666" } } } }, { v: "USD ($)", s: currencyHeaderStyle }, { v: "GEL (₾)", s: currencyHeaderStyle }],
-    ];
+    summaryData.push([
+      { v: "INCOME", s: { ...labelSmall, fill: { fgColor: { rgb: "E6F4EA" } } } },
+      "",
+      { v: "EXPENSES", s: { ...labelSmall, fill: { fgColor: { rgb: "FCE8E6" } } } },
+      "",
+      { v: "NET", s: { ...labelSmall, fill: { fgColor: { rgb: "E8F0FE" } } } },
+    ]);
+    summaryData.push([
+      { v: totals.incomeUSD, s: { ...bigNumberStyle, fill: { fgColor: { rgb: "E6F4EA" } }, color: { rgb: "1B7F37" } } },
+      "",
+      { v: totals.expenseUSD, s: { ...bigNumberStyle, fill: { fgColor: { rgb: "FCE8E6" } }, color: { rgb: "C53929" } } },
+      "",
+      { v: totals.incomeUSD - totals.expenseUSD, s: { ...bigNumberStyle, fill: { fgColor: { rgb: "E8F0FE" } } } },
+    ]);
+    summaryData.push([
+      { v: "USD", s: { font: { sz: 9, color: { rgb: "666666" } }, alignment: { horizontal: "center" }, fill: { fgColor: { rgb: "E6F4EA" } } } },
+      "",
+      { v: "USD", s: { font: { sz: 9, color: { rgb: "666666" } }, alignment: { horizontal: "center" }, fill: { fgColor: { rgb: "FCE8E6" } } } },
+      "",
+      { v: "USD", s: { font: { sz: 9, color: { rgb: "666666" } }, alignment: { horizontal: "center" }, fill: { fgColor: { rgb: "E8F0FE" } } } },
+    ]);
+    summaryData.push([]);
 
-    Object.entries(categoryTotals)
-      .sort((a, b) => (b[1].usd + b[1].gel) - (a[1].usd + a[1].gel))
-      .forEach(([cat, amounts]) => {
-        summaryData.push([
-          { v: getCategoryLabel(cat), s: categoryRowStyle }, 
-          { v: amounts.usd, s: { numFmt: "#,##0.00", alignment: { horizontal: "right" }, font: { sz: 10 } } }, 
-          { v: amounts.gel, s: { numFmt: "#,##0.00", alignment: { horizontal: "right" }, font: { sz: 10 } } }
-        ]);
-      });
+    // GEL row
+    summaryData.push([
+      { v: totals.incomeGEL, s: { font: { bold: true, sz: 14, color: { rgb: "1B7F37" } }, alignment: { horizontal: "center" }, numFmt: "#,##0" } },
+      "",
+      { v: totals.expenseGEL, s: { font: { bold: true, sz: 14, color: { rgb: "C53929" } }, alignment: { horizontal: "center" }, numFmt: "#,##0" } },
+      "",
+      { v: totals.incomeGEL - totals.expenseGEL, s: { font: { bold: true, sz: 14, color: { rgb: "2F5597" } }, alignment: { horizontal: "center" }, numFmt: "#,##0" } },
+    ]);
+    summaryData.push([
+      { v: "GEL", s: { font: { sz: 9, color: { rgb: "999999" } }, alignment: { horizontal: "center" } } },
+      "",
+      { v: "GEL", s: { font: { sz: 9, color: { rgb: "999999" } }, alignment: { horizontal: "center" } } },
+      "",
+      { v: "GEL", s: { font: { sz: 9, color: { rgb: "999999" } }, alignment: { horizontal: "center" } } },
+    ]);
 
     summaryData.push([]);
-    summaryData.push([{ v: "", s: sectionDivider }, { v: "", s: sectionDivider }, { v: "", s: sectionDivider }]);
     summaryData.push([]);
-    summaryData.push([{ v: "Total Transactions", s: { font: { sz: 10, color: { rgb: "666666" } } } }, { v: transactions.length, s: { font: { bold: true, sz: 11 } } }]);
+
+    // Expense breakdown - minimal table
+    summaryData.push([{ v: "Expenses by Category", s: { font: { bold: true, sz: 14, color: { rgb: "333333" } } } }]);
+    summaryData.push([]);
+
+    const catHeaderStyle = {
+      font: { bold: true, sz: 10, color: { rgb: "666666" } },
+      alignment: { horizontal: "left" },
+      border: { bottom: { style: "thin", color: { rgb: "DDDDDD" } } },
+    };
+
+    summaryData.push([
+      { v: "Category", s: catHeaderStyle },
+      { v: "USD", s: { ...catHeaderStyle, alignment: { horizontal: "right" } } },
+      { v: "GEL", s: { ...catHeaderStyle, alignment: { horizontal: "right" } } },
+    ]);
+
+    const sortedCategories = Object.entries(categoryTotals)
+      .sort((a, b) => (b[1].usd + b[1].gel) - (a[1].usd + a[1].gel));
+
+    sortedCategories.forEach(([cat, amounts], idx) => {
+      const isLast = idx === sortedCategories.length - 1;
+      const rowBorder = isLast ? {} : { border: { bottom: { style: "thin", color: { rgb: "F0F0F0" } } } };
+      summaryData.push([
+        { v: getCategoryLabel(cat), s: { font: { sz: 11 }, ...rowBorder } },
+        { v: amounts.usd, s: { font: { sz: 11 }, alignment: { horizontal: "right" }, numFmt: "#,##0", ...rowBorder } },
+        { v: amounts.gel, s: { font: { sz: 11 }, alignment: { horizontal: "right" }, numFmt: "#,##0", ...rowBorder } },
+      ]);
+    });
+
+    summaryData.push([]);
+    summaryData.push([]);
+
+    // Footer
+    summaryData.push([
+      { v: `${transactions.length} transactions`, s: { font: { sz: 10, color: { rgb: "AAAAAA" } } } },
+      "",
+      { v: `Generated ${format(new Date(), "MMM d, yyyy")}`, s: { font: { sz: 10, color: { rgb: "AAAAAA" } }, alignment: { horizontal: "right" } } },
+    ]);
 
     const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    summarySheet["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 14 }];
+    summarySheet["!cols"] = [{ wch: 18 }, { wch: 4 }, { wch: 18 }, { wch: 4 }, { wch: 18 }];
 
     // ===== SHEET 2: All Transactions =====
     const headers = [
-      "Date", "Confirmation", "Client", "Kind", "Category", "Description",
+      "Date", "Confirmation", "Kind", "Category", "Description",
       "Amount", "Currency", "Status", "Method", "Responsible", "From", "To", "Notes"
     ];
 
@@ -601,7 +637,6 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       const row = [
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
-        { v: t.confirmation?.main_client_name || "—", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.kind.toUpperCase(), s: { ...cellBorder, ...rowStyle, ...centerStyle, font: { bold: true } } },
         { v: getCategoryLabel(t.category), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
@@ -619,20 +654,19 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
     const allTransactionsSheet = XLSX.utils.aoa_to_sheet(transactionRows);
     allTransactionsSheet["!cols"] = [
-      { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 28 },
+      { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 28 },
       { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 }
     ];
     allTransactionsSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 
     // ===== SHEET 3: Income Only =====
     const incomeTransactions = transactions.filter(t => t.kind === "in");
-    const incomeRows: any[][] = [["Date", "Confirmation", "Client", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
+    const incomeRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
     
     incomeTransactions.forEach((t) => {
       incomeRows.push([
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
-        { v: t.confirmation?.main_client_name || "—", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: getCategoryLabel(t.category), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.amount, s: { ...cellBorder, ...incomeRowStyle, ...amountStyle } },
@@ -642,17 +676,17 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     });
 
     incomeRows.push([]);
-    incomeRows.push([{ v: "TOTAL", s: { font: { bold: true, sz: 11 } } }, "", "", "", "", 
+    incomeRows.push([{ v: "TOTAL", s: { font: { bold: true, sz: 11 } } }, "", "", "", 
       { v: incomeTransactions.reduce((sum, t) => sum + (t.currency === "USD" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
       { v: "USD", s: { ...centerStyle, font: { bold: true } } }
     ]);
-    incomeRows.push(["", "", "", "", "", 
+    incomeRows.push(["", "", "", "", 
       { v: incomeTransactions.reduce((sum, t) => sum + (t.currency === "GEL" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
       { v: "GEL", s: { ...centerStyle, font: { bold: true } } }
     ]);
 
     const incomeSheet = XLSX.utils.aoa_to_sheet(incomeRows);
-    incomeSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
+    incomeSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
 
     // ===== SHEET 4: Expenses Only =====
     const expenseTransactions = transactions.filter(t => t.kind === "out");

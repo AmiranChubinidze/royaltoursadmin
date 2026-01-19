@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { Loader2, Wallet, AlertTriangle, ArrowRightLeft, Settings, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Loader2, Wallet, AlertTriangle, ArrowRightLeft, Settings, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHoldersWithBalances, HolderWithBalance } from "@/hooks/useHolders";
 import { HolderCard } from "./HolderCard";
 import { QuickTransferModal } from "./QuickTransferModal";
 import { HolderManagementModal } from "./HolderManagementModal";
 import { HolderTransactionsSheet } from "./HolderTransactionsSheet";
-import { ExchangeRateModal } from "./ExchangeRateModal";
 
 export function HoldersView() {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [holderModalOpen, setHolderModalOpen] = useState(false);
-  const [exchangeRateModalOpen, setExchangeRateModalOpen] = useState(false);
   const [selectedHolder, setSelectedHolder] = useState<HolderWithBalance | null>(null);
 
   const { data, isLoading, error } = useHoldersWithBalances();
@@ -74,10 +72,6 @@ export function HoldersView() {
         <Button variant="outline" onClick={() => setHolderModalOpen(true)} className="gap-2">
           <Settings className="h-4 w-4" />
           Manage People
-        </Button>
-        <Button variant="outline" onClick={() => setExchangeRateModalOpen(true)} className="gap-2">
-          <DollarSign className="h-4 w-4" />
-          Exchange Rate
         </Button>
       </div>
 
@@ -169,7 +163,6 @@ export function HoldersView() {
       {/* Modals */}
       <QuickTransferModal open={transferModalOpen} onOpenChange={setTransferModalOpen} />
       <HolderManagementModal open={holderModalOpen} onOpenChange={setHolderModalOpen} />
-      <ExchangeRateModal open={exchangeRateModalOpen} onOpenChange={setExchangeRateModalOpen} />
       <HolderTransactionsSheet
         holder={selectedHolder}
         open={!!selectedHolder}

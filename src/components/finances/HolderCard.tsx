@@ -63,62 +63,64 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
         </div>
       </div>
 
-      {/* Balances - Show both currencies */}
-      <div className="space-y-2 mb-3">
+      {/* Balances - Grid layout for alignment */}
+      <div className="space-y-1.5 mb-3 bg-muted/30 rounded-lg p-2.5">
         {/* USD Balance */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">USD</span>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "text-lg font-bold",
-                isNegativeUSD ? "text-destructive" : "text-foreground"
-              )}
-            >
-              {isNegativeUSD && "-"}
-              {formatAmount(holder.balanceUSD, "$")}
-            </span>
+        <div className="grid grid-cols-[32px_1fr_auto_auto] items-center gap-1.5">
+          <span className="text-xs text-muted-foreground font-medium">USD</span>
+          <span
+            className={cn(
+              "text-lg font-bold tabular-nums text-right",
+              isNegativeUSD ? "text-destructive" : "text-foreground"
+            )}
+          >
+            {isNegativeUSD && "-"}{formatAmount(holder.balanceUSD, "$")}
+          </span>
+          <span className="min-w-[60px] text-right">
             {holder.pendingInUSD > 0 && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-0.5 tabular-nums">
                 <TrendingUp className="h-3 w-3" />
                 +{formatAmount(holder.pendingInUSD, "$")}
               </span>
             )}
+          </span>
+          <span className="min-w-[60px] text-right">
             {holder.pendingOutUSD > 0 && (
-              <span className="text-xs text-destructive flex items-center gap-0.5">
+              <span className="text-xs text-destructive inline-flex items-center gap-0.5 tabular-nums">
                 <TrendingDown className="h-3 w-3" />
                 -{formatAmount(holder.pendingOutUSD, "$")}
               </span>
             )}
-          </div>
+          </span>
         </div>
 
         {/* GEL Balance */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">GEL</span>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "text-lg font-bold",
-                isNegativeGEL ? "text-destructive" : "text-foreground"
-              )}
-            >
-              {isNegativeGEL && "-"}
-              {formatAmount(holder.balanceGEL, "₾")}
-            </span>
+        <div className="grid grid-cols-[32px_1fr_auto_auto] items-center gap-1.5">
+          <span className="text-xs text-muted-foreground font-medium">GEL</span>
+          <span
+            className={cn(
+              "text-lg font-bold tabular-nums text-right",
+              isNegativeGEL ? "text-destructive" : "text-foreground"
+            )}
+          >
+            {isNegativeGEL && "-"}{formatAmount(holder.balanceGEL, "₾")}
+          </span>
+          <span className="min-w-[60px] text-right">
             {holder.pendingInGEL > 0 && (
-              <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 inline-flex items-center gap-0.5 tabular-nums">
                 <TrendingUp className="h-3 w-3" />
                 +{formatAmount(holder.pendingInGEL, "₾")}
               </span>
             )}
+          </span>
+          <span className="min-w-[60px] text-right">
             {holder.pendingOutGEL > 0 && (
-              <span className="text-xs text-destructive flex items-center gap-0.5">
+              <span className="text-xs text-destructive inline-flex items-center gap-0.5 tabular-nums">
                 <TrendingDown className="h-3 w-3" />
                 -{formatAmount(holder.pendingOutGEL, "₾")}
               </span>
             )}
-          </div>
+          </span>
         </div>
       </div>
 

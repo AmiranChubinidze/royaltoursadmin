@@ -181,42 +181,72 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
 
         <ScrollArea className="h-[calc(100vh-180px)] pr-4">
           {/* Money In */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
-              <h3 className="font-medium text-sm">Money In</h3>
-              <span className="text-xs text-muted-foreground ml-auto">
-                {ins.length} transaction{ins.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            {ins.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">No incoming transactions</p>
-            ) : (
-              <div className="space-y-2">
-                {ins.map((t) => renderTransaction(t, 'in'))}
+          {(() => {
+            const totalInUSD = ins.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
+            const totalInGEL = ins.filter(t => t.currency === 'GEL' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
+            return (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
+                  <h3 className="font-medium text-sm">Money In</h3>
+                  <div className="flex items-center gap-2 ml-auto">
+                    {(totalInUSD > 0 || totalInGEL > 0) && (
+                      <span className="text-sm font-medium text-emerald-600">
+                        {totalInUSD > 0 && `$${Math.round(totalInUSD).toLocaleString()}`}
+                        {totalInUSD > 0 && totalInGEL > 0 && " • "}
+                        {totalInGEL > 0 && `₾${Math.round(totalInGEL).toLocaleString()}`}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {ins.length} transaction{ins.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+                {ins.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No incoming transactions</p>
+                ) : (
+                  <div className="space-y-2">
+                    {ins.map((t) => renderTransaction(t, 'in'))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           <Separator className="my-4" />
 
           {/* Money Out */}
-          <div className="mb-6">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowUpRight className="h-4 w-4 text-destructive" />
-              <h3 className="font-medium text-sm">Money Out</h3>
-              <span className="text-xs text-muted-foreground ml-auto">
-                {outs.length} transaction{outs.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            {outs.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-2">No outgoing transactions</p>
-            ) : (
-              <div className="space-y-2">
-                {outs.map((t) => renderTransaction(t, 'out'))}
+          {(() => {
+            const totalOutUSD = outs.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
+            const totalOutGEL = outs.filter(t => t.currency === 'GEL' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
+            return (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowUpRight className="h-4 w-4 text-destructive" />
+                  <h3 className="font-medium text-sm">Money Out</h3>
+                  <div className="flex items-center gap-2 ml-auto">
+                    {(totalOutUSD > 0 || totalOutGEL > 0) && (
+                      <span className="text-sm font-medium text-destructive">
+                        {totalOutUSD > 0 && `$${Math.round(totalOutUSD).toLocaleString()}`}
+                        {totalOutUSD > 0 && totalOutGEL > 0 && " • "}
+                        {totalOutGEL > 0 && `₾${Math.round(totalOutGEL).toLocaleString()}`}
+                      </span>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {outs.length} transaction{outs.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+                {outs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No outgoing transactions</p>
+                ) : (
+                  <div className="space-y-2">
+                    {outs.map((t) => renderTransaction(t, 'out'))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Exchanges */}
           {exchanges.length > 0 && (

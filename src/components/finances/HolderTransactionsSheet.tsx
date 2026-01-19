@@ -1,9 +1,11 @@
+import { useState } from "react";
 import { format } from "date-fns";
-import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Sparkles } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Sparkles, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useTransactions, useConfirmTransaction } from "@/hooks/useTransactions";
 import { HolderWithBalance } from "@/hooks/useHolders";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,9 @@ interface HolderTransactionsSheetProps {
 export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTransactionsSheetProps) {
   const { data: transactions } = useTransactions({ holderId: holder?.id });
   const confirmTransaction = useConfirmTransaction();
+  const [moneyInOpen, setMoneyInOpen] = useState(true);
+  const [moneyOutOpen, setMoneyOutOpen] = useState(true);
+  const [exchangesOpen, setExchangesOpen] = useState(true);
 
   if (!holder) return null;
 
@@ -185,84 +190,97 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
             const totalInUSD = ins.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             const totalInGEL = ins.filter(t => t.currency === 'GEL' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             return (
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
-                  <h3 className="font-medium text-sm">Money In</h3>
-                  <div className="flex items-center gap-2 ml-auto">
-                    {(totalInUSD > 0 || totalInGEL > 0) && (
-                      <span className="text-sm font-medium text-emerald-600">
-                        {totalInUSD > 0 && `$${Math.round(totalInUSD).toLocaleString()}`}
-                        {totalInUSD > 0 && totalInGEL > 0 && " • "}
-                        {totalInGEL > 0 && `₾${Math.round(totalInGEL).toLocaleString()}`}
+              <Collapsible open={moneyInOpen} onOpenChange={setMoneyInOpen} className="mb-4">
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors cursor-pointer">
+                    <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
+                    <h3 className="font-medium text-sm">Money In</h3>
+                    <div className="flex items-center gap-2 ml-auto">
+                      {(totalInUSD > 0 || totalInGEL > 0) && (
+                        <span className="text-sm font-medium text-emerald-600">
+                          {totalInUSD > 0 && `$${Math.round(totalInUSD).toLocaleString()}`}
+                          {totalInUSD > 0 && totalInGEL > 0 && " • "}
+                          {totalInGEL > 0 && `₾${Math.round(totalInGEL).toLocaleString()}`}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {ins.length}
                       </span>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {ins.length} transaction{ins.length !== 1 ? "s" : ""}
-                    </span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                        moneyInOpen && "rotate-180"
+                      )} />
+                    </div>
                   </div>
-                </div>
-                {ins.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">No incoming transactions</p>
-                ) : (
-                  <div className="space-y-2">
-                    {ins.map((t) => renderTransaction(t, 'in'))}
-                  </div>
-                )}
-              </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="animate-accordion-down">
+                  {ins.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2 px-3">No incoming transactions</p>
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                      {ins.map((t) => renderTransaction(t, 'in'))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             );
           })()}
-
-          <Separator className="my-4" />
 
           {/* Money Out */}
           {(() => {
             const totalOutUSD = outs.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             const totalOutGEL = outs.filter(t => t.currency === 'GEL' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             return (
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <ArrowUpRight className="h-4 w-4 text-destructive" />
-                  <h3 className="font-medium text-sm">Money Out</h3>
-                  <div className="flex items-center gap-2 ml-auto">
-                    {(totalOutUSD > 0 || totalOutGEL > 0) && (
-                      <span className="text-sm font-medium text-destructive">
-                        {totalOutUSD > 0 && `$${Math.round(totalOutUSD).toLocaleString()}`}
-                        {totalOutUSD > 0 && totalOutGEL > 0 && " • "}
-                        {totalOutGEL > 0 && `₾${Math.round(totalOutGEL).toLocaleString()}`}
+              <Collapsible open={moneyOutOpen} onOpenChange={setMoneyOutOpen} className="mb-4">
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-destructive/5 hover:bg-destructive/10 transition-colors cursor-pointer">
+                    <ArrowUpRight className="h-4 w-4 text-destructive" />
+                    <h3 className="font-medium text-sm">Money Out</h3>
+                    <div className="flex items-center gap-2 ml-auto">
+                      {(totalOutUSD > 0 || totalOutGEL > 0) && (
+                        <span className="text-sm font-medium text-destructive">
+                          {totalOutUSD > 0 && `$${Math.round(totalOutUSD).toLocaleString()}`}
+                          {totalOutUSD > 0 && totalOutGEL > 0 && " • "}
+                          {totalOutGEL > 0 && `₾${Math.round(totalOutGEL).toLocaleString()}`}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {outs.length}
                       </span>
-                    )}
-                    <span className="text-xs text-muted-foreground">
-                      {outs.length} transaction{outs.length !== 1 ? "s" : ""}
-                    </span>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                        moneyOutOpen && "rotate-180"
+                      )} />
+                    </div>
                   </div>
-                </div>
-                {outs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">No outgoing transactions</p>
-                ) : (
-                  <div className="space-y-2">
-                    {outs.map((t) => renderTransaction(t, 'out'))}
-                  </div>
-                )}
-              </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="animate-accordion-down">
+                  {outs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2 px-3">No outgoing transactions</p>
+                  ) : (
+                    <div className="space-y-2 mt-2">
+                      {outs.map((t) => renderTransaction(t, 'out'))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             );
           })()}
 
           {/* Exchanges */}
           {exchanges.length > 0 && (
-            <>
-              <Separator className="my-4" />
-              {(() => {
-                const confirmedExchanges = exchanges.filter(t => t.status === 'confirmed');
-                const totalUSD = confirmedExchanges.reduce((sum, t) => sum + Number(t.amount), 0);
-                const totalGEL = confirmedExchanges.reduce((sum, t) => {
-                  const rateMatch = t.notes?.match(/Exchange rate: ([\d.]+)/);
-                  const rate = rateMatch ? parseFloat(rateMatch[1]) : 0;
-                  return sum + (Number(t.amount) * rate);
-                }, 0);
-                return (
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
+            (() => {
+              const confirmedExchanges = exchanges.filter(t => t.status === 'confirmed');
+              const totalUSD = confirmedExchanges.reduce((sum, t) => sum + Number(t.amount), 0);
+              const totalGEL = confirmedExchanges.reduce((sum, t) => {
+                const rateMatch = t.notes?.match(/Exchange rate: ([\d.]+)/);
+                const rate = rateMatch ? parseFloat(rateMatch[1]) : 0;
+                return sum + (Number(t.amount) * rate);
+              }, 0);
+              return (
+                <Collapsible open={exchangesOpen} onOpenChange={setExchangesOpen}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-blue-500/5 hover:bg-blue-500/10 transition-colors cursor-pointer">
                       <ArrowLeftRight className="h-4 w-4 text-blue-600" />
                       <h3 className="font-medium text-sm">Exchanges</h3>
                       <div className="flex items-center gap-2 ml-auto">
@@ -272,17 +290,23 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                           </span>
                         )}
                         <span className="text-xs text-muted-foreground">
-                          {exchanges.length} transaction{exchanges.length !== 1 ? "s" : ""}
+                          {exchanges.length}
                         </span>
+                        <ChevronDown className={cn(
+                          "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                          exchangesOpen && "rotate-180"
+                        )} />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="animate-accordion-down">
+                    <div className="space-y-2 mt-2">
                       {exchanges.map((t) => renderTransaction(t, 'exchange'))}
                     </div>
-                  </div>
-                );
-              })()}
-            </>
+                  </CollapsibleContent>
+                </Collapsible>
+              );
+            })()
           )}
         </ScrollArea>
       </SheetContent>

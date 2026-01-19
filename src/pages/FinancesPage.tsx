@@ -396,67 +396,72 @@ export default function FinancesPage() {
         </div>
 
         {/* Date Filter */}
-        <div className="flex flex-wrap items-center gap-3 pb-2">
+        <div className="flex flex-wrap items-center gap-2 pb-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}
+              <Button variant="outline" size="icon" className="h-9 w-9">
+                <CalendarIcon className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateFrom}
-                onSelect={setDateFrom}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-          <span className="text-muted-foreground">–</span>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateTo ? format(dateTo, "MMM d, yyyy") : "To"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateTo}
-                onSelect={setDateTo}
-                initialFocus
-                className="p-3 pointer-events-auto"
-              />
+            <PopoverContent className="w-auto p-4" align="start">
+              <div className="space-y-4">
+                <div className="text-sm font-medium">Date Range</div>
+                <div className="flex gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">From</label>
+                    <Calendar
+                      mode="single"
+                      selected={dateFrom}
+                      onSelect={setDateFrom}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">To</label>
+                    <Calendar
+                      mode="single"
+                      selected={dateTo}
+                      onSelect={setDateTo}
+                      className="p-3 pointer-events-auto"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                  {dateFrom && dateTo
+                    ? `${format(dateFrom, "MMM d")} – ${format(dateTo, "MMM d, yyyy")}`
+                    : dateFrom
+                    ? `From ${format(dateFrom, "MMM d, yyyy")}`
+                    : dateTo
+                    ? `Until ${format(dateTo, "MMM d, yyyy")}`
+                    : "Select dates"}
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
 
-          <div className="flex gap-1 ml-2">
-            <Button
-              variant={isThisMonth ? "secondary" : "ghost"}
-              size="sm"
-              className="h-9"
-              onClick={() => {
-                setDateFrom(startOfMonth(new Date()));
-                setDateTo(endOfMonth(new Date()));
-              }}
-            >
-              This Month
-            </Button>
-            <Button
-              variant={isAllTime ? "secondary" : "ghost"}
-              size="sm"
-              className="h-9"
-              onClick={() => {
-                setDateFrom(undefined);
-                setDateTo(undefined);
-              }}
-            >
-              All Time
-            </Button>
-          </div>
+          <Button
+            variant={isThisMonth ? "secondary" : "ghost"}
+            size="sm"
+            className="h-9"
+            onClick={() => {
+              setDateFrom(startOfMonth(new Date()));
+              setDateTo(endOfMonth(new Date()));
+            }}
+          >
+            This Month
+          </Button>
+          <Button
+            variant={isAllTime ? "secondary" : "ghost"}
+            size="sm"
+            className="h-9"
+            onClick={() => {
+              setDateFrom(undefined);
+              setDateTo(undefined);
+            }}
+          >
+            All Time
+          </Button>
         </div>
 
         {/* Summary Cards */}

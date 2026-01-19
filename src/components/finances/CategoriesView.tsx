@@ -107,59 +107,79 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
     const stats = Object.keys(CATEGORY_CONFIG).map((category) => {
       const cat = category as TransactionCategory;
       const categoryTransactions = transactions.filter((t) => t.category === cat);
-      const totalAmount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
-      const paidAmount = categoryTransactions
-        .filter((t) => t.is_paid)
-        .reduce((sum, t) => sum + t.amount, 0);
+      
+      // Separate by currency
+      const usdTransactions = categoryTransactions.filter((t) => t.currency === "USD");
+      const gelTransactions = categoryTransactions.filter((t) => t.currency === "GEL");
+      
+      const totalUSD = usdTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const totalGEL = gelTransactions.reduce((sum, t) => sum + t.amount, 0);
+      
+      const paidUSD = usdTransactions.filter((t) => t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+      const paidGEL = gelTransactions.filter((t) => t.is_paid).reduce((sum, t) => sum + t.amount, 0);
+      
       const count = categoryTransactions.length;
 
       // Previous period stats
       const prevCategoryTransactions = prevTransactions?.filter((t) => t.category === cat) || [];
-      const prevTotalAmount = prevCategoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+      const prevTotalUSD = prevCategoryTransactions.filter((t) => t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
+      const prevTotalGEL = prevCategoryTransactions.filter((t) => t.currency === "GEL").reduce((sum, t) => sum + t.amount, 0);
 
       return {
         category: cat,
         ...CATEGORY_CONFIG[cat],
-        totalAmount,
-        paidAmount,
-        pendingAmount: totalAmount - paidAmount,
+        totalUSD,
+        totalGEL,
+        paidUSD,
+        paidGEL,
+        pendingUSD: totalUSD - paidUSD,
+        pendingGEL: totalGEL - paidGEL,
         count,
-        prevTotalAmount,
+        prevTotalUSD,
+        prevTotalGEL,
       };
     });
 
-    return stats.sort((a, b) => b.totalAmount - a.totalAmount);
+    // Sort by total (USD + GEL combined for sorting)
+    return stats.sort((a, b) => (b.totalUSD + b.totalGEL) - (a.totalUSD + a.totalGEL));
   }, [transactions, prevTransactions]);
 
-  const expenseCategories = categoryStats.filter((c) => c.category !== "tour_payment" && c.totalAmount > 0);
+  const expenseCategories = categoryStats.filter((c) => c.category !== "tour_payment" && (c.totalUSD > 0 || c.totalGEL > 0));
   const incomeCategory = categoryStats.find((c) => c.category === "tour_payment");
 
-  const totalExpenses = expenseCategories.reduce((sum, c) => sum + c.totalAmount, 0);
-  const prevTotalExpenses = expenseCategories.reduce((sum, c) => sum + c.prevTotalAmount, 0);
-  const totalPendingExpenses = expenseCategories.reduce((sum, c) => sum + c.pendingAmount, 0);
-  const maxExpense = Math.max(...expenseCategories.map((c) => c.totalAmount), 1);
+  const totalExpensesUSD = expenseCategories.reduce((sum, c) => sum + c.totalUSD, 0);
+  const totalExpensesGEL = expenseCategories.reduce((sum, c) => sum + c.totalGEL, 0);
+  const prevTotalExpensesUSD = expenseCategories.reduce((sum, c) => sum + c.prevTotalUSD, 0);
+  const prevTotalExpensesGEL = expenseCategories.reduce((sum, c) => sum + c.prevTotalGEL, 0);
+  const totalPendingExpensesUSD = expenseCategories.reduce((sum, c) => sum + c.pendingUSD, 0);
+  const totalPendingExpensesGEL = expenseCategories.reduce((sum, c) => sum + c.pendingGEL, 0);
+  const maxExpense = Math.max(...expenseCategories.map((c) => c.totalUSD + c.totalGEL), 1);
 
   // Previous period income
   const prevIncomeCategory = useMemo(() => {
-    if (!prevTransactions) return { totalAmount: 0, pendingAmount: 0 };
+    if (!prevTransactions) return { totalUSD: 0, totalGEL: 0, pendingUSD: 0, pendingGEL: 0 };
     const txs = prevTransactions.filter((t) => t.category === "tour_payment");
-    const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    const paid = txs.filter((t) => t.is_paid).reduce((sum, t) => sum + t.amount, 0);
-    return { totalAmount: total, pendingAmount: total - paid };
+    const totalUSD = txs.filter((t) => t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
+    const totalGEL = txs.filter((t) => t.currency === "GEL").reduce((sum, t) => sum + t.amount, 0);
+    const paidUSD = txs.filter((t) => t.is_paid && t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
+    const paidGEL = txs.filter((t) => t.is_paid && t.currency === "GEL").reduce((sum, t) => sum + t.amount, 0);
+    return { totalUSD, totalGEL, pendingUSD: totalUSD - paidUSD, pendingGEL: totalGEL - paidGEL };
   }, [prevTransactions]);
 
-  // Prepare chart data
+  // Prepare chart data (using combined totals for pie chart visualization)
   const chartData = expenseCategories.map((cat) => ({
     name: cat.label,
-    value: cat.totalAmount,
+    value: cat.totalUSD + cat.totalGEL, // Combined for chart proportions
+    totalUSD: cat.totalUSD,
+    totalGEL: cat.totalGEL,
     color: cat.chartColor,
   }));
 
-  // Calculate profit margin
-  const currentProfit = (incomeCategory?.totalAmount || 0) - totalExpenses;
-  const prevProfit = (prevIncomeCategory.totalAmount || 0) - prevTotalExpenses;
-  const profitMargin = incomeCategory && incomeCategory.totalAmount > 0
-    ? ((currentProfit) / incomeCategory.totalAmount * 100).toFixed(1)
+  // Calculate profit margin (based on USD as primary currency)
+  const currentProfitUSD = (incomeCategory?.totalUSD || 0) - totalExpensesUSD;
+  const prevProfitUSD = (prevIncomeCategory.totalUSD || 0) - prevTotalExpensesUSD;
+  const profitMargin = incomeCategory && incomeCategory.totalUSD > 0
+    ? ((currentProfitUSD) / incomeCategory.totalUSD * 100).toFixed(1)
     : 0;
 
   // Top pending confirmations
@@ -231,12 +251,16 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                       <Tooltip
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
+                            const data = payload[0].payload;
                             return (
                               <div className="bg-popover border rounded-lg shadow-lg px-3 py-2">
                                 <p className="text-sm font-medium">{payload[0].name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {formatAmount(payload[0].value as number)}
-                                </p>
+                                {data.totalUSD > 0 && (
+                                  <p className="text-sm text-muted-foreground">${data.totalUSD.toLocaleString()}</p>
+                                )}
+                                {data.totalGEL > 0 && (
+                                  <p className="text-sm text-muted-foreground">₾{data.totalGEL.toLocaleString()}</p>
+                                )}
                               </div>
                             );
                           }
@@ -248,7 +272,12 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                   {/* Center label */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <p className="text-xs text-muted-foreground">Total</p>
-                    <p className="text-lg font-bold">{formatAmount(totalExpenses)}</p>
+                    {totalExpensesUSD > 0 && (
+                      <p className="text-base font-bold">${totalExpensesUSD.toLocaleString()}</p>
+                    )}
+                    {totalExpensesGEL > 0 && (
+                      <p className="text-sm font-semibold text-muted-foreground">₾{totalExpensesGEL.toLocaleString()}</p>
+                    )}
                   </div>
                 </div>
 
@@ -262,7 +291,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                       />
                       <span className="text-sm truncate flex-1">{cat.label}</span>
                       <span className="text-sm font-medium text-muted-foreground">
-                        {((cat.totalAmount / totalExpenses) * 100).toFixed(0)}%
+                        {(((cat.totalUSD + cat.totalGEL) / (totalExpensesUSD + totalExpensesGEL)) * 100).toFixed(0)}%
                       </span>
                     </div>
                   ))}
@@ -297,26 +326,37 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                         {cat.count}
                       </Badge>
                       <ChangeIndicator 
-                        current={cat.totalAmount} 
-                        previous={cat.prevTotalAmount}
+                        current={cat.totalUSD + cat.totalGEL} 
+                        previous={cat.prevTotalUSD + cat.prevTotalGEL}
                         invertColors
                       />
                     </div>
-                    <span className="text-sm font-semibold">{formatAmount(cat.totalAmount)}</span>
+                    <div className="text-right">
+                      {cat.totalUSD > 0 && (
+                        <span className="text-sm font-semibold">${cat.totalUSD.toLocaleString()}</span>
+                      )}
+                      {cat.totalUSD > 0 && cat.totalGEL > 0 && <span className="text-muted-foreground mx-1">·</span>}
+                      {cat.totalGEL > 0 && (
+                        <span className="text-sm font-semibold text-muted-foreground">₾{cat.totalGEL.toLocaleString()}</span>
+                      )}
+                    </div>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
-                        width: `${(cat.totalAmount / maxExpense) * 100}%`,
+                        width: `${((cat.totalUSD + cat.totalGEL) / maxExpense) * 100}%`,
                         backgroundColor: cat.chartColor,
                       }}
                     />
                   </div>
-                  {cat.pendingAmount > 0 && (
+                  {(cat.pendingUSD > 0 || cat.pendingGEL > 0) && (
                     <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatAmount(cat.pendingAmount)} pending
+                      {cat.pendingUSD > 0 && `$${cat.pendingUSD.toLocaleString()}`}
+                      {cat.pendingUSD > 0 && cat.pendingGEL > 0 && " · "}
+                      {cat.pendingGEL > 0 && `₾${cat.pendingGEL.toLocaleString()}`}
+                      {" pending"}
                     </p>
                   )}
                 </div>

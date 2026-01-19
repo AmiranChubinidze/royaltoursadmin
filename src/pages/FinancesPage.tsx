@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, CalendarIcon, Filter, X, Plus, Loader2 } from "lucide-react";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useTransactions, useUpdateTransaction } from "@/hooks/useTransactions";
-
+import { FinanceSummaryCards } from "@/components/finances/FinanceSummaryCards";
 import { LedgerView } from "@/components/finances/LedgerView";
 import { CategoriesView } from "@/components/finances/CategoriesView";
 import { HoldersView } from "@/components/finances/HoldersView";
@@ -459,6 +459,14 @@ export default function FinancesPage() {
           </div>
         </div>
 
+        {/* Summary Cards */}
+        <FinanceSummaryCards
+          received={summaryData.received}
+          expenses={summaryData.expenses}
+          profit={summaryData.profit}
+          pending={summaryData.pending}
+          isLoading={isLoading}
+        />
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="bg-muted/50">

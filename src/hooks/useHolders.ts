@@ -76,6 +76,10 @@ export const useHoldersWithBalances = () => {
 
       if (txError) throw txError;
 
+      // Track unassigned pending (no responsible_holder_id)
+      let unassignedPendingInUSD = 0;
+      let unassignedPendingInGEL = 0;
+
       // Calculate balances for each holder - now tracking both currencies
       const holdersWithBalances: HolderWithBalance[] = holders.map((holder) => {
         let balanceUSD = 0;
@@ -180,7 +184,26 @@ export const useHoldersWithBalances = () => {
         };
       });
 
-      return holdersWithBalances;
+      // Calculate unassigned pending IN (no responsible_holder_id)
+      transactions.forEach((tx) => {
+        if (tx.kind === "in" && tx.status === "pending" && !tx.responsible_holder_id) {
+          if (tx.currency === "USD") {
+            unassignedPendingInUSD += Number(tx.amount);
+          } else {
+            unassignedPendingInGEL += Number(tx.amount);
+          }
+        }
+      });
+
+      // Add unassigned pending to each holder's totals for global display
+      // Store in first holder or return separately
+      return {
+        holders: holdersWithBalances,
+        unassignedPendingIn: {
+          USD: unassignedPendingInUSD,
+          GEL: unassignedPendingInGEL,
+        },
+      };
     },
   });
 };

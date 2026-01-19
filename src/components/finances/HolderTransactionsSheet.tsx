@@ -159,29 +159,24 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
             </Badge>
           </SheetTitle>
 
-          {(() => {
-            const totalInUSD = holder.balanceUSD + holder.balanceGEL * exchangeRate.gel_to_usd;
-            const totalInGEL = holder.balanceGEL + holder.balanceUSD * exchangeRate.usd_to_gel;
-            const isNegative = totalInUSD < 0;
-
-            return (
-              <>
-                <p
-                  className={cn(
-                    "text-2xl font-bold",
-                    isNegative ? "text-destructive" : "text-foreground"
-                  )}
-                >
-                  {isNegative && "-"}${Math.abs(totalInUSD).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  <span className="text-muted-foreground/50 mx-2">/</span>
-                  {isNegative && "-"}₾{Math.abs(totalInGEL).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  USD {holder.balanceUSD < 0 && "-"}{formatAmount(holder.balanceUSD, "USD")} • GEL {holder.balanceGEL < 0 && "-"}{formatAmount(holder.balanceGEL, "GEL")}
-                </p>
-              </>
-            );
-          })()}
+          <div className="flex items-center gap-4">
+            <p
+              className={cn(
+                "text-2xl font-bold",
+                holder.balanceUSD < 0 ? "text-destructive" : "text-foreground"
+              )}
+            >
+              {holder.balanceUSD < 0 && "-"}${Math.abs(holder.balanceUSD).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+            <p
+              className={cn(
+                "text-2xl font-bold",
+                holder.balanceGEL < 0 ? "text-destructive" : "text-foreground"
+              )}
+            >
+              {holder.balanceGEL < 0 && "-"}₾{Math.abs(holder.balanceGEL).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </p>
+          </div>
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-180px)] pr-4">

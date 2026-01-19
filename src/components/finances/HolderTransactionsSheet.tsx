@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Sparkles, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useTransactions, useConfirmTransaction } from "@/hooks/useTransactions";
 import { HolderWithBalance } from "@/hooks/useHolders";
@@ -18,12 +17,61 @@ interface HolderTransactionsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const STORAGE_KEY = "holder-transactions-collapse-state";
+
+function getStoredState(holderId: string): { moneyIn: boolean; moneyOut: boolean; exchanges: boolean } {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY}-${holderId}`);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { moneyIn: false, moneyOut: false, exchanges: false }; // Default: all collapsed
+}
+
+function setStoredState(holderId: string, state: { moneyIn: boolean; moneyOut: boolean; exchanges: boolean }) {
+  try {
+    localStorage.setItem(`${STORAGE_KEY}-${holderId}`, JSON.stringify(state));
+  } catch {}
+}
+
 export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTransactionsSheetProps) {
   const { data: transactions } = useTransactions({ holderId: holder?.id });
   const confirmTransaction = useConfirmTransaction();
-  const [moneyInOpen, setMoneyInOpen] = useState(true);
-  const [moneyOutOpen, setMoneyOutOpen] = useState(true);
-  const [exchangesOpen, setExchangesOpen] = useState(true);
+  
+  const [moneyInOpen, setMoneyInOpen] = useState(false);
+  const [moneyOutOpen, setMoneyOutOpen] = useState(false);
+  const [exchangesOpen, setExchangesOpen] = useState(false);
+
+  // Load persisted state when holder changes
+  useEffect(() => {
+    if (holder?.id) {
+      const stored = getStoredState(holder.id);
+      setMoneyInOpen(stored.moneyIn);
+      setMoneyOutOpen(stored.moneyOut);
+      setExchangesOpen(stored.exchanges);
+    }
+  }, [holder?.id]);
+
+  // Persist state changes
+  const handleMoneyInChange = (isOpen: boolean) => {
+    setMoneyInOpen(isOpen);
+    if (holder?.id) {
+      setStoredState(holder.id, { moneyIn: isOpen, moneyOut: moneyOutOpen, exchanges: exchangesOpen });
+    }
+  };
+
+  const handleMoneyOutChange = (isOpen: boolean) => {
+    setMoneyOutOpen(isOpen);
+    if (holder?.id) {
+      setStoredState(holder.id, { moneyIn: moneyInOpen, moneyOut: isOpen, exchanges: exchangesOpen });
+    }
+  };
+
+  const handleExchangesChange = (isOpen: boolean) => {
+    setExchangesOpen(isOpen);
+    if (holder?.id) {
+      setStoredState(holder.id, { moneyIn: moneyInOpen, moneyOut: moneyOutOpen, exchanges: isOpen });
+    }
+  };
 
   if (!holder) return null;
 
@@ -190,7 +238,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
             const totalInUSD = ins.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             const totalInGEL = ins.filter(t => t.currency === 'GEL' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             return (
-              <Collapsible open={moneyInOpen} onOpenChange={setMoneyInOpen} className="mb-4">
+              <Collapsible open={moneyInOpen} onOpenChange={handleMoneyInChange} className="mb-4">
                 <CollapsibleTrigger className="w-full">
                   <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors cursor-pointer">
                     <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
@@ -231,7 +279,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
             const totalOutUSD = outs.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             const totalOutGEL = outs.filter(t => t.currency === 'GEL' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
             return (
-              <Collapsible open={moneyOutOpen} onOpenChange={setMoneyOutOpen} className="mb-4">
+              <Collapsible open={moneyOutOpen} onOpenChange={handleMoneyOutChange} className="mb-4">
                 <CollapsibleTrigger className="w-full">
                   <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-destructive/5 hover:bg-destructive/10 transition-colors cursor-pointer">
                     <ArrowUpRight className="h-4 w-4 text-destructive" />
@@ -278,7 +326,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                 return sum + (Number(t.amount) * rate);
               }, 0);
               return (
-                <Collapsible open={exchangesOpen} onOpenChange={setExchangesOpen}>
+                <Collapsible open={exchangesOpen} onOpenChange={handleExchangesChange}>
                   <CollapsibleTrigger className="w-full">
                     <div className="flex items-center gap-2 py-2 px-3 rounded-lg bg-blue-500/5 hover:bg-blue-500/10 transition-colors cursor-pointer">
                       <ArrowLeftRight className="h-4 w-4 text-blue-600" />

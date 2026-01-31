@@ -42,7 +42,21 @@ export function AppSidebar() {
   const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
   const { viewAsRole, setViewAsRole } = useViewAs();
   const { setOpenMobile } = useSidebar();
-  const displayName = user?.email || "User";
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  const displayName = profile?.display_name?.trim() || user?.email || "User";
 
   const effectiveCanEdit = viewAsRole
     ? viewAsRole === "admin" || viewAsRole === "worker"

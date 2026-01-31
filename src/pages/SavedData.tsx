@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +32,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Plus, Trash2, Hotel, X, Pencil } from "lucide-react";
+import { Plus, Trash2, Hotel, X, Pencil } from "lucide-react";
 import {
   useSavedHotels,
   useCreateSavedHotel,
@@ -45,7 +44,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
 
 export default function SavedData() {
-  const navigate = useNavigate();
   const { data: hotels, isLoading: hotelsLoading } = useSavedHotels();
   const createHotel = useCreateSavedHotel();
   const updateHotel = useUpdateSavedHotel();
@@ -151,18 +149,12 @@ export default function SavedData() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="outline" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Saved Hotels</h1>
-            <p className="text-muted-foreground">Manage hotels and their activities for quick reuse</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="page-title text-foreground">Saved Hotels</h1>
+          <p className="text-muted-foreground">Manage hotels and their activities for quick reuse</p>
         </div>
 
         <Card>

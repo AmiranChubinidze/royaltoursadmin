@@ -25,6 +25,7 @@ interface CardConfig {
   label: string;
   value: CurrencyValue;
   icon: LucideIcon;
+  dotColor: string;
   iconColor: string;
   iconBg: string;
   valueColor: string;
@@ -88,6 +89,7 @@ export function FinanceSummaryCards({
       label: "Received",
       value: received,
       icon: Wallet,
+      dotColor: "bg-emerald-500",
       iconColor: "text-emerald-600 dark:text-emerald-400",
       iconBg: "bg-emerald-500/10",
       valueColor: "text-foreground",
@@ -96,6 +98,7 @@ export function FinanceSummaryCards({
       label: "Expenses",
       value: expenses,
       icon: TrendingDown,
+      dotColor: "bg-red-500",
       iconColor: "text-red-600 dark:text-red-400",
       iconBg: "bg-red-500/10",
       valueColor: "text-foreground",
@@ -104,6 +107,7 @@ export function FinanceSummaryCards({
       label: "Pending",
       value: pending,
       icon: Clock,
+      dotColor: "bg-amber-500",
       iconColor: "text-amber-600 dark:text-amber-400",
       iconBg: "bg-amber-500/10",
       valueColor: "text-amber-600 dark:text-amber-400",
@@ -122,13 +126,11 @@ export function FinanceSummaryCards({
           >
             <div className="p-4">
               <div className="flex items-center gap-3">
-                {/* Icon */}
+                {/* Colored dot indicator */}
                 <div className={cn(
-                  "flex-shrink-0 p-2 rounded-lg",
-                  card.iconBg
-                )}>
-                  <IconComponent className={cn("h-4 w-4", card.iconColor)} />
-                </div>
+                  "flex-shrink-0 h-3 w-3 rounded-full",
+                  card.dotColor
+                )} />
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">

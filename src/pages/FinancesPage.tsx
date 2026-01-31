@@ -1,12 +1,11 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CalendarIcon, Filter, X, Plus, Loader2 } from "lucide-react";
+import { CalendarIcon, Filter, X, Plus, Loader2 } from "lucide-react";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useTransactions, useUpdateTransaction } from "@/hooks/useTransactions";
 import { FinanceSummaryCards } from "@/components/finances/FinanceSummaryCards";
@@ -14,14 +13,12 @@ import { LedgerView } from "@/components/finances/LedgerView";
 import { CategoriesView } from "@/components/finances/CategoriesView";
 import { HoldersView } from "@/components/finances/HoldersView";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { MobileFinanceHeader } from "@/components/finances/MobileFinanceHeader";
 import { MobileSummaryCards } from "@/components/finances/MobileSummaryCards";
 import { MobileTransactionCard } from "@/components/finances/MobileTransactionCard";
 import { TransactionModal } from "@/components/finances/TransactionModal";
 import { useCurrency } from "@/contexts/CurrencyContext";
 
 export default function FinancesPage() {
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { exchangeRate } = useCurrency();
 
@@ -157,7 +154,7 @@ export default function FinancesPage() {
       0
     );
     const pending = {
-      USD: revenueExpected - received.USD,
+      USD: Math.max(0, revenueExpected - received.USD),
       GEL: 0, // No GEL pending from confirmations
     };
 
@@ -184,9 +181,7 @@ export default function FinancesPage() {
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <MobileFinanceHeader />
-
+      <div className="flex flex-col">
         <div className="flex-1 overflow-y-auto">
 
           <div className="px-4 py-4 space-y-4 pb-24">
@@ -356,7 +351,7 @@ export default function FinancesPage() {
 
         {/* FAB for adding transaction */}
         <Button
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 hover:shadow-glow transition-all duration-200"
           onClick={() => {
             setEditingTransaction(null);
             setTransactionModalOpen(true);
@@ -379,89 +374,11 @@ export default function FinancesPage() {
 
   // Desktop Layout
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground">Finances</h1>
-            <p className="text-sm text-muted-foreground">
-              Track income, expenses, and profitability
-            </p>
-          </div>
-          
-        </div>
-
-        {/* Date Filter */}
-        <div className="flex flex-wrap items-center gap-2 pb-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="icon" className="h-9 w-9">
-                <CalendarIcon className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-4" align="start">
-              <div className="space-y-4">
-                <div className="text-sm font-medium">Date Range</div>
-                <div className="flex gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">From</label>
-                    <Calendar
-                      mode="single"
-                      selected={dateFrom}
-                      onSelect={setDateFrom}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-muted-foreground">To</label>
-                    <Calendar
-                      mode="single"
-                      selected={dateTo}
-                      onSelect={setDateTo}
-                      className="p-3 pointer-events-auto"
-                    />
-                  </div>
-                </div>
-                <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                  {dateFrom && dateTo
-                    ? `${format(dateFrom, "MMM d")} – ${format(dateTo, "MMM d, yyyy")}`
-                    : dateFrom
-                    ? `From ${format(dateFrom, "MMM d, yyyy")}`
-                    : dateTo
-                    ? `Until ${format(dateTo, "MMM d, yyyy")}`
-                    : "Select dates"}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <Button
-            variant={isThisMonth ? "secondary" : "ghost"}
-            size="sm"
-            className="h-9"
-            onClick={() => {
-              setDateFrom(startOfMonth(new Date()));
-              setDateTo(endOfMonth(new Date()));
-            }}
-          >
-            This Month
-          </Button>
-          <Button
-            variant={isAllTime ? "secondary" : "ghost"}
-            size="sm"
-            className="h-9"
-            onClick={() => {
-              setDateFrom(undefined);
-              setDateTo(undefined);
-            }}
-          >
-            All Time
-          </Button>
+    <div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Page title */}
+        <div>
+          <h1 className="page-title text-foreground">Finances</h1>
         </div>
 
         {/* Summary Cards */}
@@ -474,6 +391,7 @@ export default function FinancesPage() {
         />
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList className="bg-muted/50">
             <TabsTrigger value="holders" className="data-[state=active]:bg-background">
               Holdings
@@ -485,6 +403,76 @@ export default function FinancesPage() {
               Categories
             </TabsTrigger>
           </TabsList>
+
+            {/* Date Filter */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <CalendarIcon className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-4" align="end">
+                  <div className="space-y-4">
+                    <div className="text-sm font-medium">Date Range</div>
+                    <div className="flex gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">From</label>
+                        <Calendar
+                          mode="single"
+                          selected={dateFrom}
+                          onSelect={setDateFrom}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">To</label>
+                        <Calendar
+                          mode="single"
+                          selected={dateTo}
+                          onSelect={setDateTo}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                      {dateFrom && dateTo
+                        ? `${format(dateFrom, "MMM d")} ??? ${format(dateTo, "MMM d, yyyy")}`
+                        : dateFrom
+                        ? `From ${format(dateFrom, "MMM d, yyyy")}`
+                        : dateTo
+                        ? `Until ${format(dateTo, "MMM d, yyyy")}`
+                        : "Select dates"}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                variant={isThisMonth ? "secondary" : "ghost"}
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  setDateFrom(startOfMonth(new Date()));
+                  setDateTo(endOfMonth(new Date()));
+                }}
+              >
+                This Month
+              </Button>
+              <Button
+                variant={isAllTime ? "secondary" : "ghost"}
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
+                }}
+              >
+                All Time
+              </Button>
+            </div>
+          </div>
 
           <TabsContent value="holders" className="mt-4">
             <HoldersView />

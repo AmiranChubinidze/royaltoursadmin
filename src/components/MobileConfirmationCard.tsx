@@ -63,7 +63,7 @@ export function MobileConfirmationCard({
 
   return (
     <div
-      className="bg-card border border-border rounded-xl p-4 active:bg-muted/50 transition-colors"
+      className="bg-card border border-border rounded-xl p-4 active:bg-muted/50 transition-all duration-150 shadow-[0_1px_3px_0_hsl(210_20%_20%/0.04)]"
       onClick={() => navigate(`/confirmation/${confirmation.id}`)}
     >
       {/* Top row: Code + Status badges */}

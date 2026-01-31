@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Check, X, Users, Clock, CheckCircle, Ban, Shield, Eye, FileText, DollarSign, Upload, Database } from "lucide-react";
+import { Check, X, Users, Clock, CheckCircle, Ban, Shield, Eye, FileText, DollarSign, Upload, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
@@ -206,7 +206,7 @@ const AdminPanel = () => {
   // Show loading while checking admin status
   if (isAdminLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="flex items-center justify-center min-h-[50vh]">
         <div className="space-y-4 text-center">
           <Skeleton className="h-8 w-48 mx-auto" />
           <Skeleton className="h-64 w-96" />
@@ -217,7 +217,7 @@ const AdminPanel = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="flex items-center justify-center min-h-[50vh]">
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center">
             <X className="h-12 w-12 text-destructive mx-auto mb-4" />
@@ -234,60 +234,55 @@ const AdminPanel = () => {
   const approvedUsers = profiles?.filter((p) => p.approved) || [];
 
   return (
-    <div className="min-h-screen bg-background p-6 animate-fade-in">
+    <div className="animate-fade-in">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Admin Panel</h1>
-            <p className="text-muted-foreground">Manage user approvals</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="page-title text-foreground">Admin Panel</h1>
+          <p className="text-muted-foreground">Manage user approvals</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
+          <div className="stat-card">
+            <CardContent className="pt-6 pb-5">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <Users className="h-6 w-6 text-primary" />
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold">{profiles?.length || 0}</p>
+                  <p className="text-2xl font-bold stat-number">{profiles?.length || 0}</p>
                 </div>
               </div>
             </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
+          </div>
+          <div className="stat-card">
+            <CardContent className="pt-6 pb-5">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-amber-500/10">
-                  <Clock className="h-6 w-6 text-amber-500" />
+                <div className="p-3 rounded-xl bg-amber-500/10">
+                  <Clock className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Pending Approval</p>
-                  <p className="text-2xl font-bold">{pendingUsers.length}</p>
+                  <p className="text-2xl font-bold stat-number">{pendingUsers.length}</p>
                 </div>
               </div>
             </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
+          </div>
+          <div className="stat-card">
+            <CardContent className="pt-6 pb-5">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-emerald-500/10">
-                  <CheckCircle className="h-6 w-6 text-emerald-500" />
+                <div className="p-3 rounded-xl bg-accent/10">
+                  <CheckCircle className="h-5 w-5 text-accent" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Approved</p>
-                  <p className="text-2xl font-bold">{approvedUsers.length}</p>
+                  <p className="text-2xl font-bold stat-number">{approvedUsers.length}</p>
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </div>
         </div>
 
         {/* Role Permissions Matrix */}
@@ -299,7 +294,7 @@ const AdminPanel = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-xl border border-border overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -407,10 +402,10 @@ const AdminPanel = () => {
             ) : pendingUsers.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No pending approvals</p>
             ) : (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <TableRow className="bg-muted/40 border-b border-border">
                       <TableHead>Email</TableHead>
                       <TableHead>Requested</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -471,10 +466,10 @@ const AdminPanel = () => {
             ) : approvedUsers.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No approved users yet</p>
             ) : (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <TableRow className="bg-muted/40 border-b border-border">
                       <TableHead>Email</TableHead>
                       <TableHead>Joined</TableHead>
                       <TableHead>Role</TableHead>

@@ -15,7 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Inter',
+  				'DM Sans',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
@@ -24,20 +24,15 @@ export default {
   				'Roboto',
   				'Helvetica Neue',
   				'Arial',
-  				'Noto Sans',
   				'sans-serif'
   			],
-  			serif: [
-  				'Lora',
-  				'ui-serif',
+  			display: [
+  				'Playfair Display',
   				'Georgia',
-  				'Cambria',
-  				'Times New Roman',
-  				'Times',
   				'serif'
   			],
   			mono: [
-  				'Space Mono',
+  				'IBM Plex Mono',
   				'ui-monospace',
   				'SFMono-Regular',
   				'Menlo',
@@ -61,6 +56,11 @@ export default {
   			},
   			success: 'hsl(var(--success))',
   			warning: 'hsl(var(--warning))',
+  			persian: {
+  				DEFAULT: 'hsl(var(--persian))',
+  				light: 'hsl(var(--persian-light))',
+  				dark: 'hsl(var(--persian-dark))'
+  			},
   			primary: {
   				DEFAULT: 'hsl(var(--primary))',
   				foreground: 'hsl(var(--primary-foreground))'
@@ -156,7 +156,8 @@ export default {
   			md: 'var(--shadow-md)',
   			lg: 'var(--shadow-lg)',
   			xl: 'var(--shadow-xl)',
-  			'2xl': 'var(--shadow-2xl)'
+  			'2xl': 'var(--shadow-2xl)',
+  			glow: 'var(--shadow-glow)'
   		}
   	}
   },

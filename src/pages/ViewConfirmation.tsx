@@ -120,8 +120,14 @@ export default function ViewConfirmation() {
     <div className="container mx-auto py-8 px-4 print:p-0 print:m-0 print:max-w-none">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6 print:hidden">
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => navigate("/")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />Back
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => navigate(-1)}
+            title="Go back"
+          >
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           {editedDate && <span className="text-xs text-muted-foreground">Edited: {editedDate}</span>}
         </div>

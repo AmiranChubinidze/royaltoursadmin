@@ -14,6 +14,7 @@ type AuthMode = "login" | "signup" | "forgot-password";
 
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>("login");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -56,6 +57,17 @@ const Auth = () => {
 
         navigate("/");
       } else if (mode === "signup") {
+        const trimmedName = displayName.trim();
+        if (!trimmedName) {
+          throw new Error("Display name is required.");
+        }
+        if (trimmedName.length < 2 || trimmedName.length > 24) {
+          throw new Error("Display name must be 2-24 characters.");
+        }
+        if (!/^[A-Za-z0-9_ ]+$/.test(trimmedName)) {
+          throw new Error("Display name can use letters, numbers, spaces, and underscores only.");
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -67,6 +79,14 @@ const Auth = () => {
 
         // Send approval request to admin
         if (data.user) {
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .upsert(
+              { id: data.user.id, email, display_name: trimmedName },
+              { onConflict: "id" }
+            );
+          if (profileError) throw profileError;
+
           await supabase.functions.invoke("user-approval", {
             body: { userEmail: email, userId: data.user.id },
           });
@@ -117,21 +137,21 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
+    <div className="min-h-screen flex items-center justify-center auth-bg p-4 relative">
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white rounded-2xl relative overflow-hidden">
+        <CardHeader className="text-center space-y-5 pb-2 pt-10">
           <div className="flex justify-center">
-            <img 
-              src={rtgLogoRound} 
-              alt="Royal Georgian Tours" 
-              className="h-24 w-auto object-contain"
+            <img
+              src={rtgLogoRound}
+              alt="Royal Georgian Tours"
+              className="h-20 w-auto object-contain drop-shadow-md"
             />
           </div>
           <div>
-            <CardTitle className="text-xl font-bold text-primary">
+            <CardTitle className="text-xl font-display font-bold text-foreground tracking-normal">
               Royal Georgian Tours
             </CardTitle>
-            <CardDescription className="mt-1">{getTitle()}</CardDescription>
+            <CardDescription className="mt-1.5 text-muted-foreground">{getTitle()}</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -151,6 +171,21 @@ const Auth = () => {
             </Alert>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label htmlFor="display-name">Display name</Label>
+                <Input
+                  id="display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Enter your name"
+                  required
+                  maxLength={24}
+                  className="border-l-2 border-l-primary/40 focus:border-l-primary"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -160,6 +195,7 @@ const Auth = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
+                className="border-l-2 border-l-primary/40 focus:border-l-primary"
               />
             </div>
             {mode !== "forgot-password" && (
@@ -173,6 +209,7 @@ const Auth = () => {
                   placeholder="Enter your password"
                   required
                   minLength={6}
+                  className="border-l-2 border-l-primary/40 focus:border-l-primary"
                 />
               </div>
             )}
@@ -200,6 +237,7 @@ const Auth = () => {
                   onClick={() => {
                     setMode("signup");
                     setPendingApproval(false);
+                    setDisplayName("");
                   }}
                   className="text-sm text-muted-foreground hover:text-primary"
                 >
@@ -208,15 +246,16 @@ const Auth = () => {
               </>
             )}
             {mode === "signup" && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("login");
-                  setPendingApproval(false);
-                }}
-                className="text-sm text-muted-foreground hover:text-primary"
-              >
-                Already have an account? Sign in
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode("login");
+                    setDisplayName("");
+                    setPendingApproval(false);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-primary"
+                >
+                  Already have an account? Sign in
               </button>
             )}
             {mode === "forgot-password" && (

@@ -299,6 +299,15 @@ export function useDeleteConfirmation() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Delete all linked transactions first to avoid orphaned ledger entries.
+      // This is a no-op if no transactions reference this confirmation.
+      const { error: txError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("confirmation_id", id);
+
+      if (txError) throw txError;
+
       const { error } = await supabase
         .from("confirmations")
         .delete()
@@ -308,6 +317,7 @@ export function useDeleteConfirmation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
       toast({
         title: "Success",
         description: "Confirmation deleted successfully",

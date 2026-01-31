@@ -3,9 +3,8 @@ import { format } from "date-fns";
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, Sparkles, ChevronDown } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useTransactions, useConfirmTransaction } from "@/hooks/useTransactions";
+import { useTransactions } from "@/hooks/useTransactions";
 import { HolderWithBalance } from "@/hooks/useHolders";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -35,7 +34,6 @@ function setStoredState(holderId: string, state: { moneyIn: boolean; moneyOut: b
 
 export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTransactionsSheetProps) {
   const { data: transactions } = useTransactions({ holderId: holder?.id });
-  const confirmTransaction = useConfirmTransaction();
   
   const [moneyInOpen, setMoneyInOpen] = useState(false);
   const [moneyOutOpen, setMoneyOutOpen] = useState(false);
@@ -131,11 +129,8 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
           <ConfirmWithResponsiblePopover
             checked={t.status === "confirmed"}
             currentResponsibleId={t.responsible_holder_id}
-            onConfirm={(holderId) => confirmTransaction.mutate({ 
-              id: t.id, 
-              confirm: t.status !== "confirmed",
-              responsibleHolderId: t.status !== "confirmed" ? holderId : undefined
-            })}
+            onConfirm={() => {}}
+            disabled
           />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate flex items-center gap-1.5">
@@ -151,7 +146,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
               )}
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
               ₾{gelAmount ? Math.round(gelAmount).toLocaleString() : Math.round(t.amount).toLocaleString()}
             </span>
@@ -171,11 +166,8 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
         <ConfirmWithResponsiblePopover
           checked={t.status === "confirmed"}
           currentResponsibleId={t.responsible_holder_id}
-          onConfirm={(holderId) => confirmTransaction.mutate({ 
-            id: t.id, 
-            confirm: t.status !== "confirmed",
-            responsibleHolderId: t.status !== "confirmed" ? holderId : undefined
-          })}
+          onConfirm={() => {}}
+          disabled
         />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate flex items-center gap-1.5">
@@ -192,7 +184,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
           </p>
         </div>
         <span className={cn(
-          "text-sm font-semibold",
+          "text-sm font-semibold shrink-0",
           type === 'in' ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
         )}>
           {type === 'in' ? '+' : '-'}{formatAmount(t.amount, t.currency)}
@@ -232,7 +224,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
           </div>
         </SheetHeader>
 
-        <ScrollArea className="h-[calc(100vh-180px)] pr-4">
+        <div className="h-[calc(100vh-180px)] overflow-y-auto pr-1">
           {/* Money In */}
           {(() => {
             const totalInUSD = ins.filter(t => t.currency === 'USD' && t.status === 'confirmed').reduce((sum, t) => sum + Number(t.amount), 0);
@@ -261,7 +253,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                     </div>
                   </div>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="animate-accordion-down">
+                <CollapsibleContent>
                   {ins.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-2 px-3">No incoming transactions</p>
                   ) : (
@@ -302,7 +294,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                     </div>
                   </div>
                 </CollapsibleTrigger>
-                <CollapsibleContent className="animate-accordion-down">
+                <CollapsibleContent>
                   {outs.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-2 px-3">No outgoing transactions</p>
                   ) : (
@@ -347,7 +339,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
                       </div>
                     </div>
                   </CollapsibleTrigger>
-                  <CollapsibleContent className="animate-accordion-down">
+                  <CollapsibleContent>
                     <div className="space-y-2 mt-2">
                       {exchanges.map((t) => renderTransaction(t, 'exchange'))}
                     </div>
@@ -356,7 +348,7 @@ export function HolderTransactionsSheet({ holder, open, onOpenChange }: HolderTr
               );
             })()
           )}
-        </ScrollArea>
+        </div>
       </SheetContent>
     </Sheet>
   );

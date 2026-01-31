@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, LogOut, Shield, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck, DollarSign, Filter } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck, DollarSign, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   useConfirmations,
@@ -34,22 +34,19 @@ import {
   useDuplicateConfirmation,
 } from "@/hooks/useConfirmations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { MobileHeader } from "@/components/MobileHeader";
 import { MobileConfirmationCard } from "@/components/MobileConfirmationCard";
-import rtgLogoFull from "@/assets/rtg-logo-full.png";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
   const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const isMobile = useIsMobile();
   
   // Admin "View as" feature
-  const [viewAsRole, setViewAsRole] = useState<string | null>(null);
+  const { viewAsRole, setViewAsRole } = useViewAs();
   
   // Effective role (for "View as" feature - only affects UI display, not actual permissions)
   const effectiveRole = viewAsRole || role;
@@ -176,7 +173,7 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[50vh]">
         <Card className="max-w-md">
           <CardContent className="pt-6">
             <p className="text-destructive">Error loading confirmations: {error.message}</p>
@@ -189,18 +186,7 @@ export function Dashboard() {
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <MobileHeader
-          user={user}
-          role={role}
-          isAdmin={isAdmin}
-          isAccountant={isAccountant}
-          isWorker={isWorker}
-          effectiveCanManageConfirmations={effectiveCanManageConfirmations}
-          effectiveIsBooking={effectiveIsBooking}
-          signOut={signOut}
-        />
-
+      <div className="flex flex-col">
         <div className="flex-1 overflow-y-auto">
 
           {/* Mobile Stats */}
@@ -208,13 +194,13 @@ export function Dashboard() {
             <div className="flex gap-3">
               <div className="bg-card border border-border rounded-xl p-4 flex-1">
                 <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-bold text-foreground stat-number">
                   {isLoading ? "..." : confirmations?.length || 0}
                 </p>
               </div>
               <div className="bg-card border border-border rounded-xl p-4 flex-1">
                 <p className="text-xs text-muted-foreground">This Month</p>
-                <p className="text-2xl font-bold text-emerald-600">
+                <p className="text-2xl font-bold text-accent stat-number">
                   {isLoading
                     ? "..."
                     : confirmations?.filter((c) => {
@@ -369,7 +355,7 @@ export function Dashboard() {
         {/* Mobile FAB for new confirmation */}
         {effectiveCanManageConfirmations && (
           <Button
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 hover:shadow-glow transition-all duration-200"
             onClick={() => navigate("/new")}
           >
             <Plus className="h-6 w-6" />
@@ -381,140 +367,36 @@ export function Dashboard() {
 
   // Desktop Layout
   return (
-    <div className="min-h-screen bg-background p-6 animate-fade-in">
+    <div className="animate-fade-in">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <img 
-              src={rtgLogoFull} 
-              alt="Royal Georgian Tours" 
-              className="h-20 w-auto object-contain"
-            />
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Royal Georgian Tours</h1>
-              <p className="text-muted-foreground text-sm">Tour Confirmation Management</p>
-            </div>
-          </div>
-          <div className="flex gap-2 items-center">
-            {effectiveCanManageConfirmations && (
-              <Button variant="outline" onClick={() => navigate("/saved-data")}>
-                Saved Data
-              </Button>
-            )}
-            {isAdmin && !viewAsRole && (
-              <Button variant="outline" onClick={() => navigate("/admin")}>
-                <Shield className="h-4 w-4 mr-2" />
-                Admin
-              </Button>
-            )}
-            {isAdmin && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant={viewAsRole ? "secondary" : "outline"} 
-                    size="icon"
-                    title={viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-40 p-1" align="end">
-                  <div className="space-y-1">
-                    <Button
-                      variant={viewAsRole === null ? "secondary" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      onClick={() => setViewAsRole(null)}
-                    >
-                      My Role ({role === "worker" ? "Manager" : role === "accountant" ? "Coworker" : role})
-                    </Button>
-                    <Button
-                      variant={viewAsRole === "worker" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      onClick={() => setViewAsRole("worker")}
-                    >
-                      Manager
-                    </Button>
-                    <Button
-                      variant={viewAsRole === "visitor" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      onClick={() => setViewAsRole("visitor")}
-                    >
-                      Visitor
-                    </Button>
-                    <Button
-                      variant={viewAsRole === "accountant" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      onClick={() => setViewAsRole("accountant")}
-                    >
-                      Coworker
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-            {effectiveCanManageConfirmations && (
-              <Button onClick={() => navigate("/new")} size="lg">
-                <Plus className="h-5 w-5 mr-2" />
-                New Confirmation
-              </Button>
-            )}
-            <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">{user?.email}</span>
-                {role && (
-                  <Badge 
-                    variant={role === "admin" ? "default" : role === "worker" || role === "accountant" ? "secondary" : "outline"}
-                    className="text-xs capitalize"
-                  >
-                    {role === "worker" ? "Manager" : role === "accountant" ? "Coworker" : role}
-                  </Badge>
-                )}
-                {viewAsRole && (
-                  <Badge variant="outline" className="text-xs">
-                    → {viewAsRole === "worker" ? "Manager" : viewAsRole === "accountant" ? "Coworker" : viewAsRole}
-                  </Badge>
-                )}
-              </div>
-              <Button variant="ghost" size="icon" onClick={signOut} title="Sign Out">
-                <LogOut className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-primary/10">
-                  <FileText className="h-6 w-6 text-primary" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+          <div className="stat-card">
+            <CardContent className="py-5 px-5">
+              <div className="flex items-center gap-3.5">
+                <div className="h-9 w-9 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Confirmations</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {isLoading ? <Skeleton className="h-8 w-16" /> : confirmations?.length || 0}
+                  <p className="text-xs text-muted-foreground">Total Confirmations</p>
+                  <p className="text-2xl font-bold text-foreground stat-number mt-0.5">
+                    {isLoading ? <Skeleton className="h-7 w-14" /> : confirmations?.length || 0}
                   </p>
                 </div>
               </div>
             </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-full bg-emerald-500/10">
-                  <FileText className="h-6 w-6 text-emerald-500" />
+          </div>
+          <div className="stat-card">
+            <CardContent className="py-5 px-5">
+              <div className="flex items-center gap-3.5">
+                <div className="h-9 w-9 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-4 w-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">This Month Arrivals</p>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="text-xs text-muted-foreground">This Month Arrivals</p>
+                  <p className="text-2xl font-bold text-foreground stat-number mt-0.5">
                     {isLoading ? (
-                      <Skeleton className="h-8 w-16" />
+                      <Skeleton className="h-7 w-14" />
                     ) : (
                       confirmations?.filter((c) => {
                         const arrivalDate = parseArrivalDate(c.arrival_date);
@@ -530,43 +412,36 @@ export function Dashboard() {
                 </div>
               </div>
             </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Quick Actions</p>
-                <p className="text-lg font-medium text-foreground mt-1">
-                  {effectiveCanManageConfirmations ? "Create new tour" : effectiveIsBooking ? "Send booking requests" : "View-only access"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                {(isAdmin || isAccountant || isWorker) && (
-                  <Button variant="outline" size="icon" onClick={() => navigate("/finances")} title="Finances">
-                    <DollarSign className="h-4 w-4" />
+          </div>
+          <div className="stat-card">
+            <CardContent className="py-5 px-5 flex items-center justify-between h-full">
+              <div className="flex flex-col">
+                {effectiveCanManageConfirmations ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 rounded-lg border-[#BFE3E6] bg-[#EAF3F4] text-[#0F4C5C] hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => navigate("/new")}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="text-[13px] font-semibold">New Confirmation</span>
                   </Button>
-                )}
-                {effectiveIsBooking && !effectiveCanManageConfirmations && (
-                  <Button variant="outline" onClick={() => navigate("/create-booking-request")}>
-                    <Mail className="h-4 w-4 mr-2" />
-                    Booking Request
-                  </Button>
-                )}
-                {effectiveCanManageConfirmations && (
-                  <Button variant="outline" size="icon" onClick={() => navigate("/create-booking-request")} title="Booking Request">
-                    <Mail className="h-4 w-4" />
-                  </Button>
+                ) : (
+                  <p className="text-base font-medium text-foreground mt-1">
+                    {effectiveIsBooking ? "Send booking requests" : "View-only access"}
+                  </p>
                 )}
               </div>
             </CardContent>
-          </Card>
+          </div>
         </div>
 
         {/* Search and Filter */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex flex-wrap gap-4 items-center">
+        <Card className="mb-4 border-border/60 shadow-none bg-[#FCFCFB] dark:bg-card">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex flex-wrap gap-3 items-center">
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF]" />
                 <Input
                   placeholder="Search by code, client name, or source..."
                   value={searchQuery}
@@ -673,7 +548,7 @@ export function Dashboard() {
         </Card>
 
         {/* Table */}
-        <Card>
+        <Card className="bg-blue-50/50 dark:bg-card">
           <CardHeader>
             <CardTitle>Recent Confirmations</CardTitle>
           </CardHeader>
@@ -703,16 +578,16 @@ export function Dashboard() {
                 )}
               </div>
             ) : (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <div className="rounded-xl border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead className="font-semibold">Code</TableHead>
-                      <TableHead className="font-semibold">Client</TableHead>
-                      <TableHead className="font-semibold">Arrival</TableHead>
-                      <TableHead className="font-semibold">Source</TableHead>
-                      <TableHead className="font-semibold">Duration</TableHead>
-                      <TableHead className="font-semibold text-right">Actions</TableHead>
+                    <TableRow className="bg-muted/20 border-b border-border/60">
+                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Code</TableHead>
+                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Client</TableHead>
+                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Arrival</TableHead>
+                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Source</TableHead>
+                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Duration</TableHead>
+                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -725,10 +600,10 @@ export function Dashboard() {
                       return (
                         <TableRow
                           key={confirmation.id}
-                          className="cursor-pointer hover:bg-muted/30 transition-colors"
+                          className="cursor-pointer hover:bg-[#F6F8F8] transition-colors"
                           onClick={() => navigate(`/confirmation/${confirmation.id}`)}
                         >
-                          <TableCell className="font-mono font-semibold text-primary">
+                          <TableCell className="font-mono font-semibold text-primary tracking-tight">
                             <div className="flex items-center gap-2">
                               {confirmation.status === 'draft' && (
                                 <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 text-xs">
@@ -777,6 +652,7 @@ export function Dashboard() {
                               size="icon"
                               onClick={() => navigate(`/confirmation/${confirmation.id}`)}
                               title="View"
+                              className="text-[#9CA3AF] hover:text-foreground"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -786,7 +662,7 @@ export function Dashboard() {
                                 size="icon"
                                 onClick={() => navigate(`/confirmation/${confirmation.id}/attachments`)}
                                 title="Invoices"
-                                className={confirmation.is_paid ? "text-emerald-600 hover:text-emerald-700" : ""}
+                                className={confirmation.is_paid ? "text-emerald-500 hover:text-emerald-600" : "text-[#9CA3AF] hover:text-foreground"}
                               >
                                 <Paperclip className="h-4 w-4" />
                               </Button>
@@ -801,7 +677,7 @@ export function Dashboard() {
                                       navigate(`/confirmation/${confirmation.id}/edit?complete=true`)
                                     }
                                     title="Complete Draft"
-                                    className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    className="text-[#9CA3AF] hover:text-amber-600 hover:bg-amber-50"
                                   >
                                     <ClipboardCheck className="h-4 w-4" />
                                   </Button>
@@ -814,6 +690,7 @@ export function Dashboard() {
                                       navigate(`/confirmation/${confirmation.id}/edit`)
                                     }
                                     title="Edit"
+                                    className="text-[#9CA3AF] hover:text-foreground"
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
@@ -823,7 +700,7 @@ export function Dashboard() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="text-destructive hover:text-destructive"
+                                      className="text-[#9CA3AF] hover:text-destructive"
                                       title="Delete"
                                     >
                                       <Trash2 className="h-4 w-4" />

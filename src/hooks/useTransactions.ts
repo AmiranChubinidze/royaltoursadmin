@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -119,10 +120,10 @@ export const useTransactions = (filters?: {
         .order("date", { ascending: false });
 
       if (filters?.dateFrom) {
-        query = query.gte("date", filters.dateFrom.toISOString().split("T")[0]);
+        query = query.gte("date", format(filters.dateFrom, "yyyy-MM-dd"));
       }
       if (filters?.dateTo) {
-        query = query.lte("date", filters.dateTo.toISOString().split("T")[0]);
+        query = query.lte("date", format(filters.dateTo, "yyyy-MM-dd"));
       }
       if (filters?.confirmationId) {
         query = query.eq("confirmation_id", filters.confirmationId);

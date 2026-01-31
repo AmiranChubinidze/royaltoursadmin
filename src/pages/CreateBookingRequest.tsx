@@ -536,18 +536,10 @@ export default function CreateBookingRequest() {
   const validEmailCount = hotelBookings.filter(b => b.hotelName && b.hotelEmail).length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       {/* Minimal Header */}
-      <div className="border-b border-border/50 bg-muted/30">
+      <div className="border-b border-border/50 bg-muted/30 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate("/")} 
-            className="shrink-0 h-8 w-8"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <Plane className="h-4 w-4 text-primary" />
           <h1 className="text-sm font-semibold">
             {editingDraftId ? "Edit Booking Draft" : "Create Booking Request"}

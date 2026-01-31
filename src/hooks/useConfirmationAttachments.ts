@@ -203,20 +203,37 @@ export const useDeleteAttachment = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ 
-      attachmentId, 
+    mutationFn: async ({
+      attachmentId,
       filePath,
-      confirmationId 
-    }: { 
-      attachmentId: string; 
+      confirmationId
+    }: {
+      attachmentId: string;
       filePath: string;
       confirmationId: string;
     }) => {
-      // Delete associated expense first
+      // Look up the attachment name to match the linked transaction description
+      const { data: attachment } = await supabase
+        .from("confirmation_attachments")
+        .select("file_name")
+        .eq("id", attachmentId)
+        .maybeSingle();
+
+      // Delete associated expense
       await supabase
         .from("expenses")
         .delete()
         .eq("attachment_id", attachmentId);
+
+      // Delete the matching ledger transaction created during upload.
+      // Transactions don't store attachment_id, so match by description + confirmation.
+      if (attachment?.file_name) {
+        await supabase
+          .from("transactions")
+          .delete()
+          .eq("confirmation_id", confirmationId)
+          .eq("description", `Invoice: ${attachment.file_name}`);
+      }
 
       // Delete from storage
       const { error: storageError } = await supabase.storage
@@ -235,12 +252,16 @@ export const useDeleteAttachment = () => {
       return { confirmationId };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ["confirmation-attachments", data.confirmationId] 
+      queryClient.invalidateQueries({
+        queryKey: ["confirmation-attachments", data.confirmationId]
+      });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({
+        queryKey: ["attachment-expenses", data.confirmationId]
       });
       toast({
         title: "File deleted",
-        description: "The attachment has been removed.",
+        description: "The attachment and its ledger entry have been removed.",
       });
     },
     onError: (error: Error) => {

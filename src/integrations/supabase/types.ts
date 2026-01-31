@@ -354,18 +354,21 @@ export type Database = {
         Row: {
           approved: boolean
           created_at: string
+          display_name: string | null
           email: string
           id: string
         }
         Insert: {
           approved?: boolean
           created_at?: string
+          display_name?: string | null
           email: string
           id: string
         }
         Update: {
           approved?: boolean
           created_at?: string
+          display_name?: string | null
           email?: string
           id?: string
         }

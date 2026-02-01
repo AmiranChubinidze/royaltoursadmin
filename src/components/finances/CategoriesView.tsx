@@ -4,9 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useTransactions, TransactionCategory } from "@/hooks/useTransactions";
+import { useConfirmations } from "@/hooks/useConfirmations";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { TrendingUp, TrendingDown, Clock, Receipt, Wallet, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { isWithinInterval } from "date-fns";
 
 interface CategoriesViewProps {
   dateFrom?: Date;
@@ -15,6 +17,7 @@ interface CategoriesViewProps {
 
 const CATEGORY_CONFIG: Record<TransactionCategory, { label: string; color: string; bgColor: string; chartColor: string }> = {
   tour_payment: { label: "Tour Payments", color: "text-emerald-600", bgColor: "bg-emerald-500", chartColor: "#10b981" },
+  booking: { label: "Booking", color: "text-teal-600", bgColor: "bg-teal-500", chartColor: "#14b8a6" },
   hotel: { label: "Hotels", color: "text-blue-600", bgColor: "bg-blue-500", chartColor: "#3b82f6" },
   driver: { label: "Driver", color: "text-purple-600", bgColor: "bg-purple-500", chartColor: "#8b5cf6" },
   sim: { label: "SIM Cards", color: "text-orange-600", bgColor: "bg-orange-500", chartColor: "#f97316" },
@@ -22,6 +25,28 @@ const CATEGORY_CONFIG: Record<TransactionCategory, { label: string; color: strin
   fuel: { label: "Fuel", color: "text-rose-600", bgColor: "bg-rose-500", chartColor: "#f43f5e" },
   guide: { label: "Guide Fees", color: "text-cyan-600", bgColor: "bg-cyan-500", chartColor: "#06b6d4" },
   other: { label: "Other", color: "text-gray-600", bgColor: "bg-gray-500", chartColor: "#6b7280" },
+};
+
+const FALLBACK_COLORS = [
+  { color: "text-indigo-600", bgColor: "bg-indigo-500", chartColor: "#6366f1" },
+  { color: "text-amber-600", bgColor: "bg-amber-500", chartColor: "#f59e0b" },
+  { color: "text-lime-600", bgColor: "bg-lime-500", chartColor: "#84cc16" },
+  { color: "text-teal-600", bgColor: "bg-teal-500", chartColor: "#14b8a6" },
+  { color: "text-sky-600", bgColor: "bg-sky-500", chartColor: "#0ea5e9" },
+  { color: "text-fuchsia-600", bgColor: "bg-fuchsia-500", chartColor: "#d946ef" },
+];
+
+const normalizeLabel = (category: string) =>
+  category
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const colorForCategory = (category: string) => {
+  let hash = 0;
+  for (let i = 0; i < category.length; i += 1) {
+    hash = (hash * 31 + category.charCodeAt(i)) % 997;
+  }
+  return FALLBACK_COLORS[hash % FALLBACK_COLORS.length];
 };
 
 // Calculate percentage change
@@ -64,6 +89,7 @@ function ChangeIndicator({ current, previous, invertColors = false }: { current:
 
 export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
   const { formatAmount } = useCurrency();
+  const { data: confirmations } = useConfirmations(500);
 
   // Calculate previous period dates
   const { prevDateFrom, prevDateTo } = useMemo(() => {
@@ -104,9 +130,43 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
   const categoryStats = useMemo(() => {
     if (!transactions) return [];
 
-    const stats = Object.keys(CATEGORY_CONFIG).map((category) => {
-      const cat = category as TransactionCategory;
-      const categoryTransactions = transactions.filter((t) => t.category === cat);
+    const expenseTransactions = transactions.filter(
+      (t) =>
+        t.type === "expense" &&
+        t.responsible_holder_id &&
+        t.status === "confirmed" &&
+        t.category !== "transfer_internal" &&
+        t.category !== "currency_exchange"
+    );
+
+    const prevExpenseTransactions = (prevTransactions || []).filter(
+      (t) =>
+        t.type === "expense" &&
+        t.responsible_holder_id &&
+        t.status === "confirmed" &&
+        t.category !== "transfer_internal" &&
+        t.category !== "currency_exchange"
+    );
+
+    const categories = new Map<string, { label: string; color: string; bgColor: string; chartColor: string }>();
+    Object.keys(CATEGORY_CONFIG).forEach((key) => {
+      const config = CATEGORY_CONFIG[key as TransactionCategory];
+      categories.set(key, config);
+    });
+
+    // Add dynamic categories from data
+    expenseTransactions.forEach((t) => {
+      if (!categories.has(t.category)) {
+        const fallback = colorForCategory(t.category);
+        categories.set(t.category, {
+          label: normalizeLabel(t.category),
+          ...fallback,
+        });
+      }
+    });
+
+    const stats = Array.from(categories.entries()).map(([category, config]) => {
+      const categoryTransactions = expenseTransactions.filter((t) => t.category === category);
       
       // Separate by currency
       const usdTransactions = categoryTransactions.filter((t) => t.currency === "USD");
@@ -121,13 +181,13 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
       const count = categoryTransactions.length;
 
       // Previous period stats
-      const prevCategoryTransactions = prevTransactions?.filter((t) => t.category === cat) || [];
+      const prevCategoryTransactions = prevExpenseTransactions.filter((t) => t.category === category);
       const prevTotalUSD = prevCategoryTransactions.filter((t) => t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
       const prevTotalGEL = prevCategoryTransactions.filter((t) => t.currency === "GEL").reduce((sum, t) => sum + t.amount, 0);
 
       return {
-        category: cat,
-        ...CATEGORY_CONFIG[cat],
+        category: category as TransactionCategory,
+        ...config,
         totalUSD,
         totalGEL,
         paidUSD,
@@ -144,8 +204,14 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
     return stats.sort((a, b) => (b.totalUSD + b.totalGEL) - (a.totalUSD + a.totalGEL));
   }, [transactions, prevTransactions]);
 
-  const expenseCategories = categoryStats.filter((c) => c.category !== "tour_payment" && (c.totalUSD > 0 || c.totalGEL > 0));
-  const incomeCategory = categoryStats.find((c) => c.category === "tour_payment");
+  const expenseCategories = categoryStats.filter((c) => c.totalUSD > 0 || c.totalGEL > 0);
+  const incomeCategory = useMemo(() => {
+    if (!transactions) return undefined;
+    const txs = transactions.filter((t) => t.category === "tour_payment" && t.type === "income" && t.status === "confirmed" && t.responsible_holder_id);
+    const totalUSD = txs.filter((t) => t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
+    const totalGEL = txs.filter((t) => t.currency === "GEL").reduce((sum, t) => sum + t.amount, 0);
+    return { totalUSD, totalGEL };
+  }, [transactions]);
 
   const totalExpensesUSD = expenseCategories.reduce((sum, c) => sum + c.totalUSD, 0);
   const totalExpensesGEL = expenseCategories.reduce((sum, c) => sum + c.totalGEL, 0);
@@ -158,7 +224,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
   // Previous period income
   const prevIncomeCategory = useMemo(() => {
     if (!prevTransactions) return { totalUSD: 0, totalGEL: 0, pendingUSD: 0, pendingGEL: 0 };
-    const txs = prevTransactions.filter((t) => t.category === "tour_payment");
+    const txs = prevTransactions.filter((t) => t.category === "tour_payment" && t.type === "income" && t.status === "confirmed" && t.responsible_holder_id);
     const totalUSD = txs.filter((t) => t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
     const totalGEL = txs.filter((t) => t.currency === "GEL").reduce((sum, t) => sum + t.amount, 0);
     const paidUSD = txs.filter((t) => t.is_paid && t.currency === "USD").reduce((sum, t) => sum + t.amount, 0);
@@ -182,25 +248,57 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
     ? ((currentProfitUSD) / incomeCategory.totalUSD * 100).toFixed(1)
     : 0;
 
-  // Top pending confirmations
+  const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
+    if (!dateStr) return null;
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length !== 3) return null;
+      const d = new Date(
+        parseInt(parts[2], 10),
+        parseInt(parts[1], 10) - 1,
+        parseInt(parts[0], 10)
+      );
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(dateStr);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  // Top pending confirmations (based on confirmation status)
   const pendingConfirmations = useMemo(() => {
-    if (!transactions) return [];
+    if (!confirmations) return [];
 
-    const grouped = transactions
-      .filter((t) => t.type === "income" && t.status === "pending" && t.confirmation)
-      .reduce((acc, t) => {
-        const code = t.confirmation?.confirmation_code || "General";
-        if (!acc[code]) {
-          acc[code] = { code, client: t.confirmation?.main_client_name, amount: 0 };
+    const confirmedIncomeByConfirmation = new Set(
+      (transactions || [])
+        .filter((t) => t.type === "income" && t.status === "confirmed" && t.confirmation_id)
+        .map((t) => t.confirmation_id as string)
+    );
+
+    const pending = confirmations
+      .filter((c) => {
+        const price = Number(c.price) || 0;
+        if (price <= 0) return false;
+        if (c.client_paid) return false;
+        if (confirmedIncomeByConfirmation.has(c.id)) return false;
+
+        if (dateFrom || dateTo) {
+          const d = parseDateFlexible(c.arrival_date) || parseDateFlexible(c.confirmation_date) || parseDateFlexible(c.created_at);
+          if (!d) return false;
+          if (dateFrom && dateTo) return isWithinInterval(d, { start: dateFrom, end: dateTo });
+          if (dateFrom) return d >= dateFrom;
+          if (dateTo) return d <= dateTo;
         }
-        acc[code].amount += t.amount;
-        return acc;
-      }, {} as Record<string, { code: string; client: string | null | undefined; amount: number }>);
 
-    return Object.values(grouped)
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
-  }, [transactions]);
+        return true;
+      })
+      .map((c) => ({
+        code: c.confirmation_code,
+        client: c.main_client_name,
+        amount: Number(c.price) || 0,
+      }));
+
+    return pending.sort((a, b) => b.amount - a.amount).slice(0, 5);
+  }, [confirmations, transactions, dateFrom, dateTo]);
 
   if (isLoading || isPrevLoading) {
     return (

@@ -38,6 +38,8 @@ import {
   useAttachmentExpenses,
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useSavedHotels } from "@/hooks/useSavedData";
+import { useViewAs } from "@/contexts/ViewAsContext";
 import { cn } from "@/lib/utils";
 import { TransactionModal } from "@/components/finances/TransactionModal";
 import { useCurrency, Currency } from "@/contexts/CurrencyContext";
@@ -46,12 +48,15 @@ export default function ConfirmationAttachments() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { role } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
   const { exchangeRate } = useCurrency();
   const { toast } = useToast();
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
   const { data: expenseMap } = useAttachmentExpenses(id);
+  const { data: savedHotels } = useSavedHotels();
   const uploadMutation = useUploadAttachment();
   const deleteMutation = useDeleteAttachment();
   const markPaidMutation = useMarkAsPaid();
@@ -117,9 +122,9 @@ export default function ConfirmationAttachments() {
     }
   }, [confirmation, attachments, id]);
 
-  const canUpload = role === "admin" || role === "worker" || role === "accountant";
-  const canDelete = role === "admin" || role === "worker";
-  const canAddTransaction = role === "admin" || role === "worker" || role === "accountant";
+  const canUpload = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant";
+  const canDelete = effectiveRole === "admin" || effectiveRole === "worker";
+  const canAddTransaction = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant";
   
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -294,6 +299,15 @@ export default function ConfirmationAttachments() {
     }
   }
 
+  const ownedHotelSet = new Set(
+    (savedHotels || [])
+      .filter((h) => h.is_owned)
+      .map((h) => h.name.trim().toLowerCase())
+  );
+  const visibleHotelStays = hotelStays.filter(
+    (stay) => !ownedHotelSet.has(stay.hotel.trim().toLowerCase())
+  );
+
   // Check which hotel stays already have an uploaded invoice (match by hotel name in attachment file_name)
   const getMatchingAttachment = (hotelName: string, stayIndex: number) => {
     if (!attachments) return null;
@@ -437,7 +451,7 @@ export default function ConfirmationAttachments() {
         </Card>
 
         {/* Hotel Invoices Checklist */}
-        {hotelStays.length > 0 && (
+        {visibleHotelStays.length > 0 && (
           <Card className="mb-6">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -455,9 +469,9 @@ export default function ConfirmationAttachments() {
               <CardDescription>Upload an invoice for each hotel stay</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {hotelStays.map((stay, idx) => {
+              {visibleHotelStays.map((stay, idx) => {
                 // Count how many times this hotel appeared before this index
-                const sameHotelBefore = hotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
+                const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
                 const match = getMatchingAttachment(stay.hotel, sameHotelBefore);
                 const hasInvoice = !!match;
                 const expense = match && expenseMap?.[match.id];

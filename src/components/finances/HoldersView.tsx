@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2, Wallet, AlertTriangle, ArrowRightLeft, Settings, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHoldersWithBalances, HolderWithBalance } from "@/hooks/useHolders";
+import { useUserRole } from "@/hooks/useUserRole";
 import { HolderCard } from "./HolderCard";
 import { QuickTransferModal } from "./QuickTransferModal";
 import { HolderManagementModal } from "./HolderManagementModal";
@@ -11,6 +12,7 @@ export function HoldersView() {
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [holderModalOpen, setHolderModalOpen] = useState(false);
   const [selectedHolder, setSelectedHolder] = useState<HolderWithBalance | null>(null);
+  const { isAdmin } = useUserRole();
 
   const { data, isLoading, error } = useHoldersWithBalances();
 
@@ -56,24 +58,26 @@ export function HoldersView() {
       return acc;
     },
     {
-      USD: { balance: 0, pendingIn: unassignedPendingIn?.USD || 0, pendingOut: 0 },
-      GEL: { balance: 0, pendingIn: unassignedPendingIn?.GEL || 0, pendingOut: 0 },
+      USD: { balance: 0, pendingIn: 0, pendingOut: 0 },
+      GEL: { balance: 0, pendingIn: 0, pendingOut: 0 },
     }
   );
 
   return (
     <div className="space-y-6">
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => setTransferModalOpen(true)} className="gap-2">
-          <ArrowRightLeft className="h-4 w-4" />
-          Quick Transfer
-        </Button>
-        <Button variant="outline" onClick={() => setHolderModalOpen(true)} className="gap-2">
-          <Settings className="h-4 w-4" />
-          Manage People
-        </Button>
-      </div>
+      {isAdmin && (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setTransferModalOpen(true)} className="gap-2">
+            <ArrowRightLeft className="h-4 w-4" />
+            Quick Transfer
+          </Button>
+          <Button variant="outline" onClick={() => setHolderModalOpen(true)} className="gap-2">
+            <Settings className="h-4 w-4" />
+            Manage People
+          </Button>
+        </div>
+      )}
 
       {/* Summary Header - Compact Design */}
       <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card border border-border/60 rounded-xl">

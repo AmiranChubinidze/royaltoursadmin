@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -17,10 +17,28 @@ import { MobileSummaryCards } from "@/components/finances/MobileSummaryCards";
 import { MobileTransactionCard } from "@/components/finances/MobileTransactionCard";
 import { TransactionModal } from "@/components/finances/TransactionModal";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useViewAs } from "@/contexts/ViewAsContext";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function FinancesPage() {
   const isMobile = useIsMobile();
   const { exchangeRate } = useCurrency();
+  const { role, isAdmin, isWorker, isAccountant } = useUserRole();
+  const { user } = useAuth();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
+  const canSeeHoldings = effectiveRole
+    ? !["coworker", "visitor"].includes(effectiveRole)
+    : isAdmin || isWorker || isAccountant;
+  const canEditTransaction = (t: any) => {
+    if (["admin", "worker", "accountant"].includes(effectiveRole || "")) return true;
+    if (effectiveRole !== "coworker") return false;
+    if (!user?.id) return false;
+    if (t.created_by === user.id) return true;
+    if (t.kind === "exchange") return false;
+    return !t.responsible_holder_id;
+  };
 
   // Date filter state
   const [dateFrom, setDateFrom] = useState<Date | undefined>(startOfMonth(new Date()));
@@ -38,6 +56,12 @@ export default function FinancesPage() {
   const updateTransaction = useUpdateTransaction();
 
   const isLoading = confirmationsLoading || transactionsLoading;
+
+  useEffect(() => {
+    if (!canSeeHoldings && activeTab === "holders") {
+      setActiveTab("ledger");
+    }
+  }, [canSeeHoldings, activeTab]);
 
   // Parse dates that might come as DD/MM/YYYY or ISO (YYYY-MM-DD)
   const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
@@ -104,18 +128,20 @@ export default function FinancesPage() {
       return true;
     });
 
-    // Received: sum of confirmed income transactions by currency
-    const receivedUSD = transactions
+    const responsibleTx = transactions.filter((t) => t.responsible_holder_id);
+
+    // Received: sum of confirmed income transactions by currency (with responsible)
+    const receivedUSD = responsibleTx
       .filter((t) => t.type === "income" && t.status === "confirmed" && t.currency === "USD")
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
     
-    const receivedGEL = transactions
+    const receivedGEL = responsibleTx
       .filter((t) => t.type === "income" && t.status === "confirmed" && t.currency === "GEL")
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
     // For confirmations without confirmed income transactions, use client_paid flag (prices are in USD)
     const confirmationsWithoutPaidIncomeTransactions = filteredConfirmations.filter((c) => {
-      const hasConfirmedIncomeTransaction = transactions.some(
+      const hasConfirmedIncomeTransaction = responsibleTx.some(
         (t) => t.confirmation_id === c.id && t.type === "income" && t.status === "confirmed"
       );
       return !hasConfirmedIncomeTransaction && c.client_paid;
@@ -132,11 +158,11 @@ export default function FinancesPage() {
 
     // Expenses: sum of confirmed expense transactions by currency
     // Exclude internal transfers and currency exchanges
-    const expensesUSD = transactions
+    const expensesUSD = responsibleTx
       .filter((t) => t.type === "expense" && t.status === "confirmed" && t.currency === "USD" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
     
-    const expensesGEL = transactions
+    const expensesGEL = responsibleTx
       .filter((t) => t.type === "expense" && t.status === "confirmed" && t.currency === "GEL" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
@@ -161,13 +187,62 @@ export default function FinancesPage() {
     return { received, expenses, profit, pending };
   }, [confirmations, transactions, dateFrom, dateTo]);
 
+  const exchangeSummary = useMemo(() => {
+    if (!transactions || transactions.length === 0) {
+      return { rate: exchangeRate.gel_to_usd, usdOut: 0, usdIn: 0, gelOut: 0, gelIn: 0 };
+    }
+    const exchangeTx = transactions.filter(
+      (t) =>
+        t.kind === "exchange" &&
+        t.status === "confirmed" &&
+        (t.responsible_holder_id || t.from_holder_id)
+    );
+    let usdTotal = 0;
+    let gelTotal = 0;
+    let usdOut = 0;
+    let usdIn = 0;
+    let gelOut = 0;
+    let gelIn = 0;
+    for (const tx of exchangeTx) {
+      const rateMatch = tx.notes?.match(/Exchange rate: ([\d.]+)/);
+      const rateFromNotes = rateMatch ? parseFloat(rateMatch[1]) : null;
+      const rateGelPerUsd = rateFromNotes && !Number.isNaN(rateFromNotes)
+        ? rateFromNotes
+        : exchangeRate.usd_to_gel;
+      if (!rateGelPerUsd || Number.isNaN(rateGelPerUsd)) continue;
+      const amount = Number(tx.amount) || 0;
+      if (tx.currency === "USD") {
+        usdTotal += amount;
+        gelTotal += amount * rateGelPerUsd;
+        usdOut += amount;
+        gelIn += amount * rateGelPerUsd;
+      } else if (tx.currency === "GEL") {
+        usdTotal += amount / rateGelPerUsd;
+        gelTotal += amount;
+        gelOut += amount;
+        usdIn += amount / rateGelPerUsd;
+      }
+    }
+    if (usdTotal > 0 && gelTotal > 0) {
+      // Convert GEL to USD using realized exchange: USD / GEL
+      return { rate: usdTotal / gelTotal, usdOut, usdIn, gelOut, gelIn };
+    }
+    return { rate: exchangeRate.gel_to_usd, usdOut, usdIn, gelOut, gelIn };
+  }, [transactions, exchangeRate.gel_to_usd]);
+
+  const adjustedProfit = useMemo(() => {
+    const profitUSD = summaryData.profit.USD - exchangeSummary.usdOut + exchangeSummary.usdIn;
+    const profitGEL = summaryData.profit.GEL + exchangeSummary.gelIn - exchangeSummary.gelOut;
+    return { USD: profitUSD, GEL: profitGEL };
+  }, [summaryData.profit.USD, summaryData.profit.GEL, exchangeSummary]);
+
   const handleTogglePaid = async (id: string, currentStatus: boolean) => {
     await updateTransaction.mutateAsync({ id, status: currentStatus ? "pending" : "confirmed" });
   };
 
   const handleEditTransaction = (id: string) => {
     const transaction = transactions?.find((t) => t.id === id);
-    if (transaction) {
+    if (transaction && canEditTransaction(transaction)) {
       setEditingTransaction(transaction);
       setTransactionModalOpen(true);
     }
@@ -308,6 +383,8 @@ export default function FinancesPage() {
                       transaction={transaction}
                       onTogglePaid={handleTogglePaid}
                       onEdit={handleEditTransaction}
+                      canTogglePaid={canEditTransaction(transaction)}
+                      canEdit={canEditTransaction(transaction)}
                     />
                   ))
                 ) : (
@@ -337,6 +414,8 @@ export default function FinancesPage() {
                       transaction={transaction}
                       onTogglePaid={handleTogglePaid}
                       onEdit={handleEditTransaction}
+                      canTogglePaid={canEditTransaction(transaction)}
+                      canEdit={canEditTransaction(transaction)}
                     />
                   ))
                 ) : (
@@ -375,9 +454,9 @@ export default function FinancesPage() {
   // Desktop Layout
   return (
     <div>
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-5">
         {/* Page title */}
-        <div>
+        <div className="space-y-1">
           <h1 className="page-title text-foreground">Finances</h1>
         </div>
 
@@ -387,22 +466,27 @@ export default function FinancesPage() {
           expenses={summaryData.expenses}
           profit={summaryData.profit}
           pending={summaryData.pending}
+          exchangeRateEffective={exchangeSummary.rate}
+          profitAdjusted={adjustedProfit}
           isLoading={isLoading}
         />
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger value="holders" className="data-[state=active]:bg-background">
-              Holdings
-            </TabsTrigger>
-            <TabsTrigger value="ledger" className="data-[state=active]:bg-background">
+          <div className="rounded-xl border border-border/60 bg-card/70 backdrop-blur-sm p-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <TabsList className="bg-muted/50 p-1 rounded-xl">
+                {canSeeHoldings && (
+                  <TabsTrigger value="holders" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                    Holdings
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="ledger" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               Ledger
             </TabsTrigger>
-            <TabsTrigger value="categories" className="data-[state=active]:bg-background">
+                <TabsTrigger value="categories" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
               Categories
             </TabsTrigger>
-          </TabsList>
+              </TabsList>
 
             {/* Date Filter */}
             <div className="flex items-center gap-2">
@@ -473,10 +557,13 @@ export default function FinancesPage() {
               </Button>
             </div>
           </div>
+          </div>
 
-          <TabsContent value="holders" className="mt-4">
-            <HoldersView />
-          </TabsContent>
+          {canSeeHoldings && (
+            <TabsContent value="holders" className="mt-4">
+              <HoldersView />
+            </TabsContent>
+          )}
 
           <TabsContent value="ledger" className="mt-4">
             <LedgerView dateFrom={dateFrom} dateTo={dateTo} />

@@ -2,6 +2,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface BookingRouteProps {
   children: React.ReactNode;
@@ -9,9 +10,11 @@ interface BookingRouteProps {
 
 export function BookingRoute({ children }: BookingRouteProps) {
   const { role, isLoading: loading } = useUserRole();
+  const { viewAsRole } = useViewAs();
   const navigate = useNavigate();
 
-  const hasAccess = role === "admin" || role === "worker" || role === "accountant";
+  const effectiveRole = viewAsRole || role;
+  const hasAccess = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant" || effectiveRole === "coworker";
 
   useEffect(() => {
     if (!loading && !hasAccess) {

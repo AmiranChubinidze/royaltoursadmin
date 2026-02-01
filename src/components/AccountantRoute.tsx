@@ -2,13 +2,16 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface AccountantRouteProps {
   children: ReactNode;
 }
 
 export function AccountantRoute({ children }: AccountantRouteProps) {
-  const { isAdmin, isAccountant, isWorker, isLoading } = useUserRole();
+  const { role, isLoading } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
 
   if (isLoading) {
     return (
@@ -21,8 +24,8 @@ export function AccountantRoute({ children }: AccountantRouteProps) {
     );
   }
 
-  // Allow admin, accountant, and worker roles
-  if (!isAdmin && !isAccountant && !isWorker) {
+  // Allow admin, accountant, coworker, and worker roles
+  if (!["admin", "accountant", "worker", "coworker"].includes(effectiveRole || "")) {
     return <Navigate to="/" replace />;
   }
 

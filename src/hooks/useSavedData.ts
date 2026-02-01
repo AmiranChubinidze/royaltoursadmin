@@ -7,6 +7,7 @@ export interface SavedHotel {
   email: string | null;
   address: string | null;
   activities: string[];
+  is_owned: boolean;
   created_at: string;
 }
 

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -56,6 +57,7 @@ export default function SavedData() {
   const [hotelActivities, setHotelActivities] = useState<string[]>([]);
   const [activityInput, setActivityInput] = useState("");
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
+  const [hotelOwned, setHotelOwned] = useState(false);
 
   // Edit state
   const [editingHotel, setEditingHotel] = useState<SavedHotel | null>(null);
@@ -67,6 +69,7 @@ export default function SavedData() {
     setHotelAddress("");
     setHotelActivities([]);
     setActivityInput("");
+    setHotelOwned(false);
   };
 
   const addActivity = () => {
@@ -88,9 +91,10 @@ export default function SavedData() {
     try {
       await createHotel.mutateAsync({
         name: hotelName,
-        email: hotelEmail || null,
+        email: hotelOwned ? null : (hotelEmail || null),
         address: hotelAddress || null,
         activities: hotelActivities,
+        is_owned: hotelOwned,
       });
       toast({ title: "Hotel saved successfully" });
       resetForm();
@@ -106,6 +110,7 @@ export default function SavedData() {
     setHotelEmail(hotel.email || "");
     setHotelAddress(hotel.address || "");
     setHotelActivities(hotel.activities || []);
+    setHotelOwned(hotel.is_owned || false);
     setEditDialogOpen(true);
   };
 
@@ -119,9 +124,10 @@ export default function SavedData() {
       await updateHotel.mutateAsync({
         id: editingHotel.id,
         name: hotelName,
-        email: hotelEmail || null,
+        email: hotelOwned ? null : (hotelEmail || null),
         address: hotelAddress || null,
         activities: hotelActivities,
+        is_owned: hotelOwned,
       });
       toast({ title: "Hotel updated successfully" });
       resetForm();
@@ -191,9 +197,26 @@ export default function SavedData() {
                     <Input
                       type="email"
                       value={hotelEmail}
+                      disabled={hotelOwned}
                       onChange={(e) => setHotelEmail(e.target.value)}
                       placeholder="reservations@hotel.com"
                     />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="hotel-owned"
+                      checked={hotelOwned}
+                      onCheckedChange={(checked) => {
+                        const next = Boolean(checked);
+                        setHotelOwned(next);
+                        if (next) {
+                          setHotelEmail("");
+                        }
+                      }}
+                    />
+                    <Label htmlFor="hotel-owned" className="text-sm">
+                      Company-owned hotel (no email needed)
+                    </Label>
                   </div>
                   <div>
                     <Label>Address</Label>
@@ -276,7 +299,15 @@ export default function SavedData() {
                   {hotels?.map((hotel) => (
                     <TableRow key={hotel.id}>
                       <TableCell className="font-medium">{hotel.name}</TableCell>
-                      <TableCell>{hotel.email || "—"}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {hotel.is_owned ? (
+                            <Badge variant="secondary" className="text-xs">Owned</Badge>
+                          ) : (
+                            <span>{hotel.email || "—"}</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {hotel.activities?.length > 0 ? (
@@ -359,9 +390,26 @@ export default function SavedData() {
                 <Input
                   type="email"
                   value={hotelEmail}
+                  disabled={hotelOwned}
                   onChange={(e) => setHotelEmail(e.target.value)}
                   placeholder="reservations@hotel.com"
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="hotel-owned-edit"
+                  checked={hotelOwned}
+                  onCheckedChange={(checked) => {
+                    const next = Boolean(checked);
+                    setHotelOwned(next);
+                    if (next) {
+                      setHotelEmail("");
+                    }
+                  }}
+                />
+                <Label htmlFor="hotel-owned-edit" className="text-sm">
+                  Company-owned hotel (no email needed)
+                </Label>
               </div>
               <div>
                 <Label>Address</Label>

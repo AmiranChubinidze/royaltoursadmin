@@ -81,10 +81,11 @@ export function EmailPreviewDialog({
     // Fetch saved hotels from database
     const { data: savedHotels } = await supabase
       .from("saved_hotels")
-      .select("name, email");
+      .select("name, email, is_owned");
 
     const hotelEmailMap: Record<string, string> = {};
     savedHotels?.forEach(hotel => {
+      if (hotel.is_owned) return;
       if (hotel.email) {
         hotelEmailMap[hotel.name] = hotel.email;
       }
@@ -238,9 +239,9 @@ export function EmailPreviewDialog({
 
         {hotels.length === 0 ? (
           <div className="py-8 text-center text-muted-foreground">
-            No hotels with email addresses found in this confirmation.
+            No hotel emails needed.
             <br />
-            Please add hotel emails in the Saved Data section.
+            All hotels are company-owned or have no email configured.
           </div>
         ) : (
           <div className="space-y-4">

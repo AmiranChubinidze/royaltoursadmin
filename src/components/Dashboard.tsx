@@ -41,7 +41,7 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
+  const { isAdmin, isAccountant, isWorker, isCoworker, canEdit, role } = useUserRole();
   const { data: confirmations, isLoading, error } = useConfirmations();
   const isMobile = useIsMobile();
   
@@ -50,10 +50,17 @@ export function Dashboard() {
   
   // Effective role (for "View as" feature - only affects UI display, not actual permissions)
   const effectiveRole = viewAsRole || role;
-  const effectiveCanEdit = viewAsRole ? (viewAsRole === "admin" || viewAsRole === "worker") : canEdit;
+  const effectiveCanEdit = viewAsRole
+    ? ["admin", "worker", "accountant", "coworker"].includes(viewAsRole)
+    : canEdit;
   const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
   const effectiveIsBooking = viewAsRole ? viewAsRole === "accountant" : role === "accountant";
-  const effectiveCanManageConfirmations = effectiveCanEdit; // Only admin/worker can edit, duplicate, create, delete, send emails
+  const effectiveCanEditConfirmations = viewAsRole
+    ? ["admin", "worker", "coworker"].includes(viewAsRole)
+    : isAdmin || isWorker || isCoworker;
+  const effectiveCanDeleteConfirmations = viewAsRole
+    ? ["admin", "worker"].includes(viewAsRole)
+    : isAdmin || isWorker;
   
   // Actual permissions - admin always has full access regardless of "View as" setting
   const actualCanEdit = canEdit;
@@ -342,7 +349,8 @@ export function Dashboard() {
                 <MobileConfirmationCard
                   key={confirmation.id}
                   confirmation={confirmation}
-                  effectiveCanManageConfirmations={effectiveCanManageConfirmations}
+                  canEditConfirmations={effectiveCanEditConfirmations}
+                  canDeleteConfirmations={effectiveCanDeleteConfirmations}
                   effectiveIsBooking={effectiveIsBooking}
                   effectiveIsVisitor={effectiveIsVisitor}
                   onDelete={handleDelete}
@@ -353,7 +361,7 @@ export function Dashboard() {
         </div>
 
         {/* Mobile FAB for new confirmation */}
-        {effectiveCanManageConfirmations && (
+        {effectiveCanEditConfirmations && (
           <Button
             className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 hover:shadow-glow transition-all duration-200"
             onClick={() => navigate("/new")}
@@ -416,7 +424,7 @@ export function Dashboard() {
           <div className="stat-card">
             <CardContent className="py-5 px-5 flex items-center justify-between h-full">
               <div className="flex flex-col">
-                {effectiveCanManageConfirmations ? (
+                {effectiveCanEditConfirmations ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -570,7 +578,7 @@ export function Dashboard() {
                     ? "Try adjusting your search or filters"
                     : "Create your first tour confirmation letter"}
                 </p>
-                {!hasActiveFilters && effectiveCanManageConfirmations && (
+                {!hasActiveFilters && effectiveCanEditConfirmations && (
                   <Button onClick={() => navigate("/new")}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
@@ -656,7 +664,7 @@ export function Dashboard() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {(effectiveIsBooking || effectiveCanManageConfirmations) && (
+                            {(effectiveIsBooking || effectiveCanEditConfirmations) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -667,7 +675,7 @@ export function Dashboard() {
                                 <Paperclip className="h-4 w-4" />
                               </Button>
                             )}
-                            {effectiveCanManageConfirmations && (
+                            {effectiveCanEditConfirmations && (
                               <>
                                 {confirmation.status === 'draft' && (
                                   <Button
@@ -695,37 +703,39 @@ export function Dashboard() {
                                     <Edit className="h-4 w-4" />
                                   </Button>
                                 )}
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-[#9CA3AF] hover:text-destructive"
-                                      title="Delete"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to delete confirmation{" "}
-                                        <strong>{confirmation.confirmation_code}</strong>? This
-                                        action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDelete(confirmation.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                {effectiveCanDeleteConfirmations && (
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-[#9CA3AF] hover:text-destructive"
+                                        title="Delete"
                                       >
-                                        Delete
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete confirmation{" "}
+                                          <strong>{confirmation.confirmation_code}</strong>? This
+                                          action cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => handleDelete(confirmation.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                        >
+                                          Delete
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
                               </>
                             )}
                           </div>

@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { useHolders, useCreateHolder, useUpdateHolder, useDeleteHolder, Holder } from "@/hooks/useHolders";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -19,15 +22,27 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    user_id: "none",
   });
 
   const { data: holders, isLoading } = useHolders();
+  const { data: profiles } = useQuery({
+    queryKey: ["profiles", "list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, display_name")
+        .order("email");
+      if (error) throw error;
+      return data as { id: string; email: string; display_name: string | null }[];
+    },
+  });
   const createHolder = useCreateHolder();
   const updateHolder = useUpdateHolder();
   const deleteHolder = useDeleteHolder();
 
   const resetForm = () => {
-    setFormData({ name: "", email: "" });
+    setFormData({ name: "", email: "", user_id: "none" });
     setEditingHolder(null);
     setMode("list");
   };
@@ -42,6 +57,7 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
     setFormData({
       name: holder.name,
       email: holder.email || "",
+      user_id: holder.user_id || "none",
     });
     setMode("edit");
   };
@@ -57,6 +73,7 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
         name: formData.name,
         type: "cash" as const,
         email: formData.email.trim() || null,
+        user_id: formData.user_id === "none" ? null : formData.user_id,
       };
       if (mode === "create") {
         await createHolder.mutateAsync(submitData);
@@ -180,6 +197,26 @@ export function HolderManagementModal({ open, onOpenChange }: HolderManagementMo
                 <p className="text-xs text-muted-foreground">
                   Link this person to a user account
                 </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Linked User (optional)</Label>
+                <Select
+                  value={formData.user_id}
+                  onValueChange={(value) => setFormData({ ...formData, user_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select user..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No linked user</SelectItem>
+                    {profiles?.map((profile) => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.display_name?.trim() || profile.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

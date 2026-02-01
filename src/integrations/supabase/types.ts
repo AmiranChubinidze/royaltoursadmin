@@ -109,6 +109,80 @@ export type Database = {
           },
         ]
       }
+      calendar_notification_settings: {
+        Row: {
+          user_id: string
+          enabled: boolean
+          time_local: string
+          tz_offset_min: number
+          use_all_hotels: boolean
+          remind_offset_days: number
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          enabled?: boolean
+          time_local?: string
+          tz_offset_min?: number
+          use_all_hotels?: boolean
+          remind_offset_days?: number
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          enabled?: boolean
+          time_local?: string
+          tz_offset_min?: number
+          use_all_hotels?: boolean
+          remind_offset_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      calendar_notification_hotels: {
+        Row: {
+          user_id: string
+          hotel_id: string
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          hotel_id: string
+          created_at?: string
+        }
+        Update: {
+          user_id?: string
+          hotel_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_notification_hotels_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "saved_hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_notification_logs: {
+        Row: {
+          user_id: string
+          date_local: string
+          sent_at: string
+        }
+        Insert: {
+          user_id: string
+          date_local: string
+          sent_at?: string
+        }
+        Update: {
+          user_id?: string
+          date_local?: string
+          sent_at?: string
+        }
+        Relationships: []
+      }
       confirmations: {
         Row: {
           arrival_date: string | null
@@ -134,6 +208,7 @@ export type Database = {
           total_nights: number | null
           tour_source: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           arrival_date?: string | null
@@ -159,6 +234,7 @@ export type Database = {
           total_nights?: number | null
           tour_source?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           arrival_date?: string | null
@@ -184,6 +260,7 @@ export type Database = {
           total_nights?: number | null
           tour_source?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -247,6 +324,7 @@ export type Database = {
           is_active: boolean
           name: string
           type: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -256,6 +334,7 @@ export type Database = {
           is_active?: boolean
           name: string
           type: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -265,6 +344,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           type?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -374,31 +454,34 @@ export type Database = {
         }
         Relationships: []
       }
-      saved_hotels: {
-        Row: {
-          activities: string[] | null
-          address: string | null
-          created_at: string
-          email: string | null
-          id: string
-          name: string
-        }
-        Insert: {
-          activities?: string[] | null
-          address?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          name: string
-        }
-        Update: {
-          activities?: string[] | null
-          address?: string | null
-          created_at?: string
-          email?: string | null
-          id?: string
-          name?: string
-        }
+        saved_hotels: {
+          Row: {
+            activities: string[] | null
+            address: string | null
+            created_at: string
+            email: string | null
+            id: string
+            is_owned: boolean
+            name: string
+          }
+          Insert: {
+            activities?: string[] | null
+            address?: string | null
+            created_at?: string
+            email?: string | null
+            id?: string
+            is_owned?: boolean
+            name: string
+          }
+          Update: {
+            activities?: string[] | null
+            address?: string | null
+            created_at?: string
+            email?: string | null
+            id?: string
+            is_owned?: boolean
+            name?: string
+          }
         Relationships: []
       }
       transactions: {
@@ -426,6 +509,7 @@ export type Database = {
           to_holder_id: string | null
           type: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           amount?: number
@@ -451,6 +535,7 @@ export type Database = {
           to_holder_id?: string | null
           type: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           amount?: number
@@ -476,6 +561,7 @@ export type Database = {
           to_holder_id?: string | null
           type?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -564,6 +650,7 @@ export type Database = {
         | "visitor"
         | "booking"
         | "accountant"
+        | "coworker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -691,7 +778,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "worker", "visitor", "booking", "accountant"],
+      app_role: ["admin", "user", "worker", "visitor", "booking", "accountant", "coworker"],
     },
   },
 } as const

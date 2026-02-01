@@ -35,6 +35,9 @@ import { useHolders } from "@/hooks/useHolders";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useToast } from "@/hooks/use-toast";
 import { Currency } from "@/contexts/CurrencyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface TransactionModalProps {
   open: boolean;
@@ -47,6 +50,7 @@ interface TransactionModalProps {
 
 const CATEGORIES: { value: string; label: string; kind: TransactionKind | "both" }[] = [
   { value: "tour_payment", label: "Tour", kind: "in" },
+  { value: "booking", label: "Booking", kind: "in" },
   { value: "hotel", label: "Hotel", kind: "out" },
   { value: "driver", label: "Driver", kind: "out" },
   { value: "sim", label: "SIM", kind: "out" },
@@ -83,6 +87,13 @@ export function TransactionModal({
   const updateTransaction = useUpdateTransaction();
   const { data: confirmations } = useConfirmations();
   const { data: holders } = useHolders();
+  const { user } = useAuth();
+  const { role } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
+  const isCoworker = effectiveRole === "coworker";
+  const coworkerHolderId =
+    holders?.find((h) => h.user_id && h.user_id === user?.id)?.id || null;
 
   const [inputCurrency, setInputCurrency] = useState<Currency>("USD");
 
@@ -93,7 +104,7 @@ export function TransactionModal({
     category: defaultCategory || (defaultKind === "in" ? "tour_payment" : "other"),
     description: "",
     amount: 0,
-    payment_method: null,
+    payment_method: "cash",
     confirmation_id: defaultConfirmationId || null,
     holder_id: null,
     from_holder_id: null,
@@ -119,12 +130,19 @@ export function TransactionModal({
         category: isKnown ? transaction.category : "__custom__",
         description: transaction.description || "",
         amount: transaction.amount,
-        payment_method: transaction.payment_method as PaymentMethod | null,
+        payment_method: (transaction.payment_method as PaymentMethod | null) || "cash",
         confirmation_id: transaction.confirmation_id,
         holder_id: transaction.holder_id,
         from_holder_id: transaction.from_holder_id,
         to_holder_id: transaction.to_holder_id,
-        responsible_holder_id: transaction.responsible_holder_id,
+        responsible_holder_id:
+          isCoworker && (transaction.kind === "in" || transaction.kind === "out")
+            ? (transaction.responsible_holder_id || coworkerHolderId)
+            : transaction.responsible_holder_id,
+        from_holder_id:
+          isCoworker && transaction.kind === "exchange"
+            ? (transaction.from_holder_id || coworkerHolderId)
+            : transaction.from_holder_id,
         notes: transaction.notes || "",
       });
       setIsCustomCategory(!isKnown);
@@ -138,19 +156,23 @@ export function TransactionModal({
         category: defaultCategory || (defaultKind === "in" ? "tour_payment" : "other"),
         description: "",
         amount: 0,
-        payment_method: null,
+        payment_method: "cash",
         confirmation_id: defaultConfirmationId || null,
         holder_id: null,
-        from_holder_id: null,
+        from_holder_id:
+          isCoworker && defaultKind === "exchange" ? coworkerHolderId : null,
         to_holder_id: null,
-        responsible_holder_id: null,
+        responsible_holder_id:
+          isCoworker && (defaultKind === "in" || defaultKind === "out")
+            ? coworkerHolderId
+            : null,
         notes: "",
       });
       setIsCustomCategory(false);
       setCustomCategory("");
       setInputCurrency("USD");
     }
-  }, [transaction, defaultKind, defaultCategory, defaultConfirmationId, open]);
+  }, [transaction, defaultKind, defaultCategory, defaultConfirmationId, open, isCoworker, coworkerHolderId]);
 
   const filteredCategories = CATEGORIES.filter(
     (c) => c.kind === "both" || c.kind === formData.kind
@@ -177,9 +199,13 @@ export function TransactionModal({
 
     // Validate transfer fields
     if (formData.kind === "transfer") {
-      if (!formData.from_holder_id || !formData.to_holder_id) {
+      const fromHolder = isCoworker ? coworkerHolderId : formData.from_holder_id;
+      if (!fromHolder || !formData.to_holder_id) {
         toast({ title: "Please select both holders", variant: "destructive" });
         return;
+      }
+      if (isCoworker) {
+        formData.from_holder_id = fromHolder;
       }
     }
 
@@ -207,12 +233,22 @@ export function TransactionModal({
     }
 
     const submitData = { 
-      ...formData, 
+      ...formData,
       category: finalCategory, 
       amount: formData.amount,
       currency: inputCurrency,
       notes: finalNotes,
     };
+
+    if (isCoworker && (formData.kind === "in" || formData.kind === "out")) {
+      submitData.responsible_holder_id = coworkerHolderId;
+    }
+    if (isCoworker && formData.kind === "exchange") {
+      submitData.from_holder_id = coworkerHolderId;
+    }
+    if (isCoworker && formData.kind === "transfer") {
+      submitData.from_holder_id = coworkerHolderId;
+    }
 
     try {
       if (transaction) {
@@ -360,28 +396,30 @@ export function TransactionModal({
 
           {/* Transfer: From/To Holders */}
           {formData.kind === "transfer" && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">From</Label>
-                <Select
-                  value={formData.from_holder_id || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, from_holder_id: value === "none" ? null : value })
-                  }
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-xs">Select...</SelectItem>
-                    {holders?.map((h) => (
-                      <SelectItem key={h.id} value={h.id} className="text-xs">
-                        {h.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className={cn("grid gap-2", isCoworker ? "grid-cols-1" : "grid-cols-2")}>
+              {!isCoworker && (
+                <div className="space-y-1">
+                  <Label className="text-xs">From</Label>
+                  <Select
+                    value={formData.from_holder_id || "none"}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, from_holder_id: value === "none" ? null : value })
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-xs">Select...</SelectItem>
+                      {holders?.map((h) => (
+                        <SelectItem key={h.id} value={h.id} className="text-xs">
+                          {h.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">To</Label>
                 <Select
@@ -409,27 +447,29 @@ export function TransactionModal({
           {/* Exchange: From (Responsible) + Exchange Rate */}
           {formData.kind === "exchange" && (
             <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-xs">From (Responsible)</Label>
-                <Select
-                  value={formData.from_holder_id || "none"}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, from_holder_id: value === "none" ? null : value })
-                  }
-                >
-                  <SelectTrigger className="h-8 text-xs">
-                    <SelectValue placeholder="Who exchanged?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none" className="text-xs">None</SelectItem>
-                    {holders?.map((h) => (
-                      <SelectItem key={h.id} value={h.id} className="text-xs">
-                        {h.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isCoworker && (
+                <div className="space-y-1">
+                  <Label className="text-xs">From (Responsible)</Label>
+                  <Select
+                    value={formData.from_holder_id || "none"}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, from_holder_id: value === "none" ? null : value })
+                    }
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Who exchanged?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none" className="text-xs">None</SelectItem>
+                      {holders?.map((h) => (
+                        <SelectItem key={h.id} value={h.id} className="text-xs">
+                          {h.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1">
                 <Label className="text-xs">Exchange Rate</Label>
                 <Input
@@ -535,7 +575,7 @@ export function TransactionModal({
           )}
 
           {/* Responsible (for in/out only) - who holds the money */}
-          {(formData.kind === "in" || formData.kind === "out") && (
+          {(formData.kind === "in" || formData.kind === "out") && !isCoworker && (
             <div className="space-y-1">
               <Label className="text-xs">Responsible</Label>
               <Select

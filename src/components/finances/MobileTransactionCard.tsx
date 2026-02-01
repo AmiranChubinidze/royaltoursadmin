@@ -24,6 +24,8 @@ interface MobileTransactionCardProps {
   transaction: Transaction;
   onTogglePaid?: (id: string, currentStatus: boolean) => void;
   onEdit?: (id: string) => void;
+  canTogglePaid?: boolean;
+  canEdit?: boolean;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -48,6 +50,8 @@ export function MobileTransactionCard({
   transaction,
   onTogglePaid,
   onEdit,
+  canTogglePaid = true,
+  canEdit = true,
 }: MobileTransactionCardProps) {
   const isIncome = transaction.type === "income";
   const isExchange = transaction.category === "currency_exchange";
@@ -128,13 +132,15 @@ export function MobileTransactionCard({
             </p>
           )}
           <button
-            onClick={() => onTogglePaid?.(transaction.id, transaction.is_paid)}
+            onClick={() => canTogglePaid && onTogglePaid?.(transaction.id, transaction.is_paid)}
             className={cn(
               "inline-flex items-center gap-1 text-xs mt-1 px-2 py-0.5 rounded-full transition-colors",
               transaction.is_paid
                 ? "bg-emerald-500/10 text-emerald-600"
-                : "bg-amber-500/10 text-amber-600"
+                : "bg-amber-500/10 text-amber-600",
+              !canTogglePaid && "opacity-50 cursor-not-allowed"
             )}
+            disabled={!canTogglePaid}
           >
             {transaction.is_paid ? (
               <>
@@ -150,7 +156,7 @@ export function MobileTransactionCard({
           </button>
         </div>
       </div>
-      {onEdit && (
+      {onEdit && canEdit && (
         <div className="flex justify-start mt-2 pt-2 border-t border-border/50">
           <button
             onClick={() => onEdit(transaction.id)}

@@ -39,7 +39,8 @@ interface MobileConfirmationCardProps {
     updated_at: string;
     raw_payload: any;
   };
-  effectiveCanManageConfirmations: boolean;
+  canEditConfirmations: boolean;
+  canDeleteConfirmations: boolean;
   effectiveIsBooking: boolean;
   effectiveIsVisitor: boolean;
   onDelete: (id: string) => void;
@@ -47,7 +48,8 @@ interface MobileConfirmationCardProps {
 
 export function MobileConfirmationCard({
   confirmation,
-  effectiveCanManageConfirmations,
+  canEditConfirmations,
+  canDeleteConfirmations,
   effectiveIsBooking,
   effectiveIsVisitor,
   onDelete,
@@ -100,7 +102,7 @@ export function MobileConfirmationCard({
       </div>
 
       {/* Action buttons */}
-      {(effectiveCanManageConfirmations || effectiveIsBooking) && (
+      {(canEditConfirmations || effectiveIsBooking) && (
         <div
           className="flex gap-2 pt-3 border-t border-border"
           onClick={(e) => e.stopPropagation()}
@@ -126,7 +128,7 @@ export function MobileConfirmationCard({
             </Button>
           )}
 
-          {effectiveCanManageConfirmations && (
+          {canEditConfirmations && (
             <>
               {confirmation.status === "draft" ? (
                 <Button
@@ -149,36 +151,38 @@ export function MobileConfirmationCard({
                 </Button>
               )}
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete confirmation{" "}
-                      <strong>{confirmation.confirmation_code}</strong>? This action
-                      cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => onDelete(confirmation.id)}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              {canDeleteConfirmations && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
                     >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete confirmation{" "}
+                        <strong>{confirmation.confirmation_code}</strong>? This action
+                        cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(confirmation.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </>
           )}
         </div>

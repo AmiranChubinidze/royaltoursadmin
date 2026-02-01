@@ -26,6 +26,7 @@ import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import { ConfirmationPayload } from "@/types/confirmation";
 import { format } from "date-fns";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useViewAs } from "@/contexts/ViewAsContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 
@@ -36,10 +37,12 @@ export default function ViewConfirmation() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"letter" | "tag">("letter");
   const { role } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
   const isMobile = useIsMobile();
   
-  // Only admin and worker can edit, duplicate, delete, send emails
-  const canManageConfirmations = role === "admin" || role === "worker";
+  const canEditConfirmations = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "coworker";
+  const canManageConfirmations = effectiveRole === "admin" || effectiveRole === "worker";
   
   const { data: confirmation, isLoading, error } = useConfirmation(id);
   const deleteMutation = useDeleteConfirmation();
@@ -145,24 +148,28 @@ export default function ViewConfirmation() {
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />Print
           </Button>
-          {canManageConfirmations && (
+          {canEditConfirmations && (
             <>
               <Button variant="outline" onClick={() => navigate(`/confirmation/${id}/edit`)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
-              <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}><Copy className="mr-2 h-4 w-4" />Duplicate</Button>
-              <Button variant="outline" onClick={() => setEmailDialogOpen(true)}><Mail className="mr-2 h-4 w-4" />Send Emails</Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</Button></AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
-                    <AlertDialogDescription>Are you sure? This cannot be undone.</AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {canManageConfirmations && (
+                <>
+                  <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}><Copy className="mr-2 h-4 w-4" />Duplicate</Button>
+                  <Button variant="outline" onClick={() => setEmailDialogOpen(true)}><Mail className="mr-2 h-4 w-4" />Send Emails</Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</Button></AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
+                        <AlertDialogDescription>Are you sure? This cannot be undone.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </>
+              )}
             </>
           )}
         </div>

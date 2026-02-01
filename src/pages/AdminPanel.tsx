@@ -25,13 +25,14 @@ import { Check, X, Users, Clock, CheckCircle, Ban, Shield, Eye, FileText, Dollar
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
-type AppRole = "admin" | "worker" | "visitor" | "accountant";
+type AppRole = "admin" | "worker" | "visitor" | "accountant" | "coworker";
 
 interface Profile {
   id: string;
   email: string;
   approved: boolean;
   created_at: string;
+  display_name?: string | null;
 }
 
 interface UserRole {
@@ -68,11 +69,55 @@ const AdminPanel = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, email, approved, created_at, display_name")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
       return data as Profile[];
+    },
+    enabled: isAdmin === true,
+  });
+
+  const { data: activity } = useQuery({
+    queryKey: ["admin-activity"],
+    queryFn: async () => {
+      const [txRes, confRes] = await Promise.all([
+        supabase
+          .from("transactions")
+          .select("id, type, category, description, amount, currency, created_at, updated_at, created_by, updated_by")
+          .order("updated_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("confirmations")
+          .select("id, confirmation_code, main_client_name, created_at, updated_at, updated_by")
+          .order("updated_at", { ascending: false })
+          .limit(50),
+      ]);
+
+      if (txRes.error) throw txRes.error;
+      if (confRes.error) throw confRes.error;
+
+      const txItems = (txRes.data || []).map((t) => ({
+        id: `tx-${t.id}`,
+        when: t.updated_at || t.created_at,
+        kind: "Transaction",
+        action: t.updated_at && t.updated_at !== t.created_at ? "Updated" : "Created",
+        by: t.updated_by || t.created_by || null,
+        label: `${t.type} • ${t.category}${t.amount ? ` • ${t.currency} ${t.amount}` : ""}`,
+      }));
+
+      const confItems = (confRes.data || []).map((c) => ({
+        id: `conf-${c.id}`,
+        when: c.updated_at || c.created_at,
+        kind: "Confirmation",
+        action: c.updated_at && c.updated_at !== c.created_at ? "Updated" : "Created",
+        by: c.updated_by || null,
+        label: `${c.confirmation_code}${c.main_client_name ? ` • ${c.main_client_name}` : ""}`,
+      }));
+
+      return [...txItems, ...confItems].sort((a, b) => {
+        return new Date(b.when).getTime() - new Date(a.when).getTime();
+      }).slice(0, 50);
     },
     enabled: isAdmin === true,
   });
@@ -197,6 +242,7 @@ const AdminPanel = () => {
     switch (role) {
       case "admin": return "default";
       case "accountant": return "secondary";
+      case "coworker": return "secondary";
       case "worker": return "secondary";
       case "visitor": return "outline";
       default: return "outline";
@@ -232,6 +278,9 @@ const AdminPanel = () => {
 
   const pendingUsers = profiles?.filter((p) => !p.approved) || [];
   const approvedUsers = profiles?.filter((p) => p.approved) || [];
+  const profileMap = new Map(
+    (profiles || []).map((p) => [p.id, p.display_name?.trim() || p.email])
+  );
 
   return (
     <div className="animate-fade-in">
@@ -506,13 +555,20 @@ const AdminPanel = () => {
                                 <SelectTrigger className="w-[120px]">
                                   <SelectValue placeholder="Select role">
                                     <Badge variant={getRoleBadgeVariant(currentRole)}>
-                                      {currentRole === "worker" ? "Manager" : currentRole === "accountant" ? "Coworker" : (currentRole || "No role")}
+                                      {currentRole === "worker"
+                                        ? "Manager"
+                                        : currentRole === "coworker"
+                                        ? "Coworker"
+                                        : currentRole === "accountant"
+                                        ? "Accountant"
+                                        : (currentRole || "No role")}
                                     </Badge>
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="accountant">Coworker</SelectItem>
+                                  <SelectItem value="coworker">Coworker</SelectItem>
+                                  <SelectItem value="accountant">Accountant</SelectItem>
                                   <SelectItem value="worker">Manager</SelectItem>
                                   <SelectItem value="visitor">Visitor</SelectItem>
                                 </SelectContent>
@@ -536,6 +592,57 @@ const AdminPanel = () => {
                         </TableRow>
                       );
                     })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Activity Log */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-muted-foreground" />
+              Activity Log
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!activity ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : activity.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No recent activity</p>
+            ) : (
+              <div className="rounded-xl border border-border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 border-b border-border">
+                      <TableHead>When</TableHead>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Action</TableHead>
+                      <TableHead>By</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activity.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="text-muted-foreground">
+                          {format(new Date(item.when), "MMM d, yyyy HH:mm")}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {item.kind}
+                          <span className="text-muted-foreground"> • {item.label}</span>
+                        </TableCell>
+                        <TableCell>{item.action}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {item.by ? (profileMap.get(item.by) || item.by) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>

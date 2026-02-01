@@ -28,10 +28,11 @@ export function useSendHotelEmails() {
       // Fetch saved hotels from database to get email addresses
       const { data: savedHotels } = await supabase
         .from("saved_hotels")
-        .select("name, email");
+        .select("name, email, is_owned");
       
       const hotelEmailMap: Record<string, string> = {};
       savedHotels?.forEach(hotel => {
+        if (hotel.is_owned) return;
         if (hotel.email) {
           hotelEmailMap[hotel.name] = hotel.email;
         }
@@ -79,11 +80,10 @@ export function useSendHotelEmails() {
 
       if (hotels.length === 0) {
         toast({
-          title: "No hotel emails found",
-          description: "None of the hotels in this itinerary have email addresses configured in saved hotels.",
-          variant: "destructive",
+          title: "No hotel emails needed",
+          description: "All hotels are company-owned or have no email configured.",
         });
-        return { success: false, reason: "no_hotels" };
+        return { success: true, reason: "no_hotels" };
       }
 
       // Call the edge function

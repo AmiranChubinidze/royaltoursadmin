@@ -2,6 +2,7 @@ import { Navigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 interface EditableRouteProps {
   children: React.ReactNode;
@@ -9,11 +10,15 @@ interface EditableRouteProps {
 
 export const EditableRoute = ({ children }: EditableRouteProps) => {
   const { canEdit, isLoading } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveCanEdit = viewAsRole
+    ? ["admin", "worker", "accountant", "coworker"].includes(viewAsRole)
+    : canEdit;
   const { toast } = useToast();
   const hasShownToast = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && !canEdit && !hasShownToast.current) {
+    if (!isLoading && !effectiveCanEdit && !hasShownToast.current) {
       hasShownToast.current = true;
       toast({
         title: "Access Denied",
@@ -21,7 +26,7 @@ export const EditableRoute = ({ children }: EditableRouteProps) => {
         variant: "destructive",
       });
     }
-  }, [isLoading, canEdit, toast]);
+  }, [isLoading, effectiveCanEdit, toast]);
 
   if (isLoading) {
     return (
@@ -31,7 +36,7 @@ export const EditableRoute = ({ children }: EditableRouteProps) => {
     );
   }
 
-  if (!canEdit) {
+  if (!effectiveCanEdit) {
     return <Navigate to="/" replace />;
   }
 

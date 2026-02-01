@@ -72,7 +72,7 @@ export default function CreateBookingRequest() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTransferring, setIsTransferring] = useState<string | null>(null);
-  const [savedHotels, setSavedHotels] = useState<{ name: string; email: string }[]>([]);
+  const [savedHotels, setSavedHotels] = useState<{ name: string; email: string; is_owned: boolean }[]>([]);
   
   const { data: drafts, isLoading: draftsLoading } = useBookingDrafts();
   const createDraft = useCreateBookingDraft();
@@ -114,11 +114,11 @@ export default function CreateBookingRequest() {
     const fetchHotels = async () => {
       const { data, error } = await supabase
         .from("saved_hotels")
-        .select("name, email")
+        .select("name, email, is_owned")
         .order("name");
       
       if (!error && data) {
-        setSavedHotels(data.map(h => ({ name: h.name, email: h.email || "" })));
+        setSavedHotels(data.map(h => ({ name: h.name, email: h.email || "", is_owned: !!h.is_owned })));
       }
     };
     fetchHotels();

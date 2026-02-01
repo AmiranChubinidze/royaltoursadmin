@@ -64,6 +64,9 @@ import { FinanceSearch } from "./FinanceSearch";
 import { StatusCheckbox } from "./StatusCheckbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useViewAs } from "@/contexts/ViewAsContext";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -83,6 +86,7 @@ interface LedgerViewProps {
 
 const CATEGORY_LABELS: Record<string, string> = {
   tour_payment: "Tour",
+  booking: "Booking",
   hotel: "Hotel",
   driver: "Driver",
   sim: "SIM Card",
@@ -147,6 +151,12 @@ const calculateMealsFromPayload = (rawPayload: unknown) => {
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { role } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
+  const isCoworker = effectiveRole === "coworker";
+  const isAdminOrWorker = effectiveRole === "admin" || effectiveRole === "worker";
   
   const [kindFilter, setKindFilter] = useState<"all" | "in" | "out" | "transfer" | "exchange">("all");
   const [categoryFilter, setCategoryFilter] = useState<TransactionCategory | "all">("all");
@@ -394,6 +404,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   }, [confirmations, transactionsForAutogen, bulkCreateTransactions, dateFrom, dateTo]);
 
   const handleEdit = (transaction: Transaction) => {
+    if (!canEditTransaction(transaction)) return;
     setEditingTransaction(transaction);
     setModalOpen(true);
   };
@@ -415,6 +426,8 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   };
 
   const handleConfirmTransaction = async (id: string, isCurrentlyConfirmed: boolean, responsibleHolderId: string | null) => {
+    const tx = transactions?.find((t) => t.id === id);
+    if (tx && !canEditTransaction(tx)) return;
     try {
       await confirmTransaction.mutateAsync({ 
         id, 
@@ -424,6 +437,17 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     } catch (error) {
       toast({ title: "Error updating status", variant: "destructive" });
     }
+  };
+
+  const canEditTransaction = (t: Transaction) => {
+    if (isAdminOrWorker) return true;
+    if (!isCoworker) return true;
+    if (!user?.id) return false;
+    if (t.created_by === user.id) return true;
+    if (t.kind === "exchange") {
+      return false;
+    }
+    return !t.responsible_holder_id;
   };
 
   const handleExportExcel = () => {
@@ -925,29 +949,32 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                         checked={t.status === "confirmed"}
                         currentResponsibleId={t.responsible_holder_id}
                         onConfirm={(holderId) => handleConfirmTransaction(t.id, t.status === "confirmed", holderId)}
+                        disabled={!canEditTransaction(t)}
                       />
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(t)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => setDeleteId(t.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {canEditTransaction(t) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(t)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeleteId(t.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

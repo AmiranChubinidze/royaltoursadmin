@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import {
   TrendingDown,
   Clock,
@@ -18,6 +19,8 @@ interface FinanceSummaryCardsProps {
   expenses: CurrencyValue;
   profit: CurrencyValue;
   pending: CurrencyValue;
+  exchangeRateEffective?: number;
+  profitAdjusted?: CurrencyValue;
   isLoading?: boolean;
 }
 
@@ -59,13 +62,15 @@ function ValueDisplay({
   const showUSDPrimary = usdAbs >= gelAbs || !hasGEL;
 
   if (hasUSD && hasGEL) {
+    const usdText = formatValue(value.USD, "$");
+    const gelText = formatValue(value.GEL, "₾");
     return (
       <div className="flex items-baseline gap-2">
         <span className={cn("text-lg font-bold tracking-tight", valueColor)}>
-          {formatValue(showUSDPrimary ? value.USD : value.GEL, showUSDPrimary ? "$" : "₾")}
+          {usdText}
         </span>
-        <span className="text-sm font-semibold text-muted-foreground">
-          {formatValue(showUSDPrimary ? value.GEL : value.USD, showUSDPrimary ? "₾" : "$")}
+        <span className={cn("text-lg font-bold tracking-tight", valueColor)}>
+          / {gelText}
         </span>
       </div>
     );
@@ -81,9 +86,17 @@ function ValueDisplay({
 export function FinanceSummaryCards({
   received,
   expenses,
+  profit,
   pending,
+  exchangeRateEffective,
+  profitAdjusted,
   isLoading = false,
 }: FinanceSummaryCardsProps) {
+  const { exchangeRate } = useCurrency();
+  const rate = exchangeRateEffective ?? exchangeRate.gel_to_usd;
+  const actualProfitUSD = profit.USD + profit.GEL * rate;
+  const adjusted = profitAdjusted ?? profit;
+
   const cards: CardConfig[] = [
     {
       label: "Received",
@@ -115,14 +128,14 @@ export function FinanceSummaryCards({
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-4 gap-3">
       {cards.map((card) => {
         const IconComponent = card.icon;
         
         return (
           <Card 
             key={card.label} 
-            className="border-border/50 bg-card"
+            className="border-border/60 bg-card/80 shadow-[0_1px_2px_0_hsl(210_20%_20%/0.04)]"
           >
             <div className="p-4">
               <div className="flex items-center gap-3">
@@ -148,6 +161,31 @@ export function FinanceSummaryCards({
           </Card>
         );
       })}
+
+      <Card className="border-border/60 bg-card/80 shadow-[0_1px_2px_0_hsl(210_20%_20%/0.04)]">
+        <div className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 h-3 w-3 rounded-full bg-emerald-500" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground mb-0.5">
+                Profit
+              </p>
+              {isLoading ? (
+                <Skeleton className="h-5 w-20" />
+              ) : (
+                <div className="flex items-baseline gap-2">
+                  <span className="text-lg font-bold tracking-tight text-emerald-600">
+                    {formatValue(actualProfitUSD, "$")}
+                  </span>
+                  <span className="text-sm font-semibold text-emerald-600/80">
+                    {formatValue(adjusted.USD, "$")} / {formatValue(adjusted.GEL, "₾")}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

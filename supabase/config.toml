@@ -1,4 +1,4 @@
-project_id = "voukbajbrenetldossuc"
+project_id = "ivjycxegcunbamdmwbzg"
 
 [functions.send-hotel-emails]
 verify_jwt = true
@@ -7,4 +7,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.user-approval]
+verify_jwt = false
+
+[functions.send-arrival-reminders]
 verify_jwt = false

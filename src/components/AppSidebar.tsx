@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useMyHolderBalance } from "@/hooks/useHolders";
 import { useQuery } from "@tanstack/react-query";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,7 @@ import {
   Mail,
   Database,
   DollarSign,
+  CalendarDays,
   Shield,
   LogOut,
   Eye,
@@ -33,13 +35,19 @@ import {
 import rtgLogoFull from "@/assets/rtg-logo-full.png";
 
 const roleLabel = (r: string) =>
-  r === "worker" ? "Manager" : r === "accountant" ? "Coworker" : r;
+  r === "worker"
+    ? "Manager"
+    : r === "coworker"
+    ? "Coworker"
+    : r === "accountant"
+    ? "Accountant"
+    : r;
 
 export function AppSidebar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { isAdmin, isAccountant, isWorker, canEdit, role } = useUserRole();
+  const { isAdmin, isAccountant, isWorker, isCoworker, canEdit, role } = useUserRole();
   const { viewAsRole, setViewAsRole } = useViewAs();
   const { setOpenMobile } = useSidebar();
   const { data: profile } = useQuery({
@@ -57,13 +65,19 @@ export function AppSidebar() {
     enabled: !!user?.id,
   });
   const displayName = profile?.display_name?.trim() || user?.email || "User";
+  const { data: myBalance } = useMyHolderBalance(user?.id);
 
+  const effectiveRole = viewAsRole || role;
   const effectiveCanEdit = viewAsRole
-    ? viewAsRole === "admin" || viewAsRole === "worker"
+    ? ["admin", "worker", "accountant", "coworker"].includes(viewAsRole)
     : canEdit;
   const effectiveIsBooking = viewAsRole
     ? viewAsRole === "accountant"
     : role === "accountant";
+  const effectiveIsAdmin = effectiveRole === "admin";
+  const effectiveCanSeeFinances = effectiveRole
+    ? ["admin", "worker", "accountant", "coworker"].includes(effectiveRole)
+    : isAdmin || isAccountant || isWorker || isCoworker;
 
   const go = (path: string) => {
     setOpenMobile(false);
@@ -81,6 +95,12 @@ export function AppSidebar() {
         ? "bg-[#EAF3F4] text-[#0F4C5C] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-6 before:rounded-r-full before:bg-[#0F4C5C] [&_svg]:text-[#0F4C5C]"
         : "[&_svg]:text-[#6B7280]"
     }`;
+
+  const formatBalance = (value: number, symbol: string) => {
+    const sign = value < 0 ? "−" : "";
+    const formatted = Math.abs(Math.round(value)).toLocaleString();
+    return `${sign}${symbol}${formatted}`;
+  };
 
   return (
     <Sidebar>
@@ -121,6 +141,18 @@ export function AppSidebar() {
                 >
                   <FileText className="h-[18px] w-[18px]" />
                   <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={isActive("/calendar")}
+                  onClick={() => go("/calendar")}
+                  tooltip="Calendar"
+                  className={navItemClass("/calendar")}
+                >
+                  <CalendarDays className="h-[18px] w-[18px]" />
+                  <span>Calendar</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
 
@@ -176,7 +208,7 @@ export function AppSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {(isAdmin || isAccountant || isWorker) && (
+              {effectiveCanSeeFinances && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={isActive("/finances")}
@@ -194,7 +226,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Admin */}
-        {isAdmin && (
+        {effectiveIsAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel className="uppercase tracking-[0.02em] text-[11px] text-[#9CA3AF] font-medium px-2 mb-1.5 mt-3">
               Admin
@@ -227,23 +259,32 @@ export function AppSidebar() {
               {user?.email?.charAt(0).toUpperCase()}
             </span>
           </div>
-          <span className="text-[11px] text-sidebar-foreground truncate min-w-0 max-w-[9.5rem] flex-1">
-            {displayName}
-          </span>
-          {role && (
-            <Badge
-              variant={
-                role === "admin"
-                  ? "default"
-                  : role === "worker" || role === "accountant"
-                  ? "secondary"
-                  : "outline"
-              }
-              className="text-[9px] capitalize shrink-0"
-            >
-              {roleLabel(role)}
-            </Badge>
-          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] text-sidebar-foreground truncate min-w-0 max-w-[9.5rem] flex-1">
+                {displayName}
+              </span>
+              {role && (
+                <Badge
+                  variant={
+                    role === "admin"
+                      ? "default"
+                      : role === "worker" || role === "accountant"
+                      ? "secondary"
+                      : "outline"
+                  }
+                  className="text-[9px] capitalize shrink-0"
+                >
+                  {roleLabel(role)}
+                </Badge>
+              )}
+            </div>
+            <div className="text-[10px] text-muted-foreground truncate">
+              {myBalance
+                ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "₾")}`
+                : "No linked holder"}
+            </div>
+          </div>
         </div>
 
         {viewAsRole && (
@@ -275,7 +316,7 @@ export function AppSidebar() {
                   >
                     My Role ({roleLabel(role || "")})
                   </Button>
-                  {(["worker", "visitor", "accountant"] as const).map((r) => (
+                  {(["worker", "coworker", "accountant", "visitor"] as const).map((r) => (
                     <Button
                       key={r}
                       variant={viewAsRole === r ? "secondary" : "ghost"}

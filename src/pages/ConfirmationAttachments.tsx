@@ -43,6 +43,7 @@ import {
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSavedHotels } from "@/hooks/useSavedData";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { TransactionModal } from "@/components/finances/TransactionModal";
 import { useCurrency, Currency } from "@/contexts/CurrencyContext";
@@ -57,6 +58,7 @@ export default function ConfirmationAttachments() {
   const { exchangeRate } = useCurrency();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
@@ -293,11 +295,9 @@ export default function ConfirmationAttachments() {
         return;
       }
 
-      if (isMobile) {
-        const opened = window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-        if (opened) {
-          return;
-        }
+      const opened = window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      if (opened) {
+        return;
       }
 
       setPreviewUrl(data.signedUrl);
@@ -314,45 +314,14 @@ export default function ConfirmationAttachments() {
     }
   };
 
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return "—";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  if (confirmationLoading) {
-    return (
-      <div className="max-w-3xl mx-auto space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-48 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
-  if (!confirmation) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Card className="max-w-md">
-          <CardContent className="pt-6 text-center">
-            <p className="text-destructive">Confirmation not found</p>
-            <Button variant="outline" className="mt-4" onClick={() => navigate("/")}>
-              Go Back
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const isPaid = (confirmation as any).is_paid;
-  const paidAt = (confirmation as any).paid_at;
+  const isPaid = Boolean((confirmation as any)?.is_paid);
+  const paidAt = (confirmation as any)?.paid_at;
   const hasAttachments = attachments && attachments.length > 0;
 
+  const rawPayload = (confirmation as any)?.raw_payload || {};
+  const itinerary = rawPayload?.itinerary || [];
   // Extract hotel stays from itinerary — each consecutive run of the same hotel = one stay
   const hotelStays: { hotel: string; checkIn: string; checkOut: string }[] = [];
-  const itinerary = confirmation.raw_payload?.itinerary || [];
   if (itinerary.length > 0) {
     let currentHotel = "";
     let checkIn = "";
@@ -381,8 +350,8 @@ export default function ConfirmationAttachments() {
     }
   }
   // Also include hotelBookings from draft flow if no itinerary hotels found
-  if (hotelStays.length === 0 && confirmation.raw_payload?.hotelBookings) {
-    for (const hb of confirmation.raw_payload.hotelBookings) {
+  if (hotelStays.length === 0 && rawPayload?.hotelBookings) {
+    for (const hb of rawPayload.hotelBookings) {
       hotelStays.push({ hotel: hb.hotelName, checkIn: hb.checkIn, checkOut: hb.checkOut });
     }
   }
@@ -482,6 +451,39 @@ export default function ConfirmationAttachments() {
     return map;
   }, [attachments, visibleHotelStays]);
 
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return "—";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  if (confirmationLoading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!confirmation) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <p className="text-destructive">Confirmation not found</p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate("/")}>
+              Go Back
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+
   const toggleManualInvoiceCheck = async (stayKey: string, nextChecked: boolean) => {
     if (!id) return;
     const prev = manualInvoiceChecks;
@@ -530,6 +532,25 @@ export default function ConfirmationAttachments() {
       setUploadDialogOpen(true);
     }
     e.target.value = "";
+  };
+
+  const handleDeleteAttachment = (
+    attachmentId: string,
+    filePath: string,
+    confirmationId: string,
+    stayKey: string,
+    type: "invoice" | "payment"
+  ) => {
+    deleteMutation.mutate(
+      { attachmentId, filePath, confirmationId },
+      {
+        onSuccess: () => {
+          if (type === "invoice" && manualInvoiceChecks.includes(stayKey)) {
+            toggleManualInvoiceCheck(stayKey, false);
+          }
+        },
+      }
+    );
   };
 
   return (
@@ -773,11 +794,13 @@ export default function ConfirmationAttachments() {
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction
-                                      onClick={() => deleteMutation.mutate({
-                                        attachmentId: invoiceMatch.id,
-                                        filePath: invoiceMatch.file_path,
-                                        confirmationId: id!,
-                                      })}
+                                      onClick={() => handleDeleteAttachment(
+                                        invoiceMatch.id,
+                                        invoiceMatch.file_path,
+                                        id!,
+                                        stayKey,
+                                        "invoice"
+                                      )}
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
                                       Delete
@@ -856,11 +879,13 @@ export default function ConfirmationAttachments() {
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction
-                                      onClick={() => deleteMutation.mutate({
-                                        attachmentId: paymentMatch.id,
-                                        filePath: paymentMatch.file_path,
-                                        confirmationId: id!,
-                                      })}
+                                      onClick={() => handleDeleteAttachment(
+                                        paymentMatch.id,
+                                        paymentMatch.file_path,
+                                        id!,
+                                        stayKey,
+                                        "payment"
+                                      )}
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
                                       Delete
@@ -1023,11 +1048,17 @@ export default function ConfirmationAttachments() {
             </DialogHeader>
             <div className="rounded-md border bg-muted/30 h-[70vh] overflow-hidden">
               {previewUrl ? (
-                <iframe
-                  src={previewUrl}
-                  title={previewAttachment?.fileName || "Preview"}
-                  className="h-full w-full"
-                />
+                isMobile ? (
+                  <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground px-6 text-center">
+                    Preview opens in a new tab on mobile devices.
+                  </div>
+                ) : (
+                  <iframe
+                    src={previewUrl}
+                    title={previewAttachment?.fileName || "Preview"}
+                    className="h-full w-full"
+                  />
+                )
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
                   Loading preview...
@@ -1040,11 +1071,10 @@ export default function ConfirmationAttachments() {
               </Button>
               {previewUrl && previewAttachment && (
                 <>
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(previewUrl, "_blank", "noopener,noreferrer")}
-                  >
-                    Open in new tab
+                  <Button variant="outline" asChild>
+                    <a href={previewUrl} target="_blank" rel="noreferrer">
+                      Open in new tab
+                    </a>
                   </Button>
                   <Button
                     onClick={() => {

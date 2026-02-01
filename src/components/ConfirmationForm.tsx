@@ -37,6 +37,7 @@ import {
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
 import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSavedData";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ConfirmationFormProps {
   initialData?: Partial<ConfirmationFormData>;
@@ -333,6 +334,7 @@ function ActivityCombobox({
 
 export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: ConfirmationFormProps) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const createMutation = useCreateConfirmation();
   const { data: savedHotels = [] } = useSavedHotels();
   const createHotelMutation = useCreateSavedHotel();
@@ -587,35 +589,35 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   };
 
   return (
-    <div className="min-h-screen bg-background p-6 animate-fade-in">
+    <div className="min-h-screen bg-background animate-fade-in px-4 py-5 sm:p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-card rounded-lg shadow-sm border border-border">
+        <div className={cn("border border-border/60 bg-white/95 shadow-[0_10px_24px_rgba(15,76,92,0.08)]", isMobile ? "rounded-2xl" : "rounded-lg")}>
           {/* Header */}
-          <header className="px-6 py-5 border-b border-border">
-            <div className="flex items-center gap-4 mb-3">
+          <header className={cn("border-b border-border/70 px-6 py-5", isMobile && "px-4 py-4")}>
+            <div className={cn("flex items-center gap-4", isMobile ? "mb-2" : "mb-3")}>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate("/")}
-                className="h-8 w-8"
+                className={cn("h-8 w-8", isMobile && "rounded-full bg-white")}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Tour confirmation</p>
-                <h1 className="text-2xl font-bold text-foreground">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Tour confirmation</p>
+                <h1 className={cn("font-semibold text-foreground", isMobile ? "text-xl" : "text-2xl font-bold")}>
                   {isEdit ? "Edit confirmation letter" : "Generate confirmation letter"}
                 </h1>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground ml-12">
+            <p className={cn("text-sm text-muted-foreground", isMobile ? "ml-0 text-xs" : "ml-12")}>
               {isEdit ? "Update and save the confirmation details." : "Fill the details below. Blank client/itinerary rows will be ignored."}
             </p>
           </header>
 
-          <div className="p-6 space-y-8">
+          <div className={cn("space-y-8", isMobile ? "p-4" : "p-6")}>
             {/* Trip / Confirmation info */}
-            <section>
+            <section className={cn(isMobile && "rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]")}>
               <h2 className="text-lg font-semibold text-foreground mb-4">Trip / Confirmation info</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -789,12 +791,12 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             </section>
 
             {/* Clients */}
-            <section>
+            <section className={cn(isMobile && "rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]")}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Clients</h2>
               </div>
               
-              <div className="border border-border rounded-lg overflow-hidden">
+              <div className={cn("overflow-hidden", isMobile ? "rounded-xl border border-border/60" : "border border-border rounded-lg")}>
                 <table className="w-full">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -872,10 +874,10 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             </section>
 
             {/* Guest Info for Hotels */}
-            <section>
+            <section className={cn(isMobile && "rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]")}>
               <h2 className="text-lg font-semibold text-foreground mb-4">Guest Info (for hotel emails)</h2>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className={cn("grid gap-4", isMobile ? "grid-cols-1" : "grid-cols-2")}>
                 <div>
                   <Label className="text-sm font-medium mb-1.5 block">Number of Adults</Label>
                   <Input
@@ -942,14 +944,14 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             </section>
 
             {/* Itinerary */}
-            <section>
+            <section className={cn(isMobile && "rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]")}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-foreground">Itinerary</h2>
                 <p className="text-sm text-muted-foreground">Auto-generated from dates</p>
               </div>
 
-              <div className="border border-border rounded-lg overflow-hidden overflow-x-auto">
-                <table className="w-full min-w-[700px]">
+              <div className={cn("overflow-x-auto", isMobile ? "rounded-xl border border-border/60" : "border border-border rounded-lg")}>
+                <table className={cn("w-full min-w-[700px]", isMobile && "text-xs")}>
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
                       <th className="text-left text-sm font-medium text-foreground px-4 py-3 w-28">Date</th>
@@ -1031,10 +1033,11 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
             </section>
 
             {/* Submit */}
-            <div className="flex items-center justify-between pt-6 border-t border-border">
+            <div className={cn("pt-6 border-t border-border/70", isMobile ? "space-y-2" : "flex items-center justify-between")}>
               <Button
                 variant="outline"
                 onClick={() => navigate("/")}
+                className={cn(isMobile && "w-full rounded-full")}
               >
                 Cancel
               </Button>
@@ -1042,6 +1045,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 onClick={handleSubmit}
                 disabled={createMutation.isPending}
                 size="lg"
+                className={cn(isMobile && "w-full rounded-full")}
               >
                 {createMutation.isPending 
                   ? "Processing..." 

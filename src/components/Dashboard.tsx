@@ -237,13 +237,13 @@ export function Dashboard() {
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-11"
+                  className="pl-10 h-11 rounded-full bg-white"
                 />
               </div>
               <Button
                 variant={showMobileFilters || hasActiveFilters ? "secondary" : "outline"}
                 size="icon"
-                className="h-11 w-11 flex-shrink-0"
+                className="h-11 w-11 flex-shrink-0 rounded-full"
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
               >
                 <Filter className="h-4 w-4" />
@@ -252,13 +252,14 @@ export function Dashboard() {
 
             {/* Collapsible filter options */}
             {showMobileFilters && (
-              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <div className="bg-white border border-border/60 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
                 <div className="flex flex-wrap gap-2">
                   {["all", "this-month", "last-month", "next-month"].map((filter) => (
                     <Button
                       key={filter}
                       variant={filterMonth === filter && !dateFrom && !dateTo ? "secondary" : "outline"}
                       size="sm"
+                      className="rounded-full"
                       onClick={() => {
                         setFilterMonth(filter);
                         setDateFrom(undefined);

@@ -200,7 +200,7 @@ export default function CalendarPage() {
       >
         <Card className="border-border/60 bg-gradient-to-br from-[#F5FBFC] via-white to-[#F1FAFB] shadow-[0_2px_12px_0_rgba(15,76,92,0.06)]">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 text-[#0F4C5C] flex items-center justify-center">
                   <CalendarDays className="h-5 w-5" />
@@ -270,7 +270,7 @@ export default function CalendarPage() {
                     key={dayKey}
                     onClick={() => setSelectedDate(day)}
                     className={cn(
-                      "min-h-[92px] rounded-xl border px-2.5 py-2 text-left transition-colors hover:bg-[#F7FAFB] hover:border-[#0F4C5C]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
+                      "min-h-[78px] sm:min-h-[92px] rounded-xl border px-2.5 py-2 text-left transition-colors hover:bg-[#F7FAFB] hover:border-[#0F4C5C]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
                       inMonth ? "bg-white/80" : "bg-muted/30",
                       hasStays ? "border-[#0F4C5C]/30 shadow-[0_1px_8px_rgba(15,76,92,0.08)]" : "border-border/50",
                       isSelected && "ring-2 ring-[#0F4C5C]/40"

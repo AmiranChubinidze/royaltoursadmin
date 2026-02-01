@@ -269,7 +269,7 @@ export default function FinancesPage() {
               <Button
                 variant={isThisMonth ? "secondary" : "outline"}
                 size="sm"
-                className="flex-shrink-0"
+                className="flex-shrink-0 h-9 rounded-full px-4"
                 onClick={() => {
                   setDateFrom(startOfMonth(new Date()));
                   setDateTo(endOfMonth(new Date()));
@@ -280,7 +280,7 @@ export default function FinancesPage() {
               <Button
                 variant={isAllTime ? "secondary" : "outline"}
                 size="sm"
-                className="flex-shrink-0"
+                className="flex-shrink-0 h-9 rounded-full px-4"
                 onClick={() => {
                   setDateFrom(undefined);
                   setDateTo(undefined);
@@ -291,7 +291,7 @@ export default function FinancesPage() {
               <Button
                 variant={showMobileFilters ? "secondary" : "outline"}
                 size="sm"
-                className="flex-shrink-0"
+                className="flex-shrink-0 h-9 rounded-full px-4"
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
               >
                 <Filter className="h-3.5 w-3.5 mr-1" />
@@ -301,11 +301,11 @@ export default function FinancesPage() {
 
             {/* Custom date picker */}
             {showMobileFilters && (
-              <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <div className="bg-white border border-border/60 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
                 <div className="flex gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button variant="outline" size="sm" className="flex-1 rounded-full">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateFrom ? format(dateFrom, "MMM d") : "From"}
                       </Button>
@@ -322,7 +322,7 @@ export default function FinancesPage() {
                   </Popover>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button variant="outline" size="sm" className="flex-1 rounded-full">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateTo ? format(dateTo, "MMM d") : "To"}
                       </Button>

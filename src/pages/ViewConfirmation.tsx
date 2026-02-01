@@ -120,60 +120,166 @@ export default function ViewConfirmation() {
   const editedDate = wasEdited ? format(new Date(confirmation.updated_at), "dd/MM/yyyy") : null;
 
   return (
-    <div className="container mx-auto py-8 px-4 print:p-0 print:m-0 print:max-w-none">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6 print:hidden">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => navigate(-1)}
-            title="Go back"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          {editedDate && <span className="text-xs text-muted-foreground">Edited: {editedDate}</span>}
-        </div>
+    <div className="container mx-auto px-4 py-6 md:py-8 print:p-0 print:m-0 print:max-w-none">
+      {isMobile ? (
+        <div className="mb-5 space-y-3 print:hidden">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-full bg-white"
+              onClick={() => navigate(-1)}
+              title="Go back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            {editedDate && (
+              <span className="text-[11px] text-muted-foreground">Edited: {editedDate}</span>
+            )}
+          </div>
 
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          <button onClick={() => setViewMode("letter")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "letter" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            <FileText className="h-4 w-4" />Letter
-          </button>
-          <button onClick={() => setViewMode("tag")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "tag" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-            <Tag className="h-4 w-4" />Tag
-          </button>
-        </div>
+          <div className="grid grid-cols-2 rounded-2xl border border-border/60 bg-white p-1 shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
+            <button
+              onClick={() => setViewMode("letter")}
+              className={`flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
+                viewMode === "letter" ? "bg-[#EAF3F4] text-[#0F4C5C]" : "text-muted-foreground"
+              }`}
+            >
+              <FileText className="h-4 w-4" />
+              Letter
+            </button>
+            <button
+              onClick={() => setViewMode("tag")}
+              className={`flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
+                viewMode === "tag" ? "bg-[#EAF3F4] text-[#0F4C5C]" : "text-muted-foreground"
+              }`}
+            >
+              <Tag className="h-4 w-4" />
+              Tag
+            </button>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />Print
-          </Button>
-          {canEditConfirmations && (
-            <>
-              <Button variant="outline" onClick={() => navigate(`/confirmation/${id}/edit`)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
-              {canManageConfirmations && (
-                <>
-                  <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}><Copy className="mr-2 h-4 w-4" />Duplicate</Button>
-                  <Button variant="outline" onClick={() => setEmailDialogOpen(true)}><Mail className="mr-2 h-4 w-4" />Send Emails</Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</Button></AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
-                        <AlertDialogDescription>Are you sure? This cannot be undone.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </>
-              )}
-            </>
-          )}
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <Button variant="outline" size="sm" className="rounded-full" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+            {canEditConfirmations && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => navigate(`/confirmation/${id}/edit`)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+                {canManageConfirmations && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={handleDuplicate}
+                      disabled={duplicateMutation.isPending}
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Duplicate
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => setEmailDialogOpen(true)}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      Emails
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="rounded-full">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
+                          <AlertDialogDescription>Are you sure? This cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 print:hidden">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => navigate(-1)}
+              title="Go back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            {editedDate && <span className="text-xs text-muted-foreground">Edited: {editedDate}</span>}
+          </div>
+
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            <button onClick={() => setViewMode("letter")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "letter" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <FileText className="h-4 w-4" />Letter
+            </button>
+            <button onClick={() => setViewMode("tag")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "tag" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <Tag className="h-4 w-4" />Tag
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />Print
+            </Button>
+            {canEditConfirmations && (
+              <>
+                <Button variant="outline" onClick={() => navigate(`/confirmation/${id}/edit`)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                {canManageConfirmations && (
+                  <>
+                    <Button variant="outline" onClick={handleDuplicate} disabled={duplicateMutation.isPending}><Copy className="mr-2 h-4 w-4" />Duplicate</Button>
+                    <Button variant="outline" onClick={() => setEmailDialogOpen(true)}><Mail className="mr-2 h-4 w-4" />Send Emails</Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild><Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete</Button></AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Confirmation</AlertDialogTitle>
+                          <AlertDialogDescription>Are you sure? This cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="confirmation-letter-wrapper">
         {viewMode === "letter" ? (

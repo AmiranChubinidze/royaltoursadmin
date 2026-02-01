@@ -43,8 +43,11 @@ import {
 } from "@/hooks/useSavedData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export default function SavedData() {
+  const isMobile = useIsMobile();
   const { data: hotels, isLoading: hotelsLoading } = useSavedHotels();
   const createHotel = useCreateSavedHotel();
   const updateHotel = useUpdateSavedHotel();
@@ -158,20 +161,22 @@ export default function SavedData() {
     <div>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="page-title text-foreground">Saved Hotels</h1>
-          <p className="text-muted-foreground">Manage hotels and their activities for quick reuse</p>
+        <div className={cn("mb-8", isMobile && "mb-5")}>
+          <h1 className={cn("page-title text-foreground", isMobile && "text-[22px]")}>Saved Hotels</h1>
+          <p className={cn("text-muted-foreground", isMobile && "text-xs")}>
+            Manage hotels and activities for quick reuse
+          </p>
         </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className={cn(isMobile && "rounded-2xl border-border/60 bg-white/95 shadow-[0_10px_24px_rgba(15,76,92,0.08)]")}>
+          <CardHeader className={cn("flex flex-row items-center justify-between", isMobile && "px-4 py-4")}>
             <CardTitle>Hotels & Activities</CardTitle>
             <Dialog open={hotelDialogOpen} onOpenChange={(open) => {
               if (!open) closeAddDialog();
               else setHotelDialogOpen(true);
             }}>
               <DialogTrigger asChild>
-                <Button size="sm">
+                <Button size="sm" className={cn(isMobile && "rounded-full")}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Hotel
                 </Button>
@@ -273,7 +278,7 @@ export default function SavedData() {
               </DialogContent>
             </Dialog>
           </CardHeader>
-          <CardContent>
+          <CardContent className={cn(isMobile && "px-4 pb-5")}>
             {hotelsLoading ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (
@@ -286,81 +291,151 @@ export default function SavedData() {
                 <p>No saved hotels yet</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Activities</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              isMobile ? (
+                <div className="space-y-3">
                   {hotels?.map((hotel) => (
-                    <TableRow key={hotel.id}>
-                      <TableCell className="font-medium">{hotel.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {hotel.is_owned ? (
-                            <Badge variant="secondary" className="text-xs">Owned</Badge>
-                          ) : (
-                            <span>{hotel.email || "—"}</span>
-                          )}
+                    <div
+                      key={hotel.id}
+                      className="rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold text-foreground">{hotel.name}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            {hotel.is_owned ? "Company-owned" : hotel.email || "No email"}
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {hotel.activities?.length > 0 ? (
-                            hotel.activities.map((activity) => (
-                              <Badge key={activity} variant="outline" className="text-xs">
-                                {activity}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(hotel)}
-                            className="text-muted-foreground hover:text-foreground"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Hotel</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete {hotel.name}?
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteHotel(hotel.id)}
-                                  className="bg-destructive text-destructive-foreground"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        {hotel.is_owned && (
+                          <Badge variant="secondary" className="text-[10px]">Owned</Badge>
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {hotel.activities?.length > 0 ? (
+                          hotel.activities.map((activity) => (
+                            <Badge key={activity} variant="outline" className="text-[10px]">
+                              {activity}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">No activities</span>
+                        )}
+                      </div>
+                      <div className="mt-4 flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full"
+                          onClick={() => openEditDialog(hotel)}
+                        >
+                          <Pencil className="h-3.5 w-3.5 mr-1" />
+                          Edit
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="rounded-full text-destructive">
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Hotel</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {hotel.name}?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteHotel(hotel.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Activities</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {hotels?.map((hotel) => (
+                      <TableRow key={hotel.id}>
+                        <TableCell className="font-medium">{hotel.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {hotel.is_owned ? (
+                              <Badge variant="secondary" className="text-xs">Owned</Badge>
+                            ) : (
+                              <span>{hotel.email || "—"}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {hotel.activities?.length > 0 ? (
+                              hotel.activities.map((activity) => (
+                                <Badge key={activity} variant="outline" className="text-xs">
+                                  {activity}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(hotel)}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Hotel</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {hotel.name}?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteHotel(hotel.id)}
+                                    className="bg-destructive text-destructive-foreground"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )
             )}
           </CardContent>
         </Card>

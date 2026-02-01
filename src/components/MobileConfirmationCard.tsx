@@ -65,17 +65,17 @@ export function MobileConfirmationCard({
 
   return (
     <div
-      className="bg-card border border-border rounded-xl p-4 active:bg-muted/50 transition-all duration-150 shadow-[0_1px_3px_0_hsl(210_20%_20%/0.04)]"
+      className="rounded-2xl border border-border/60 bg-white/95 p-4 shadow-[0_10px_24px_rgba(15,76,92,0.08)] transition-all duration-150 active:scale-[0.995]"
       onClick={() => navigate(`/confirmation/${confirmation.id}`)}
     >
       {/* Top row: Code + Status badges */}
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-mono font-bold text-primary text-lg">
+          <span className="font-mono font-semibold text-[#0F4C5C] text-base">
             {confirmation.confirmation_code}
           </span>
           {confirmation.status === "draft" && (
-            <Badge variant="outline" className="bg-muted text-muted-foreground text-xs">
+            <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">
               Draft
             </Badge>
           )}
@@ -83,45 +83,51 @@ export function MobileConfirmationCard({
             <CheckCircle className="h-4 w-4 text-emerald-500" />
           )}
           {wasEdited && !effectiveIsVisitor && (
-            <span className="text-xs text-muted-foreground">(edited)</span>
+            <span className="text-[10px] text-muted-foreground">(edited)</span>
           )}
         </div>
-        <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       </div>
 
       {/* Client name */}
-      <p className="font-medium text-foreground text-base mb-2 truncate">
+      <p className="font-semibold text-foreground text-[15px] mb-2 truncate">
         {confirmation.main_client_name || "No client name"}
       </p>
 
       {/* Info row */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mb-3">
-        <span>{confirmation.arrival_date || "No date"}</span>
-        <span>{confirmation.total_days}D / {confirmation.total_nights}N</span>
-        <span className="truncate max-w-[120px]">{displaySource}</span>
+      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground mb-3">
+        <span className="rounded-full bg-[#F1FAFB] px-2.5 py-1 text-[#0F4C5C]">
+          {confirmation.arrival_date || "No date"}
+        </span>
+        <span className="rounded-full bg-muted/60 px-2.5 py-1">
+          {confirmation.total_days}D / {confirmation.total_nights}N
+        </span>
+        <span className="rounded-full bg-muted/60 px-2.5 py-1 truncate max-w-[160px]">
+          {displaySource}
+        </span>
       </div>
 
       {/* Action buttons */}
       {(canEditConfirmations || effectiveIsBooking) && (
         <div
-          className="flex gap-2 pt-3 border-t border-border"
+          className="flex items-center gap-2 pt-3 border-t border-border/60"
           onClick={(e) => e.stopPropagation()}
         >
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
+            className="flex-1 h-9 rounded-full border-[#0F4C5C]/25 bg-[#EAF3F4] text-[#0F4C5C] hover:bg-[#DDECEE]"
             onClick={() => navigate(`/confirmation/${confirmation.id}`)}
           >
-            <Eye className="h-4 w-4 mr-1" />
-            View
+            <Eye className="h-4 w-4 mr-1.5" />
+            Open
           </Button>
 
           {(effectiveIsBooking || canEditConfirmations) && (
             <Button
               variant="outline"
-              size="sm"
-              className={confirmation.is_paid ? "text-emerald-600" : ""}
+              size="icon"
+              className={confirmation.is_paid ? "h-9 w-9 text-emerald-600" : "h-9 w-9"}
               onClick={() => navigate(`/confirmation/${confirmation.id}/attachments`)}
             >
               <Paperclip className="h-4 w-4" />
@@ -133,8 +139,8 @@ export function MobileConfirmationCard({
               {confirmation.status === "draft" ? (
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="text-amber-600"
+                  size="icon"
+                  className="h-9 w-9 text-amber-600"
                   onClick={() =>
                     navigate(`/confirmation/${confirmation.id}/edit?complete=true`)
                   }
@@ -144,7 +150,8 @@ export function MobileConfirmationCard({
               ) : (
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="icon"
+                  className="h-9 w-9"
                   onClick={() => navigate(`/confirmation/${confirmation.id}/edit`)}
                 >
                   <Edit className="h-4 w-4" />
@@ -156,8 +163,8 @@ export function MobileConfirmationCard({
                   <AlertDialogTrigger asChild>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
+                      size="icon"
+                      className="h-9 w-9 text-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

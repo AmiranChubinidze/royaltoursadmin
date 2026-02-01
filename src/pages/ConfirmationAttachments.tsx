@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -97,6 +97,7 @@ export default function ConfirmationAttachments() {
   const [notesEditing, setNotesEditing] = useState(false);
   const [manualInvoiceChecks, setManualInvoiceChecks] = useState<string[]>([]);
   const [invoiceCheckSaving, setInvoiceCheckSaving] = useState<string | null>(null);
+  const autoPaidStatusRef = useRef<"paid" | "pending" | null>(null);
   
   // Sync notes when confirmation loads
   useEffect(() => {
@@ -538,16 +539,42 @@ export default function ConfirmationAttachments() {
     return map;
   }, [attachments, visibleHotelStays, derivedStayMapInfo.map]);
 
+  const setPaidStatusSilently = useCallback(
+    async (nextPaid: boolean) => {
+      if (!id) return;
+      const desired = nextPaid ? "paid" : "pending";
+      if (autoPaidStatusRef.current === desired) return;
+      autoPaidStatusRef.current = desired;
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const updatePayload = nextPaid
+        ? { is_paid: true, paid_at: new Date().toISOString(), paid_by: user?.id || null }
+        : { is_paid: false, paid_at: null, paid_by: null };
+
+      const { error } = await supabase
+        .from("confirmations")
+        .update(updatePayload)
+        .eq("id", id);
+
+      if (error) {
+        console.error("Failed to update paid status", error);
+        autoPaidStatusRef.current = null;
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
+    },
+    [id, queryClient]
+  );
+
   // Auto-mark as paid when all visible hotel stays have invoice uploaded or manually checked
   useEffect(() => {
     if (!confirmation || !id || attachmentsLoading) return;
-    if (markPaidMutation.isPending || unmarkPaidMutation.isPending) return;
     const isPaidNow = Boolean((confirmation as any).is_paid);
 
     if (visibleHotelStays.length === 0) {
-      if (isPaidNow) {
-        unmarkPaidMutation.mutate(id);
-      }
+      if (isPaidNow) setPaidStatusSilently(false);
       return;
     }
 
@@ -559,11 +586,11 @@ export default function ConfirmationAttachments() {
     });
 
     if (allCovered && !isPaidNow) {
-      markPaidMutation.mutate(id);
+      setPaidStatusSilently(true);
       return;
     }
     if (!allCovered && isPaidNow) {
-      unmarkPaidMutation.mutate(id);
+      setPaidStatusSilently(false);
     }
   }, [
     confirmation,
@@ -572,8 +599,7 @@ export default function ConfirmationAttachments() {
     visibleHotelStays,
     attachmentsByStay,
     manualInvoiceChecks,
-    markPaidMutation.isPending,
-    unmarkPaidMutation.isPending,
+    setPaidStatusSilently,
   ]);
 
 

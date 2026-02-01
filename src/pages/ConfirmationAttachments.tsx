@@ -426,6 +426,54 @@ export default function ConfirmationAttachments() {
       });
     });
 
+    const stayOrder: string[] = [];
+    stays.forEach((stay, idx) => {
+      const sameHotelBefore = stays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
+      stayOrder.push(getStayKey(stay.hotel, sameHotelBefore));
+    });
+
+    if (stayOrder.length > 0) {
+      const stayCounts = new Map<string, { invoice: number; payment: number }>();
+      stayOrder.forEach((key) => stayCounts.set(key, { invoice: 0, payment: 0 }));
+
+      items.forEach((attachment) => {
+        const stayKey = map[attachment.id];
+        if (!stayKey) return;
+        const counts = stayCounts.get(stayKey);
+        if (!counts) return;
+        if (isPaymentAttachment(attachment.file_name)) {
+          counts.payment += 1;
+        } else {
+          counts.invoice += 1;
+        }
+      });
+
+      const remaining = items
+        .filter((attachment) => !map[attachment.id])
+        .sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
+
+      remaining.forEach((attachment) => {
+        const isPayment = isPaymentAttachment(attachment.file_name);
+        const targetStay =
+          stayOrder.find((key) => {
+            const counts = stayCounts.get(key);
+            if (!counts) return false;
+            return isPayment ? counts.payment === 0 : counts.invoice === 0;
+          }) || stayOrder[0];
+        if (!targetStay) return;
+        map[attachment.id] = targetStay;
+        const counts = stayCounts.get(targetStay);
+        if (counts) {
+          if (isPayment) {
+            counts.payment += 1;
+          } else {
+            counts.invoice += 1;
+          }
+        }
+        changed = true;
+      });
+    }
+
     return { map, changed };
   };
 

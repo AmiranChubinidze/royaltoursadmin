@@ -338,8 +338,8 @@ export default function CalendarPage() {
                     )}
                   >
                     {isMobile ? (
-                      <div className="relative h-8">
-                        <div className="flex h-8 items-center justify-center">
+                      <div className="relative h-9 pt-2">
+                        <div className="flex items-center justify-center">
                           <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
                             {dayNumberFormatter.format(day)}
                           </span>
@@ -347,10 +347,10 @@ export default function CalendarPage() {
                         {hasStays && (
                           <Badge
                             className={cn(
-                              "absolute right-0 top-0 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center border-0",
+                              "absolute right-1 top-1 h-4 w-4 rounded-full p-0 text-[9px] flex items-center justify-center border-0",
                               ownedCount > 0
-                                ? "bg-[#00A9B7]/20 text-[#0A7E88]"
-                                : "bg-[#6B6F76]/20 text-[#4B4F55]"
+                                ? "bg-[#00A9B7]/25 text-[#0A7E88]"
+                                : "bg-[#6B6F76]/25 text-[#4B4F55]"
                             )}
                           >
                             {stays.length}

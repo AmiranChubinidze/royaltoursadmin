@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -809,14 +808,26 @@ export default function ConfirmationAttachments() {
                         : "bg-muted/30 border-border"
                     )}
                   >
-                    <div className={cn(
-                      "flex items-center justify-center h-7 w-7 rounded-full shrink-0",
-                      invoiceChecked
-                        ? "bg-emerald-500 text-white"
-                        : "border-2 border-muted-foreground/30"
-                    )}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!hasInvoiceUpload) {
+                          toggleManualInvoiceCheck(stayKey, !manualChecked);
+                        }
+                      }}
+                      disabled={hasInvoiceUpload || isSavingCheck}
+                      aria-label={invoiceChecked ? "Invoice checked" : "Mark invoice checked"}
+                      className={cn(
+                        "flex items-center justify-center h-7 w-7 rounded-full shrink-0 transition-colors",
+                        invoiceChecked
+                          ? "bg-emerald-500 text-white"
+                          : "border-2 border-muted-foreground/30",
+                        !hasInvoiceUpload && "hover:border-emerald-500/70 hover:bg-emerald-50",
+                        (hasInvoiceUpload || isSavingCheck) && "cursor-default"
+                      )}
+                    >
                       {invoiceChecked && <CheckCircle className="h-4 w-4" />}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "text-sm font-medium truncate",
@@ -839,16 +850,6 @@ export default function ConfirmationAttachments() {
                         invoiceChecked ? "border-emerald-200 bg-emerald-50/70 text-emerald-700" : "border-border bg-background"
                       )}>
                         <span className="text-xs font-medium w-16">Invoice</span>
-                        {!hasInvoiceUpload && (
-                          <label className="flex items-center gap-2">
-                            <Checkbox
-                              checked={manualChecked}
-                              onCheckedChange={(checked) => toggleManualInvoiceCheck(stayKey, Boolean(checked))}
-                              disabled={isSavingCheck}
-                            />
-                            <span className="sr-only">Checked</span>
-                          </label>
-                        )}
                         {hasInvoiceUpload && invoiceMatch ? (
                           <div className="flex items-center gap-1 ml-auto">
                             <Button

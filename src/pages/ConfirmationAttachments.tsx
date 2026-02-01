@@ -387,69 +387,163 @@ export default function ConfirmationAttachments() {
     return null;
   };
 
+
+  const buildAttachmentStayMap = (
+    items: ConfirmationAttachment[],
+    stays: { hotel: string }[],
+    existing: Record<string, string>
+  ) => {
+    const map = { ...existing };
+    const attachmentIds = new Set(items.map((a) => a.id));
+    let changed = false;
+
+    for (const key of Object.keys(map)) {
+      if (!attachmentIds.has(key)) {
+        delete map[key];
+        changed = true;
+      }
+    }
+
+    const stayKeysByHotel = new Map<string, string[]>();
+    stays.forEach((stay, idx) => {
+      const sameHotelBefore = stays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
+      const stayKey = getStayKey(stay.hotel, sameHotelBefore);
+      const hotelLower = stay.hotel.trim().toLowerCase();
+      const list = stayKeysByHotel.get(hotelLower) || [];
+      list.push(stayKey);
+      stayKeysByHotel.set(hotelLower, list);
+    });
+
+    const stayPathToKey = new Map<string, string>();
+    stayKeysByHotel.forEach((keys) => {
+      keys.forEach((stayKey) => {
+        stayPathToKey.set(getStayPathKey(stayKey), stayKey);
+      });
+    });
+
+    const unmatchedByHotel = new Map<string, ConfirmationAttachment[]>();
+    const stayRegex = /\(\s*stay\s*(\d+)\s*\)/i;
+
+    items.forEach((attachment) => {
+      if (map[attachment.id]) return;
+      const pathKey = getPathStayKey(attachment.file_path);
+      if (pathKey) {
+        const mappedStay = stayPathToKey.get(pathKey);
+        if (mappedStay) {
+          map[attachment.id] = mappedStay;
+          changed = true;
+          return;
+        }
+      }
+
+      const lowerName = attachment.file_name.toLowerCase();
+      const stayMatch = lowerName.match(stayRegex);
+      if (stayMatch) {
+        const stayIndex = Number(stayMatch[1]) - 1;
+        for (const [hotelLower, keys] of stayKeysByHotel.entries()) {
+          if (lowerName.includes(hotelLower)) {
+            const stayKey = keys[stayIndex] || keys[keys.length - 1];
+            if (stayKey) {
+              map[attachment.id] = stayKey;
+              changed = true;
+              return;
+            }
+          }
+        }
+      }
+
+      let matchedHotel: string | null = null;
+      let matchedLength = 0;
+      for (const hotelLower of stayKeysByHotel.keys()) {
+        if (lowerName.includes(hotelLower) && hotelLower.length > matchedLength) {
+          matchedHotel = hotelLower;
+          matchedLength = hotelLower.length;
+        }
+      }
+
+      if (matchedHotel) {
+        const list = unmatchedByHotel.get(matchedHotel) || [];
+        list.push(attachment);
+        unmatchedByHotel.set(matchedHotel, list);
+      }
+    });
+
+    unmatchedByHotel.forEach((list, hotelLower) => {
+      const stayKeys = stayKeysByHotel.get(hotelLower) || [];
+      if (stayKeys.length === 0) return;
+      list.sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
+      list.forEach((attachment, idx) => {
+        if (map[attachment.id]) return;
+        const stayKey = stayKeys[Math.min(idx, stayKeys.length - 1)];
+        map[attachment.id] = stayKey;
+        changed = true;
+      });
+    });
+
+    return { map, changed };
+  };
+
+
+  const rawAttachmentStayMap = useMemo(() => {
+    const rawMap = (confirmation as any)?.raw_payload?.attachment_stay_map;
+    return rawMap && typeof rawMap === "object" ? (rawMap as Record<string, string>) : {};
+  }, [confirmation]);
+
+  const derivedStayMapInfo = useMemo(() => {
+    if (!attachments || !visibleHotelStays.length) {
+      return { map: rawAttachmentStayMap, changed: false };
+    }
+    return buildAttachmentStayMap(attachments, visibleHotelStays, rawAttachmentStayMap);
+  }, [attachments, visibleHotelStays, rawAttachmentStayMap]);
+
+
+  useEffect(() => {
+    if (!id || !confirmation || !derivedStayMapInfo.changed) return;
+    const nextPayload = {
+      ...((confirmation as any)?.raw_payload || {}),
+      attachment_stay_map: derivedStayMapInfo.map,
+    };
+    supabase
+      .from("confirmations")
+      .update({ raw_payload: nextPayload })
+      .eq("id", id)
+      .then(({ error }) => {
+        if (error) {
+          console.error("Failed to persist attachment map", error);
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
+        }
+      });
+  }, [id, confirmation, derivedStayMapInfo, queryClient]);
+
+  
   const attachmentsByStay = useMemo(() => {
     const map = new Map<string, { invoice: ConfirmationAttachment | null; payment: ConfirmationAttachment | null }>();
     if (!attachments || visibleHotelStays.length === 0) return map;
 
-    const sorted = [...attachments].sort(
-      (a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime()
-    );
-    const byPathKey = new Map<string, { invoice: ConfirmationAttachment[]; payment: ConfirmationAttachment[] }>();
-    const invoicePool: ConfirmationAttachment[] = [];
-    const paymentPool: ConfirmationAttachment[] = [];
+    const buckets = new Map<string, { invoice: ConfirmationAttachment[]; payment: ConfirmationAttachment[] }>();
 
-    for (const attachment of sorted) {
-      const pathKey = getPathStayKey(attachment.file_path);
-      const isPayment = isPaymentAttachment(attachment.file_name);
-      if (pathKey) {
-        const bucket = byPathKey.get(pathKey) || { invoice: [], payment: [] };
-        if (isPayment) {
-          bucket.payment.push(attachment);
-        } else {
-          bucket.invoice.push(attachment);
-        }
-        byPathKey.set(pathKey, bucket);
+    attachments.forEach((attachment) => {
+      const stayKey = derivedStayMapInfo.map[attachment.id] || null;
+      if (!stayKey) return;
+      const bucket = buckets.get(stayKey) || { invoice: [], payment: [] };
+      if (isPaymentAttachment(attachment.file_name)) {
+        bucket.payment.push(attachment);
       } else {
-        if (isPayment) {
-          paymentPool.push(attachment);
-        } else {
-          invoicePool.push(attachment);
-        }
+        bucket.invoice.push(attachment);
       }
-    }
+      buckets.set(stayKey, bucket);
+    });
 
-    for (const bucket of byPathKey.values()) {
-      bucket.invoice.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
-      bucket.payment.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
-    }
-
-    const usedInvoiceIds = new Set<string>();
-    const usedPaymentIds = new Set<string>();
-
-    visibleHotelStays.forEach((stay, idx) => {
-      const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
-      const stayKey = getStayKey(stay.hotel, sameHotelBefore);
-      const stayPathKey = getStayPathKey(stayKey);
-      const hotelLower = stay.hotel.trim().toLowerCase();
-
-      const pathBucket = byPathKey.get(stayPathKey);
-      let invoiceMatch =
-        pathBucket?.invoice.find((a) => !usedInvoiceIds.has(a.id)) ||
-        invoicePool.find((a) => !usedInvoiceIds.has(a.id) && a.file_name.toLowerCase().includes(hotelLower)) ||
-        null;
-      if (invoiceMatch) usedInvoiceIds.add(invoiceMatch.id);
-
-      let paymentMatch =
-        pathBucket?.payment.find((a) => !usedPaymentIds.has(a.id)) ||
-        paymentPool.find((a) => !usedPaymentIds.has(a.id) && a.file_name.toLowerCase().includes(hotelLower)) ||
-        null;
-      if (paymentMatch) usedPaymentIds.add(paymentMatch.id);
-
-      map.set(stayKey, { invoice: invoiceMatch, payment: paymentMatch });
+    buckets.forEach((bucket, stayKey) => {
+      const invoice = bucket.invoice.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())[0] || null;
+      const payment = bucket.payment.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())[0] || null;
+      map.set(stayKey, { invoice, payment });
     });
 
     return map;
-  }, [attachments, visibleHotelStays]);
+  }, [attachments, visibleHotelStays, derivedStayMapInfo.map]);
+
 
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return "—";

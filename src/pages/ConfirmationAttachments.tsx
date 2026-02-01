@@ -540,11 +540,12 @@ export default function ConfirmationAttachments() {
 
   // Auto-mark as paid when all visible hotel stays have invoice uploaded or manually checked
   useEffect(() => {
-    if (!confirmation || !id || markPaidMutation.isPending) return;
+    if (!confirmation || !id || attachmentsLoading) return;
+    if (markPaidMutation.isPending || unmarkPaidMutation.isPending) return;
     const isPaidNow = Boolean((confirmation as any).is_paid);
 
     if (visibleHotelStays.length === 0) {
-      if (isPaidNow && !unmarkPaidMutation.isPending) {
+      if (isPaidNow) {
         unmarkPaidMutation.mutate(id);
       }
       return;
@@ -557,18 +558,17 @@ export default function ConfirmationAttachments() {
       return Boolean(invoiceMatch) || manualInvoiceChecks.includes(stayKey);
     });
 
-    if (allCovered) {
-      if (!isPaidNow) {
-        markPaidMutation.mutate(id);
-      }
-    } else if (isPaidNow) {
-      if (!unmarkPaidMutation.isPending) {
-        unmarkPaidMutation.mutate(id);
-      }
+    if (allCovered && !isPaidNow) {
+      markPaidMutation.mutate(id);
+      return;
+    }
+    if (!allCovered && isPaidNow) {
+      unmarkPaidMutation.mutate(id);
     }
   }, [
     confirmation,
     id,
+    attachmentsLoading,
     visibleHotelStays,
     attachmentsByStay,
     manualInvoiceChecks,

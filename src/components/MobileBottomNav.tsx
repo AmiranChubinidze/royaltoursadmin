@@ -24,16 +24,28 @@ export function MobileBottomNav() {
     ...(isBooking ? [{ to: "/saved-data", label: "Saved", icon: Database }] : []),
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),
   ];
+  const isFinances = location.pathname.startsWith("/finances");
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
       <div className="relative mx-auto flex max-w-md items-center justify-between rounded-[26px] border border-border/70 bg-white/90 px-3 py-2 shadow-[0_10px_30px_rgba(15,76,92,0.12)] backdrop-blur">
-        <Link
-          to="/new"
-          className="absolute -top-6 left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-2xl bg-[#0F4C5C] text-white shadow-[0_12px_20px_rgba(15,76,92,0.35)]"
-        >
-          <PlusCircle className="h-6 w-6" />
-        </Link>
+        {isFinances ? (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event("rtg:open-transaction"))}
+            className="absolute -top-6 left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-2xl bg-[#1B7C8A] text-white shadow-[0_12px_20px_rgba(27,124,138,0.35)]"
+            aria-label="Add transaction"
+          >
+            <PlusCircle className="h-6 w-6" />
+          </button>
+        ) : (
+          <Link
+            to="/new"
+            className="absolute -top-6 left-1/2 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-2xl bg-[#0F4C5C] text-white shadow-[0_12px_20px_rgba(15,76,92,0.35)]"
+          >
+            <PlusCircle className="h-6 w-6" />
+          </Link>
+        )}
         {items.map((item) => {
           const active = location.pathname === item.to;
           const Icon = item.icon;

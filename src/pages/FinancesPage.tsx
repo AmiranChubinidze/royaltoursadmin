@@ -253,6 +253,12 @@ export default function FinancesPage() {
     dateTo?.getTime() === endOfMonth(new Date()).getTime();
   const isAllTime = !dateFrom && !dateTo;
 
+  useEffect(() => {
+    const handler = () => setTransactionModalOpen(true);
+    window.addEventListener("rtg:open-transaction", handler);
+    return () => window.removeEventListener("rtg:open-transaction", handler);
+  }, []);
+
   // Mobile Layout
   if (isMobile) {
     return (

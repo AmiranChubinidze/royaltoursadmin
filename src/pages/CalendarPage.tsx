@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useSavedHotels } from "@/hooks/useSavedData";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useCalendarNotificationHotels,
   useCalendarNotificationSettings,
@@ -61,6 +62,7 @@ const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
 export default function CalendarPage() {
   const { data: confirmations, isLoading } = useConfirmations(500);
   const { data: savedHotels } = useSavedHotels();
+  const isMobile = useIsMobile();
   const { data: notificationSettings } = useCalendarNotificationSettings();
   const { data: selectedHotelIds } = useCalendarNotificationHotels();
   const upsertSettings = useUpsertCalendarNotificationSettings();
@@ -212,7 +214,7 @@ export default function CalendarPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className={cn("flex items-center gap-2", isMobile && "justify-between")}>
                 <Button
                   variant="outline"
                   size="icon"
@@ -253,7 +255,7 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7 gap-2 text-xs font-medium text-muted-foreground mb-2">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div key={d} className="px-2 py-1">
-                  {d}
+                  {isMobile ? d.slice(0, 1) : d}
                 </div>
               ))}
             </div>
@@ -270,7 +272,7 @@ export default function CalendarPage() {
                     key={dayKey}
                     onClick={() => setSelectedDate(day)}
                     className={cn(
-                      "min-h-[78px] sm:min-h-[92px] rounded-xl border px-2.5 py-2 text-left transition-colors hover:bg-[#F7FAFB] hover:border-[#0F4C5C]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
+                      "min-h-[58px] sm:min-h-[92px] rounded-xl border px-2 py-2 text-left transition-colors hover:bg-[#F7FAFB] hover:border-[#0F4C5C]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
                       inMonth ? "bg-white/80" : "bg-muted/30",
                       hasStays ? "border-[#0F4C5C]/30 shadow-[0_1px_8px_rgba(15,76,92,0.08)]" : "border-border/50",
                       isSelected && "ring-2 ring-[#0F4C5C]/40"
@@ -281,12 +283,15 @@ export default function CalendarPage() {
                       {dayNumberFormatter.format(day)}
                     </span>
                       {hasStays && (
-                        <Badge className="bg-[#0F4C5C]/10 text-[#0F4C5C] border-0 text-[10px] px-1.5">
+                        <Badge className={cn(
+                          "bg-[#0F4C5C]/10 text-[#0F4C5C] border-0 text-[10px] px-1.5",
+                          isMobile && "rounded-full h-5 w-5 p-0 flex items-center justify-center"
+                        )}>
                           {stays.length}
                         </Badge>
                       )}
                     </div>
-                    {hasStays && (
+                    {hasStays && !isMobile && (
                       <div className="mt-2 space-y-1">
                         {stays.slice(0, 2).map((s, idx) => (
                           <div key={`${dayKey}-${idx}`} className="text-[11px] text-[#0F4C5C] truncate">

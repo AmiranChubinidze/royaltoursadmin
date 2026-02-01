@@ -365,15 +365,7 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Mobile FAB for new confirmation */}
-        {effectiveCanEditConfirmations && (
-          <Button
-            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 hover:shadow-glow transition-all duration-200"
-            onClick={() => navigate("/new")}
-          >
-            <Plus className="h-6 w-6" />
-          </Button>
-        )}
+        {/* Mobile FAB removed in favor of bottom navigation */}
       </div>
     );
   }

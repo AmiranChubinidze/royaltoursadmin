@@ -113,58 +113,6 @@ export default function ConfirmationAttachments() {
   }, [confirmation]);
   
 
-  // Auto-mark as paid when all hotel stays have invoices
-  useEffect(() => {
-    if (!confirmation || !attachments || !id || markPaidMutation.isPending) return;
-    const isPaidNow = (confirmation as any).is_paid;
-
-    const itineraryData = confirmation.raw_payload?.itinerary || [];
-    const stays: { hotel: string }[] = [];
-    let curHotel = "";
-    for (const day of itineraryData) {
-      const h = (day.hotel || "").trim();
-      if (!h || h === "-" || h.toLowerCase() === "n/a") { curHotel = ""; continue; }
-      if (h !== curHotel) { stays.push({ hotel: h }); curHotel = h; }
-    }
-    if (stays.length === 0 && confirmation.raw_payload?.hotelBookings) {
-      for (const hb of confirmation.raw_payload.hotelBookings) {
-        stays.push({ hotel: hb.hotelName });
-      }
-    }
-    if (stays.length === 0) return;
-
-    const ownedSet = new Set(
-      (savedHotels || [])
-        .filter((h) => h.is_owned)
-        .map((h) => h.name.trim().toLowerCase())
-    );
-    const visibleStays = stays.filter(
-      (stay) => !ownedSet.has(stay.hotel.trim().toLowerCase())
-    );
-    if (visibleStays.length === 0) {
-      if (isPaidNow && !unmarkPaidMutation.isPending) {
-        unmarkPaidMutation.mutate(id);
-      }
-      return;
-    }
-
-    const allCovered = visibleStays.every((stay, idx) => {
-      const sameHotelBefore = visibleStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
-      const stayKey = getStayKey(stay.hotel, sameHotelBefore);
-      return manualInvoiceChecks.includes(stayKey);
-    });
-
-    if (allCovered) {
-      if (!isPaidNow) {
-        markPaidMutation.mutate(id);
-      }
-    } else if (isPaidNow) {
-      if (!unmarkPaidMutation.isPending) {
-        unmarkPaidMutation.mutate(id);
-      }
-    }
-  }, [confirmation, attachments, id, savedHotels, manualInvoiceChecks, unmarkPaidMutation.isPending]);
-
   const canUpload = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant" || effectiveRole === "coworker";
   const canDelete = effectiveRole === "admin" || effectiveRole === "worker";
   const canAddTransaction = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant";
@@ -541,6 +489,44 @@ export default function ConfirmationAttachments() {
 
     return map;
   }, [attachments, visibleHotelStays, derivedStayMapInfo.map]);
+
+  // Auto-mark as paid when all visible hotel stays have invoice uploaded or manually checked
+  useEffect(() => {
+    if (!confirmation || !id || markPaidMutation.isPending) return;
+    const isPaidNow = Boolean((confirmation as any).is_paid);
+
+    if (visibleHotelStays.length === 0) {
+      if (isPaidNow && !unmarkPaidMutation.isPending) {
+        unmarkPaidMutation.mutate(id);
+      }
+      return;
+    }
+
+    const allCovered = visibleHotelStays.every((stay, idx) => {
+      const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
+      const stayKey = getStayKey(stay.hotel, sameHotelBefore);
+      const invoiceMatch = attachmentsByStay.get(stayKey)?.invoice;
+      return Boolean(invoiceMatch) || manualInvoiceChecks.includes(stayKey);
+    });
+
+    if (allCovered) {
+      if (!isPaidNow) {
+        markPaidMutation.mutate(id);
+      }
+    } else if (isPaidNow) {
+      if (!unmarkPaidMutation.isPending) {
+        unmarkPaidMutation.mutate(id);
+      }
+    }
+  }, [
+    confirmation,
+    id,
+    visibleHotelStays,
+    attachmentsByStay,
+    manualInvoiceChecks,
+    markPaidMutation.isPending,
+    unmarkPaidMutation.isPending,
+  ]);
 
 
   const formatFileSize = (bytes: number | null) => {

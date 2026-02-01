@@ -338,24 +338,24 @@ export default function CalendarPage() {
                     )}
                   >
                     {isMobile ? (
-                      <div className="relative h-9 pt-2">
-                        <div className="flex items-center justify-center">
-                          <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
-                            {dayNumberFormatter.format(day)}
-                          </span>
+                      <div className="flex h-10 flex-col items-center justify-between">
+                        <div className="flex h-4 w-full items-center justify-center">
+                          {hasStays && (
+                            <Badge
+                              className={cn(
+                                "h-4 min-w-[16px] px-1 rounded-full text-[9px] leading-none border-0",
+                                ownedCount > 0
+                                  ? "bg-[#00A9B7]/25 text-[#0A7E88]"
+                                  : "bg-[#6B6F76]/25 text-[#4B4F55]"
+                              )}
+                            >
+                              {stays.length}
+                            </Badge>
+                          )}
                         </div>
-                        {hasStays && (
-                          <Badge
-                            className={cn(
-                              "absolute right-1 top-1 h-4 w-4 rounded-full p-0 text-[9px] flex items-center justify-center border-0",
-                              ownedCount > 0
-                                ? "bg-[#00A9B7]/25 text-[#0A7E88]"
-                                : "bg-[#6B6F76]/25 text-[#4B4F55]"
-                            )}
-                          >
-                            {stays.length}
-                          </Badge>
-                        )}
+                        <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
+                          {dayNumberFormatter.format(day)}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">

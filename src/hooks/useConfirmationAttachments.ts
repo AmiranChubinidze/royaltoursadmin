@@ -312,9 +312,10 @@ export const useMarkAsPaid = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, confirmationId) => {
+      const targetId = data?.id || confirmationId;
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
-      queryClient.invalidateQueries({ queryKey: ["confirmation"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", targetId] });
       toast({
         title: "Marked as Paid",
         description: "This confirmation has been marked as paid.",
@@ -353,9 +354,10 @@ export const useUnmarkAsPaid = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, confirmationId) => {
+      const targetId = data?.id || confirmationId;
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
-      queryClient.invalidateQueries({ queryKey: ["confirmation"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", targetId] });
       toast({
         title: "Unmarked as Paid",
         description: "This confirmation has been unmarked as paid.",

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,7 @@ import {
   useMarkAsPaid,
   useUnmarkAsPaid,
   useAttachmentExpenses,
+  type ConfirmationAttachment,
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSavedHotels } from "@/hooks/useSavedData";
@@ -73,6 +74,7 @@ export default function ConfirmationAttachments() {
   // Upload dialog state
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingStayKey, setPendingStayKey] = useState<string | null>(null);
   const [invoiceName, setInvoiceName] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceCurrency, setInvoiceCurrency] = useState<Currency>("USD");
@@ -188,6 +190,7 @@ export default function ConfirmationAttachments() {
     
     if (pdfFile) {
       setPendingFile(pdfFile);
+      setPendingStayKey(null);
       setUploadType("invoice");
       setInvoiceName(pdfFile.name.replace(/\.pdf$/i, ""));
       setInvoiceAmount("");
@@ -201,6 +204,7 @@ export default function ConfirmationAttachments() {
     const file = e.target.files[0];
     if (file) {
       setPendingFile(file);
+      setPendingStayKey(null);
       setUploadType("invoice");
       setInvoiceName(file.name.replace(/\.pdf$/i, ""));
       setInvoiceAmount("");
@@ -224,15 +228,17 @@ export default function ConfirmationAttachments() {
       originalCurrency: invoiceCurrency,
       originalAmount: parsedAmount,
       attachmentType: uploadType,
+      stayKey: pendingStayKey || undefined,
     });
     
     setUploadDialogOpen(false);
     setPendingFile(null);
+    setPendingStayKey(null);
     setInvoiceName("");
     setInvoiceAmount("");
     setInvoiceCurrency("USD");
     setUploadType("invoice");
-  }, [pendingFile, id, invoiceName, invoiceAmount, invoiceCurrency, uploadMutation]);
+  }, [pendingFile, id, invoiceName, invoiceAmount, invoiceCurrency, uploadMutation, uploadType, pendingStayKey]);
 
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
     setDownloadingId(attachmentId);
@@ -285,6 +291,13 @@ export default function ConfirmationAttachments() {
           variant: "destructive",
         });
         return;
+      }
+
+      if (isMobile) {
+        const opened = window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+        if (opened) {
+          return;
+        }
       }
 
       setPreviewUrl(data.signedUrl);
@@ -388,24 +401,86 @@ export default function ConfirmationAttachments() {
     return lower.includes("payment") || lower.includes("paid") || lower.includes("po");
   };
 
-  // Check which hotel stays already have an uploaded invoice/payment (match by hotel name)
-  const getMatchingAttachment = (
-    hotelName: string,
-    stayIndex: number,
-    type: "invoice" | "payment"
-  ) => {
-    if (!attachments) return null;
-    // Look for attachments whose name contains the hotel name (case-insensitive)
-    const lower = hotelName.toLowerCase();
-    const matches = attachments.filter((a) => a.file_name.toLowerCase().includes(lower));
-    const filtered = matches.filter((a) =>
-      type === "payment" ? isPaymentAttachment(a.file_name) : !isPaymentAttachment(a.file_name)
-    );
-    return filtered[stayIndex] || null;
-  };
-
   const getStayKey = (hotelName: string, stayIndex: number) =>
     `${hotelName.trim().toLowerCase()}::${stayIndex}`;
+
+  const getStayPathKey = (stayKey: string) =>
+    stayKey.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+
+  const getPathStayKey = (filePath: string) => {
+    const parts = filePath.split("/");
+    if (parts.length >= 4) {
+      const candidate = parts[2];
+      if (candidate && !candidate.includes(".")) {
+        return candidate;
+      }
+    }
+    return null;
+  };
+
+  const attachmentsByStay = useMemo(() => {
+    const map = new Map<string, { invoice: ConfirmationAttachment | null; payment: ConfirmationAttachment | null }>();
+    if (!attachments || visibleHotelStays.length === 0) return map;
+
+    const sorted = [...attachments].sort(
+      (a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime()
+    );
+    const byPathKey = new Map<string, { invoice: ConfirmationAttachment[]; payment: ConfirmationAttachment[] }>();
+    const invoicePool: ConfirmationAttachment[] = [];
+    const paymentPool: ConfirmationAttachment[] = [];
+
+    for (const attachment of sorted) {
+      const pathKey = getPathStayKey(attachment.file_path);
+      const isPayment = isPaymentAttachment(attachment.file_name);
+      if (pathKey) {
+        const bucket = byPathKey.get(pathKey) || { invoice: [], payment: [] };
+        if (isPayment) {
+          bucket.payment.push(attachment);
+        } else {
+          bucket.invoice.push(attachment);
+        }
+        byPathKey.set(pathKey, bucket);
+      } else {
+        if (isPayment) {
+          paymentPool.push(attachment);
+        } else {
+          invoicePool.push(attachment);
+        }
+      }
+    }
+
+    for (const bucket of byPathKey.values()) {
+      bucket.invoice.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
+      bucket.payment.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime());
+    }
+
+    const usedInvoiceIds = new Set<string>();
+    const usedPaymentIds = new Set<string>();
+
+    visibleHotelStays.forEach((stay, idx) => {
+      const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
+      const stayKey = getStayKey(stay.hotel, sameHotelBefore);
+      const stayPathKey = getStayPathKey(stayKey);
+      const hotelLower = stay.hotel.trim().toLowerCase();
+
+      const pathBucket = byPathKey.get(stayPathKey);
+      let invoiceMatch =
+        pathBucket?.invoice.find((a) => !usedInvoiceIds.has(a.id)) ||
+        invoicePool.find((a) => !usedInvoiceIds.has(a.id) && a.file_name.toLowerCase().includes(hotelLower)) ||
+        null;
+      if (invoiceMatch) usedInvoiceIds.add(invoiceMatch.id);
+
+      let paymentMatch =
+        pathBucket?.payment.find((a) => !usedPaymentIds.has(a.id)) ||
+        paymentPool.find((a) => !usedPaymentIds.has(a.id) && a.file_name.toLowerCase().includes(hotelLower)) ||
+        null;
+      if (paymentMatch) usedPaymentIds.add(paymentMatch.id);
+
+      map.set(stayKey, { invoice: invoiceMatch, payment: paymentMatch });
+    });
+
+    return map;
+  }, [attachments, visibleHotelStays]);
 
   const toggleManualInvoiceCheck = async (stayKey: string, nextChecked: boolean) => {
     if (!id) return;
@@ -438,14 +513,19 @@ export default function ConfirmationAttachments() {
   const handleHotelFileSelect = (
     e: React.ChangeEvent<HTMLInputElement>,
     hotelName: string,
+    stayKey: string,
+    stayOrdinal: number,
     type: "invoice" | "payment"
   ) => {
     if (!canUpload || !id || !e.target.files) return;
     const file = e.target.files[0];
     if (file) {
       setPendingFile(file);
+      setPendingStayKey(stayKey);
       setUploadType(type);
-      setInvoiceName(type === "payment" ? `${hotelName} - Payment Order` : hotelName);
+      const suffix = stayOrdinal > 0 ? ` (Stay ${stayOrdinal + 1})` : "";
+      const baseName = `${hotelName}${suffix}`;
+      setInvoiceName(type === "payment" ? `${baseName} - Payment Order` : baseName);
       setInvoiceAmount("");
       setUploadDialogOpen(true);
     }
@@ -595,8 +675,9 @@ export default function ConfirmationAttachments() {
                 // Count how many times this hotel appeared before this index
                 const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
                 const stayKey = getStayKey(stay.hotel, sameHotelBefore);
-                const invoiceMatch = getMatchingAttachment(stay.hotel, sameHotelBefore, "invoice");
-                const paymentMatch = getMatchingAttachment(stay.hotel, sameHotelBefore, "payment");
+                const attachmentMatches = attachmentsByStay.get(stayKey);
+                const invoiceMatch = attachmentMatches?.invoice ?? null;
+                const paymentMatch = attachmentMatches?.payment ?? null;
                 const hasInvoiceUpload = !!invoiceMatch;
                 const manualChecked = manualInvoiceChecks.includes(stayKey);
                 const invoiceChecked = hasInvoiceUpload || manualChecked;
@@ -723,7 +804,9 @@ export default function ConfirmationAttachments() {
                               type="file"
                               className="hidden"
                               accept=".pdf,application/pdf"
-                              onChange={(e) => handleHotelFileSelect(e, stay.hotel, "invoice")}
+                              onChange={(e) =>
+                                handleHotelFileSelect(e, stay.hotel, stayKey, sameHotelBefore, "invoice")
+                              }
                               disabled={uploadMutation.isPending}
                             />
                           </label>
@@ -804,7 +887,9 @@ export default function ConfirmationAttachments() {
                               type="file"
                               className="hidden"
                               accept=".pdf,application/pdf"
-                              onChange={(e) => handleHotelFileSelect(e, stay.hotel, "payment")}
+                              onChange={(e) =>
+                                handleHotelFileSelect(e, stay.hotel, stayKey, sameHotelBefore, "payment")
+                              }
                               disabled={uploadMutation.isPending}
                             />
                           </label>
@@ -826,6 +911,7 @@ export default function ConfirmationAttachments() {
           if (!open) {
             setUploadDialogOpen(false);
             setPendingFile(null);
+            setPendingStayKey(null);
             setInvoiceName("");
             setInvoiceAmount("");
             setInvoiceCurrency("USD");
@@ -953,14 +1039,22 @@ export default function ConfirmationAttachments() {
                 Close
               </Button>
               {previewUrl && previewAttachment && (
-                <Button
-                  onClick={() => {
-                    handleDownload(previewAttachment.filePath, previewAttachment.fileName, previewAttachment.id);
-                  }}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => window.open(previewUrl, "_blank", "noopener,noreferrer")}
+                  >
+                    Open in new tab
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      handleDownload(previewAttachment.filePath, previewAttachment.fileName, previewAttachment.id);
+                    }}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </>
               )}
             </DialogFooter>
           </DialogContent>

@@ -89,6 +89,7 @@ export const useUploadAttachment = () => {
       originalCurrency,
       originalAmount,
       attachmentType,
+      stayKey,
     }: { 
       confirmationId: string; 
       file: File;
@@ -97,6 +98,7 @@ export const useUploadAttachment = () => {
       originalCurrency?: string; // Original currency entered
       originalAmount?: number; // Original amount before conversion
       attachmentType?: "invoice" | "payment";
+      stayKey?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -109,7 +111,10 @@ export const useUploadAttachment = () => {
 
       // Upload to storage
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${confirmationId}/${Date.now()}.${fileExt}`;
+      const stayPathKey = stayKey ? stayKey.replace(/[^a-z0-9]+/gi, "_").toLowerCase() : null;
+      const fileName = stayPathKey
+        ? `${user.id}/${confirmationId}/${stayPathKey}/${Date.now()}.${fileExt}`
+        : `${user.id}/${confirmationId}/${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from("confirmation-attachments")

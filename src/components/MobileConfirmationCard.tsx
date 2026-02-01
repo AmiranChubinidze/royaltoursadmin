@@ -117,7 +117,7 @@ export function MobileConfirmationCard({
             View
           </Button>
 
-          {(effectiveIsBooking || effectiveCanManageConfirmations) && (
+          {(effectiveIsBooking || canEditConfirmations) && (
             <Button
               variant="outline"
               size="sm"

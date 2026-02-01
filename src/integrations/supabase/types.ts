@@ -71,6 +71,71 @@ export type Database = {
         }
         Relationships: []
       }
+      calendar_notification_hotels: {
+        Row: {
+          created_at: string
+          hotel_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          hotel_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          hotel_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_notification_hotels_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "saved_hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_notification_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          remind_offset_days: number
+          time_local: string
+          tz_offset_min: number
+          updated_at: string
+          use_all_hotels: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          remind_offset_days?: number
+          time_local?: string
+          tz_offset_min?: number
+          updated_at?: string
+          use_all_hotels?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          remind_offset_days?: number
+          time_local?: string
+          tz_offset_min?: number
+          updated_at?: string
+          use_all_hotels?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       confirmation_attachments: {
         Row: {
           confirmation_id: string
@@ -108,80 +173,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      calendar_notification_settings: {
-        Row: {
-          user_id: string
-          enabled: boolean
-          time_local: string
-          tz_offset_min: number
-          use_all_hotels: boolean
-          remind_offset_days: number
-          updated_at: string
-        }
-        Insert: {
-          user_id: string
-          enabled?: boolean
-          time_local?: string
-          tz_offset_min?: number
-          use_all_hotels?: boolean
-          remind_offset_days?: number
-          updated_at?: string
-        }
-        Update: {
-          user_id?: string
-          enabled?: boolean
-          time_local?: string
-          tz_offset_min?: number
-          use_all_hotels?: boolean
-          remind_offset_days?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      calendar_notification_hotels: {
-        Row: {
-          user_id: string
-          hotel_id: string
-          created_at: string
-        }
-        Insert: {
-          user_id: string
-          hotel_id: string
-          created_at?: string
-        }
-        Update: {
-          user_id?: string
-          hotel_id?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "calendar_notification_hotels_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "saved_hotels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      calendar_notification_logs: {
-        Row: {
-          user_id: string
-          date_local: string
-          sent_at: string
-        }
-        Insert: {
-          user_id: string
-          date_local: string
-          sent_at?: string
-        }
-        Update: {
-          user_id?: string
-          date_local?: string
-          sent_at?: string
-        }
-        Relationships: []
       }
       confirmations: {
         Row: {
@@ -454,34 +445,34 @@ export type Database = {
         }
         Relationships: []
       }
-        saved_hotels: {
-          Row: {
-            activities: string[] | null
-            address: string | null
-            created_at: string
-            email: string | null
-            id: string
-            is_owned: boolean
-            name: string
-          }
-          Insert: {
-            activities?: string[] | null
-            address?: string | null
-            created_at?: string
-            email?: string | null
-            id?: string
-            is_owned?: boolean
-            name: string
-          }
-          Update: {
-            activities?: string[] | null
-            address?: string | null
-            created_at?: string
-            email?: string | null
-            id?: string
-            is_owned?: boolean
-            name?: string
-          }
+      saved_hotels: {
+        Row: {
+          activities: string[] | null
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_owned: boolean
+          name: string
+        }
+        Insert: {
+          activities?: string[] | null
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_owned?: boolean
+          name: string
+        }
+        Update: {
+          activities?: string[] | null
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_owned?: boolean
+          name?: string
+        }
         Relationships: []
       }
       transactions: {
@@ -778,7 +769,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "worker", "visitor", "booking", "accountant", "coworker"],
+      app_role: [
+        "admin",
+        "user",
+        "worker",
+        "visitor",
+        "booking",
+        "accountant",
+        "coworker",
+      ],
     },
   },
 } as const

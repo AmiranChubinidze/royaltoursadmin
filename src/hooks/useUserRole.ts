@@ -18,7 +18,7 @@ export const useUserRole = () => {
       for (const r of roles) {
         const { data, error } = await supabase.rpc("has_role", {
           _user_id: user.id,
-          _role: r,
+          _role: r as "admin" | "user" | "worker" | "visitor" | "booking" | "accountant",
         });
 
         if (error) {

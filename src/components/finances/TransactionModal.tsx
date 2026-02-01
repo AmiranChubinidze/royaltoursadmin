@@ -133,16 +133,15 @@ export function TransactionModal({
         payment_method: (transaction.payment_method as PaymentMethod | null) || "cash",
         confirmation_id: transaction.confirmation_id,
         holder_id: transaction.holder_id,
-        from_holder_id: transaction.from_holder_id,
+        from_holder_id:
+          isCoworker && transaction.kind === "exchange"
+            ? (transaction.from_holder_id || coworkerHolderId)
+            : transaction.from_holder_id,
         to_holder_id: transaction.to_holder_id,
         responsible_holder_id:
           isCoworker && (transaction.kind === "in" || transaction.kind === "out")
             ? (transaction.responsible_holder_id || coworkerHolderId)
             : transaction.responsible_holder_id,
-        from_holder_id:
-          isCoworker && transaction.kind === "exchange"
-            ? (transaction.from_holder_id || coworkerHolderId)
-            : transaction.from_holder_id,
         notes: transaction.notes || "",
       });
       setIsCustomCategory(!isKnown);

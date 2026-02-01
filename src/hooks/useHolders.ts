@@ -83,11 +83,14 @@ export const useHoldersWithBalances = () => {
       let unassignedPendingInGEL = 0;
 
       const holdersWithBalances: HolderWithBalance[] = holders.map((holder) => {
-        const balances = calculateHolderBalances(holder, transactions);
-        return {
+        const typedHolder: Holder = {
           ...holder,
           type: holder.type as HolderType,
           currency: holder.currency as HolderCurrency,
+        };
+        const balances = calculateHolderBalances(typedHolder, transactions);
+        return {
+          ...typedHolder,
           ...balances,
         };
       });
@@ -232,7 +235,12 @@ export const useMyHolderBalance = (userId?: string) => {
 
       const totals = holders.reduce(
         (acc, holder) => {
-          const balances = calculateHolderBalances(holder, transactions);
+          const typedHolder: Holder = {
+            ...holder,
+            type: holder.type as HolderType,
+            currency: holder.currency as HolderCurrency,
+          };
+          const balances = calculateHolderBalances(typedHolder, transactions);
           acc.balanceUSD += balances.balanceUSD;
           acc.balanceGEL += balances.balanceGEL;
           return acc;

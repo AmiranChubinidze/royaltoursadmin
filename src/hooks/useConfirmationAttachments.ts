@@ -88,6 +88,7 @@ export const useUploadAttachment = () => {
       amount,
       originalCurrency,
       originalAmount,
+      attachmentType,
     }: { 
       confirmationId: string; 
       file: File;
@@ -95,9 +96,16 @@ export const useUploadAttachment = () => {
       amount?: number; // Amount in USD for storage
       originalCurrency?: string; // Original currency entered
       originalAmount?: number; // Original amount before conversion
+      attachmentType?: "invoice" | "payment";
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      const isPaymentOrder =
+        attachmentType === "payment" ||
+        customName?.toLowerCase().includes("payment") ||
+        customName?.toLowerCase().includes("paid") ||
+        customName?.toLowerCase().includes("po");
 
       // Upload to storage
       const fileExt = file.name.split('.').pop();
@@ -127,7 +135,7 @@ export const useUploadAttachment = () => {
       if (error) throw error;
 
       // Create transaction for ledger tracking if amount is provided
-      if (amount && amount > 0 && data) {
+      if (!isPaymentOrder && amount && amount > 0 && data) {
         // Store in original currency for display, amount is already converted to USD
         const storageCurrency = originalCurrency || "USD";
         const storageAmount = originalAmount || amount;
@@ -182,10 +190,12 @@ export const useUploadAttachment = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       toast({
-        title: "Invoice uploaded",
-        description: variables.amount 
-          ? `Invoice uploaded and $${variables.amount} expense recorded.`
-          : "The invoice has been attached successfully.",
+        title: variables.attachmentType === "payment" ? "Payment order uploaded" : "Invoice uploaded",
+        description: variables.attachmentType === "payment"
+          ? "The payment order has been attached successfully."
+          : variables.amount 
+            ? `Invoice uploaded and $${variables.amount} expense recorded.`
+            : "The invoice has been attached successfully.",
       });
     },
     onError: (error: Error) => {

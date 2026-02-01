@@ -51,6 +51,7 @@ interface TransactionModalProps {
 const CATEGORIES: { value: string; label: string; kind: TransactionKind | "both" }[] = [
   { value: "tour_payment", label: "Tour", kind: "in" },
   { value: "booking", label: "Booking", kind: "in" },
+  { value: "orbi", label: "Orbi", kind: "in" },
   { value: "hotel", label: "Hotel", kind: "out" },
   { value: "driver", label: "Driver", kind: "out" },
   { value: "sim", label: "SIM", kind: "out" },

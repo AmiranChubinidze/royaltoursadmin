@@ -249,6 +249,10 @@ export default function CreateBookingRequest() {
       // Send emails
       const hotelsToEmail = hotelBookings.filter(b => b.hotelEmail);
       
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token || "";
+      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+      const authHeader = accessToken || apiKey;
       const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
         body: {
           hotels: hotelsToEmail.map((booking) => ({
@@ -267,6 +271,10 @@ export default function CreateBookingRequest() {
             },
           })),
           confirmationCode: "PENDING",
+        },
+        headers: {
+          ...(authHeader ? { Authorization: `Bearer ${authHeader}` } : {}),
+          ...(apiKey ? { apikey: apiKey } : {}),
         },
       });
 
@@ -482,6 +490,10 @@ export default function CreateBookingRequest() {
 
     setSendingHotelIndex(index);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token || "";
+      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+      const authHeader = accessToken || apiKey;
       const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
         body: {
           hotels: [{
@@ -500,6 +512,10 @@ export default function CreateBookingRequest() {
             },
           }],
           confirmationCode: "PENDING",
+        },
+        headers: {
+          ...(authHeader ? { Authorization: `Bearer ${authHeader}` } : {}),
+          ...(apiKey ? { apikey: apiKey } : {}),
         },
       });
 

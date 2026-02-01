@@ -108,6 +108,7 @@ export type Database = {
           remind_offset_days: number
           time_local: string
           tz_offset_min: number
+          use_all_other_hotels: boolean
           updated_at: string
           use_all_hotels: boolean
           user_id: string
@@ -119,6 +120,7 @@ export type Database = {
           remind_offset_days?: number
           time_local?: string
           tz_offset_min?: number
+          use_all_other_hotels?: boolean
           updated_at?: string
           use_all_hotels?: boolean
           user_id: string
@@ -130,6 +132,7 @@ export type Database = {
           remind_offset_days?: number
           time_local?: string
           tz_offset_min?: number
+          use_all_other_hotels?: boolean
           updated_at?: string
           use_all_hotels?: boolean
           user_id?: string

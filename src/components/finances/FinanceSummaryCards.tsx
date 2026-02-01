@@ -1,7 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useCurrency } from "@/contexts/CurrencyContext";
 import {
   TrendingDown,
   Clock,
@@ -19,7 +18,6 @@ interface FinanceSummaryCardsProps {
   expenses: CurrencyValue;
   profit: CurrencyValue;
   pending: CurrencyValue;
-  exchangeRateEffective?: number;
   profitAdjusted?: CurrencyValue;
   isLoading?: boolean;
 }
@@ -88,13 +86,9 @@ export function FinanceSummaryCards({
   expenses,
   profit,
   pending,
-  exchangeRateEffective,
   profitAdjusted,
   isLoading = false,
 }: FinanceSummaryCardsProps) {
-  const { exchangeRate } = useCurrency();
-  const rate = exchangeRateEffective ?? exchangeRate.gel_to_usd;
-  const actualProfitUSD = profit.USD + profit.GEL * rate;
   const adjusted = profitAdjusted ?? profit;
 
   const cards: CardConfig[] = [
@@ -175,10 +169,10 @@ export function FinanceSummaryCards({
               ) : (
                 <div className="flex items-baseline gap-2">
                   <span className="text-lg font-bold tracking-tight text-emerald-600">
-                    {formatValue(actualProfitUSD, "$")}
+                    {formatValue(adjusted.USD, "$")}
                   </span>
-                  <span className="text-sm font-semibold text-emerald-600/80">
-                    {formatValue(adjusted.USD, "$")} / {formatValue(adjusted.GEL, "₾")}
+                  <span className="text-lg font-bold tracking-tight text-emerald-600">
+                    / {formatValue(adjusted.GEL, "\u20BE")}
                   </span>
                 </div>
               )}

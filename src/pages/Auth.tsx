@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,18 +10,41 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Clock, ArrowLeft } from "lucide-react";
 import rtgLogoRound from "@/assets/rtg-logo-round.png";
 
-type AuthMode = "login" | "signup" | "forgot-password";
+type AuthMode = "login" | "signup" | "forgot-password" | "reset-password";
 
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>("login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
+  const publicUrl = import.meta.env.VITE_PUBLIC_URL || window.location.origin;
+
+  useEffect(() => {
+    const modeParam = searchParams.get("mode");
+    const hash = window.location.hash || "";
+    if (modeParam === "reset" || hash.includes("type=recovery")) {
+      setMode("reset-password");
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setMode("reset-password");
+      }
+    });
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +58,12 @@ const Auth = () => {
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          if (error.message?.toLowerCase().includes("email") && error.message?.toLowerCase().includes("confirm")) {
+            throw new Error("Email not confirmed yet. Please wait for admin approval or check your email.");
+          }
+          throw error;
+        }
 
         // Check if user is approved
         const { data: profile, error: profileError } = await supabase
@@ -72,7 +100,7 @@ const Auth = () => {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${publicUrl}/`,
           },
         });
         if (error) throw error;
@@ -97,9 +125,12 @@ const Auth = () => {
           description: "Your account is pending admin approval. You'll be notified when approved.",
         });
         setPendingApproval(true);
+        setMode("login");
+        setPassword("");
+        setEmail("");
       } else if (mode === "forgot-password") {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth?mode=reset`,
+          redirectTo: `${publicUrl}/auth?mode=reset`,
         });
         if (error) throw error;
         setResetEmailSent(true);
@@ -107,6 +138,23 @@ const Auth = () => {
           title: "Reset email sent",
           description: "Check your email for the password reset link.",
         });
+      } else if (mode === "reset-password") {
+        if (newPassword.length < 6) {
+          throw new Error("Password must be at least 6 characters.");
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error("Passwords do not match.");
+        }
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) throw error;
+        toast({
+          title: "Password updated",
+          description: "You can now sign in with your new password.",
+        });
+        setNewPassword("");
+        setConfirmPassword("");
+        setSearchParams({});
+        setMode("login");
       }
     } catch (error: any) {
       toast({
@@ -124,6 +172,7 @@ const Auth = () => {
       case "login": return "Sign in to your account";
       case "signup": return "Create a new account";
       case "forgot-password": return "Reset your password";
+      case "reset-password": return "Set a new password";
     }
   };
 
@@ -133,6 +182,7 @@ const Auth = () => {
       case "login": return "Sign In";
       case "signup": return "Sign Up";
       case "forgot-password": return "Send Reset Link";
+      case "reset-password": return "Update Password";
     }
   };
 
@@ -198,7 +248,7 @@ const Auth = () => {
                 className="border-l-2 border-l-primary/40 focus:border-l-primary"
               />
             </div>
-            {mode !== "forgot-password" && (
+            {mode !== "forgot-password" && mode !== "reset-password" && (
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -207,6 +257,32 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
+                  required
+                  minLength={6}
+                  className="border-l-2 border-l-primary/40 focus:border-l-primary"
+                />
+              </div>
+            )}
+            {mode === "reset-password" && (
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter a new password"
+                  required
+                  minLength={6}
+                  className="border-l-2 border-l-primary/40 focus:border-l-primary"
+                />
+                <Label htmlFor="confirm-password">Confirm password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
                   required
                   minLength={6}
                   className="border-l-2 border-l-primary/40 focus:border-l-primary"
@@ -264,6 +340,21 @@ const Auth = () => {
                 onClick={() => {
                   setMode("login");
                   setResetEmailSent(false);
+                }}
+                className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 w-full"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Back to sign in
+              </button>
+            )}
+            {mode === "reset-password" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("login");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setSearchParams({});
                 }}
                 className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 w-full"
               >

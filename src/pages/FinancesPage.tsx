@@ -174,14 +174,21 @@ export default function FinancesPage() {
       GEL: received.GEL - expenses.GEL,
     };
 
-    // Pending: Revenue Expected (USD) - Received USD (confirmations prices are in USD)
-    const revenueExpected = filteredConfirmations.reduce(
-      (sum, c) => sum + (Number(c.price) || 0),
-      0
-    );
+    // Pending: sum per confirmation (price - confirmed income), clamped to 0
+    const pendingUSD = filteredConfirmations.reduce((sum, c) => {
+      const confirmedIncomeUSD = responsibleTx
+        .filter((t) =>
+          t.confirmation_id === c.id &&
+          t.type === "income" &&
+          t.status === "confirmed"
+        )
+        .reduce((acc, t) => acc + toUSD(Number(t.amount) || 0, t.currency), 0);
+      const priceUSD = Number(c.price) || 0;
+      return sum + Math.max(0, priceUSD - confirmedIncomeUSD);
+    }, 0);
     const pending = {
-      USD: Math.max(0, revenueExpected - received.USD),
-      GEL: 0, // No GEL pending from confirmations
+      USD: pendingUSD,
+      GEL: 0, // Pending is based on confirmation prices (USD)
     };
 
     return { received, expenses, profit, pending };

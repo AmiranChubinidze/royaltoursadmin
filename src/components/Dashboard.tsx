@@ -384,9 +384,9 @@ export function Dashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total Confirmations</p>
-                  <p className="text-2xl font-bold text-foreground stat-number mt-0.5">
+                  <div className="text-2xl font-bold text-foreground stat-number mt-0.5">
                     {isLoading ? <Skeleton className="h-7 w-14" /> : confirmations?.length || 0}
-                  </p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -399,7 +399,7 @@ export function Dashboard() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">This Month Arrivals</p>
-                  <p className="text-2xl font-bold text-foreground stat-number mt-0.5">
+                  <div className="text-2xl font-bold text-foreground stat-number mt-0.5">
                     {isLoading ? (
                       <Skeleton className="h-7 w-14" />
                     ) : (
@@ -413,7 +413,7 @@ export function Dashboard() {
                         );
                       }).length || 0
                     )}
-                  </p>
+                  </div>
                 </div>
               </div>
             </CardContent>

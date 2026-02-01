@@ -30,6 +30,7 @@ interface MobileTransactionCardProps {
 
 const CATEGORY_LABELS: Record<string, string> = {
   tour_payment: "Tour",
+  orbi: "Orbi",
   driver: "Driver",
   fuel: "Fuel",
   meals: "Meals",

@@ -78,7 +78,7 @@ serve(async (req) => {
   try {
     const { data: settings, error: settingsError } = await supabase
       .from("calendar_notification_settings")
-      .select("user_id, enabled, time_local, tz_offset_min, use_all_hotels, remind_offset_days")
+      .select("user_id, enabled, time_local, tz_offset_min, use_all_hotels, use_all_other_hotels, remind_offset_days")
       .eq("enabled", true);
 
     if (settingsError) throw settingsError;
@@ -91,20 +91,25 @@ serve(async (req) => {
 
     const userIds = settings.map((s) => s.user_id);
 
-    const [{ data: profiles }, { data: ownedHotels }, { data: hotelSelections }, { data: confirmations }] = await Promise.all([
+    const [{ data: profiles }, { data: allHotels }, { data: hotelSelections }, { data: confirmations }] = await Promise.all([
       supabase.from("profiles").select("id, email, display_name").in("id", userIds),
-      supabase.from("saved_hotels").select("id, name").eq("is_owned", true),
+      supabase.from("saved_hotels").select("id, name, is_owned"),
       supabase.from("calendar_notification_hotels").select("user_id, hotel_id").in("user_id", userIds),
       supabase.from("confirmations").select("id, confirmation_code, main_client_name, total_days, raw_payload"),
     ]);
 
     const hotelIdToName = new Map<string, string>();
     const ownedNameSet = new Set<string>();
-    for (const hotel of ownedHotels || []) {
+    const otherNameSet = new Set<string>();
+    for (const hotel of allHotels || []) {
       const name = String(hotel.name || "").trim();
       if (!name) continue;
       hotelIdToName.set(hotel.id, name);
-      ownedNameSet.add(name.toLowerCase());
+      if (hotel.is_owned) {
+        ownedNameSet.add(name.toLowerCase());
+      } else {
+        otherNameSet.add(name.toLowerCase());
+      }
     }
 
     const profileById = new Map<string, { email: string; display_name: string | null }>();
@@ -146,7 +151,7 @@ serve(async (req) => {
         const hotelName = String(day?.hotel || "").trim();
         if (!hotelName) continue;
         const hotelLower = hotelName.toLowerCase();
-        if (!ownedNameSet.has(hotelLower)) continue;
+        if (!ownedNameSet.has(hotelLower) && !otherNameSet.has(hotelLower)) continue;
         const date = parseDateFlexible(day?.date);
         if (!date) continue;
         const dateKey = formatDateKeyUtc(date);
@@ -190,7 +195,7 @@ serve(async (req) => {
       const targetMinutes = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
       if (Number.isNaN(targetMinutes)) continue;
 
-      if (localMinutes < targetMinutes || localMinutes >= targetMinutes + 15) {
+      if (localMinutes < targetMinutes) {
         continue;
       }
 
@@ -208,12 +213,22 @@ serve(async (req) => {
       if (alreadySent) continue;
 
       const selectedHotelIds = selectionByUser.get(setting.user_id) || [];
-      const selectedHotelNames = setting.use_all_hotels
+      const selectedOwnedNames = setting.use_all_hotels
         ? Array.from(ownedNameSet)
         : selectedHotelIds
             .map((id) => hotelIdToName.get(id))
             .filter((name): name is string => Boolean(name))
-            .map((name) => name.toLowerCase());
+            .map((name) => name.toLowerCase())
+            .filter((name) => ownedNameSet.has(name));
+      const selectedOtherNames = setting.use_all_other_hotels
+        ? Array.from(otherNameSet)
+        : selectedHotelIds
+            .map((id) => hotelIdToName.get(id))
+            .filter((name): name is string => Boolean(name))
+            .map((name) => name.toLowerCase())
+            .filter((name) => otherNameSet.has(name));
+
+      const selectedHotelNames = Array.from(new Set([...selectedOwnedNames, ...selectedOtherNames]));
 
       if (selectedHotelNames.length === 0) continue;
 

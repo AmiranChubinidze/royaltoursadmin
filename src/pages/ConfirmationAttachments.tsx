@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { ArrowLeft, Upload, FileText, Trash2, Download, CheckCircle, Clock, Loader2, Plus, MessageSquare, Save, Hotel } from "lucide-react";
+import { ArrowLeft, Upload, Trash2, Download, Eye, CheckCircle, Clock, Loader2, Plus, MessageSquare, Save, Hotel } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ import {
   useUploadAttachment, 
   useDeleteAttachment, 
   useMarkAsPaid,
+  useUnmarkAsPaid,
   useAttachmentExpenses,
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -43,6 +45,7 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 import { cn } from "@/lib/utils";
 import { TransactionModal } from "@/components/finances/TransactionModal";
 import { useCurrency, Currency } from "@/contexts/CurrencyContext";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function ConfirmationAttachments() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +55,7 @@ export default function ConfirmationAttachments() {
   const effectiveRole = viewAsRole || role;
   const { exchangeRate } = useCurrency();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
@@ -60,6 +64,7 @@ export default function ConfirmationAttachments() {
   const uploadMutation = useUploadAttachment();
   const deleteMutation = useDeleteAttachment();
   const markPaidMutation = useMarkAsPaid();
+  const unmarkPaidMutation = useUnmarkAsPaid();
   const updateNotesMutation = useUpdateConfirmationNotes();
   
   const [isDragging, setIsDragging] = useState(false);
@@ -71,13 +76,24 @@ export default function ConfirmationAttachments() {
   const [invoiceName, setInvoiceName] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceCurrency, setInvoiceCurrency] = useState<Currency>("USD");
+  const [uploadType, setUploadType] = useState<"invoice" | "payment">("invoice");
   
   // Transaction modal state
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    id: string;
+    filePath: string;
+    fileName: string;
+  } | null>(null);
+  const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
   
   // Notes state
   const [notes, setNotes] = useState("");
   const [notesEditing, setNotesEditing] = useState(false);
+  const [manualInvoiceChecks, setManualInvoiceChecks] = useState<string[]>([]);
+  const [invoiceCheckSaving, setInvoiceCheckSaving] = useState<string | null>(null);
   
   // Sync notes when confirmation loads
   useEffect(() => {
@@ -85,9 +101,14 @@ export default function ConfirmationAttachments() {
       setNotes((confirmation as any).notes || "");
     }
   }, [confirmation]);
+
+  useEffect(() => {
+    if (confirmation) {
+      const rawChecks = (confirmation as any).raw_payload?.invoice_checks;
+      setManualInvoiceChecks(Array.isArray(rawChecks) ? rawChecks : []);
+    }
+  }, [confirmation]);
   
-  // Hotel file input ref map
-  const [hotelUploadIndex, setHotelUploadIndex] = useState<number | null>(null);
 
   // Auto-mark as paid when all hotel stays have invoices
   useEffect(() => {
@@ -110,19 +131,39 @@ export default function ConfirmationAttachments() {
     }
     if (stays.length === 0) return;
 
-    const allCovered = stays.every((stay, idx) => {
-      const lower = stay.hotel.toLowerCase();
-      const sameHotelBefore = stays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
-      const matches = attachments.filter(a => a.file_name.toLowerCase().includes(lower));
-      return !!(matches[sameHotelBefore] || matches[0]);
+    const ownedSet = new Set(
+      (savedHotels || [])
+        .filter((h) => h.is_owned)
+        .map((h) => h.name.trim().toLowerCase())
+    );
+    const visibleStays = stays.filter(
+      (stay) => !ownedSet.has(stay.hotel.trim().toLowerCase())
+    );
+    if (visibleStays.length === 0) {
+      if (isPaidNow && !unmarkPaidMutation.isPending) {
+        unmarkPaidMutation.mutate(id);
+      }
+      return;
+    }
+
+    const allCovered = visibleStays.every((stay, idx) => {
+      const sameHotelBefore = visibleStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
+      const stayKey = getStayKey(stay.hotel, sameHotelBefore);
+      return manualInvoiceChecks.includes(stayKey);
     });
 
     if (allCovered) {
-      markPaidMutation.mutate(id);
+      if (!isPaidNow) {
+        markPaidMutation.mutate(id);
+      }
+    } else if (isPaidNow) {
+      if (!unmarkPaidMutation.isPending) {
+        unmarkPaidMutation.mutate(id);
+      }
     }
-  }, [confirmation, attachments, id]);
+  }, [confirmation, attachments, id, savedHotels, manualInvoiceChecks, unmarkPaidMutation.isPending]);
 
-  const canUpload = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant";
+  const canUpload = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant" || effectiveRole === "coworker";
   const canDelete = effectiveRole === "admin" || effectiveRole === "worker";
   const canAddTransaction = effectiveRole === "admin" || effectiveRole === "worker" || effectiveRole === "accountant";
   
@@ -147,6 +188,7 @@ export default function ConfirmationAttachments() {
     
     if (pdfFile) {
       setPendingFile(pdfFile);
+      setUploadType("invoice");
       setInvoiceName(pdfFile.name.replace(/\.pdf$/i, ""));
       setInvoiceAmount("");
       setUploadDialogOpen(true);
@@ -159,6 +201,7 @@ export default function ConfirmationAttachments() {
     const file = e.target.files[0];
     if (file) {
       setPendingFile(file);
+      setUploadType("invoice");
       setInvoiceName(file.name.replace(/\.pdf$/i, ""));
       setInvoiceAmount("");
       setUploadDialogOpen(true);
@@ -180,6 +223,7 @@ export default function ConfirmationAttachments() {
       amount: parsedAmount,
       originalCurrency: invoiceCurrency,
       originalAmount: parsedAmount,
+      attachmentType: uploadType,
     });
     
     setUploadDialogOpen(false);
@@ -187,6 +231,7 @@ export default function ConfirmationAttachments() {
     setInvoiceName("");
     setInvoiceAmount("");
     setInvoiceCurrency("USD");
+    setUploadType("invoice");
   }, [pendingFile, id, invoiceName, invoiceAmount, invoiceCurrency, uploadMutation]);
 
   const handleDownload = async (filePath: string, fileName: string, attachmentId: string) => {
@@ -223,6 +268,36 @@ export default function ConfirmationAttachments() {
       });
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  const handlePreview = async (filePath: string, fileName: string, attachmentId: string) => {
+    setPreviewLoadingId(attachmentId);
+    try {
+      const { data, error } = await supabase.storage
+        .from("confirmation-attachments")
+        .createSignedUrl(filePath, 3600);
+
+      if (error || !data?.signedUrl) {
+        toast({
+          title: "Preview failed",
+          description: error?.message || "Could not load preview.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPreviewUrl(data.signedUrl);
+      setPreviewAttachment({ id: attachmentId, filePath, fileName });
+      setPreviewOpen(true);
+    } catch (err) {
+      toast({
+        title: "Preview failed",
+        description: "Could not load preview.",
+        variant: "destructive",
+      });
+    } finally {
+      setPreviewLoadingId(null);
     }
   };
 
@@ -308,26 +383,73 @@ export default function ConfirmationAttachments() {
     (stay) => !ownedHotelSet.has(stay.hotel.trim().toLowerCase())
   );
 
-  // Check which hotel stays already have an uploaded invoice (match by hotel name in attachment file_name)
-  const getMatchingAttachment = (hotelName: string, stayIndex: number) => {
+  const isPaymentAttachment = (fileName: string) => {
+    const lower = fileName.toLowerCase();
+    return lower.includes("payment") || lower.includes("paid") || lower.includes("po");
+  };
+
+  // Check which hotel stays already have an uploaded invoice/payment (match by hotel name)
+  const getMatchingAttachment = (
+    hotelName: string,
+    stayIndex: number,
+    type: "invoice" | "payment"
+  ) => {
     if (!attachments) return null;
     // Look for attachments whose name contains the hotel name (case-insensitive)
     const lower = hotelName.toLowerCase();
-    const matches = attachments.filter(a => a.file_name.toLowerCase().includes(lower));
-    return matches[stayIndex] || matches[0] || null;
+    const matches = attachments.filter((a) => a.file_name.toLowerCase().includes(lower));
+    const filtered = matches.filter((a) =>
+      type === "payment" ? isPaymentAttachment(a.file_name) : !isPaymentAttachment(a.file_name)
+    );
+    return filtered[stayIndex] || null;
   };
 
-  const handleHotelFileSelect = (e: React.ChangeEvent<HTMLInputElement>, hotelName: string) => {
+  const getStayKey = (hotelName: string, stayIndex: number) =>
+    `${hotelName.trim().toLowerCase()}::${stayIndex}`;
+
+  const toggleManualInvoiceCheck = async (stayKey: string, nextChecked: boolean) => {
+    if (!id) return;
+    const prev = manualInvoiceChecks;
+    const nextChecks = nextChecked
+      ? Array.from(new Set([...manualInvoiceChecks, stayKey]))
+      : manualInvoiceChecks.filter((k) => k !== stayKey);
+    setManualInvoiceChecks(nextChecks);
+    setInvoiceCheckSaving(stayKey);
+
+    const rawPayload = { ...(confirmation?.raw_payload || {}), invoice_checks: nextChecks };
+    const { error } = await supabase
+      .from("confirmations")
+      .update({ raw_payload: rawPayload })
+      .eq("id", id);
+
+    if (error) {
+      setManualInvoiceChecks(prev);
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
+    }
+    setInvoiceCheckSaving(null);
+  };
+
+  const handleHotelFileSelect = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    hotelName: string,
+    type: "invoice" | "payment"
+  ) => {
     if (!canUpload || !id || !e.target.files) return;
     const file = e.target.files[0];
     if (file) {
       setPendingFile(file);
-      setInvoiceName(hotelName);
+      setUploadType(type);
+      setInvoiceName(type === "payment" ? `${hotelName} - Payment Order` : hotelName);
       setInvoiceAmount("");
       setUploadDialogOpen(true);
     }
     e.target.value = "";
-    setHotelUploadIndex(null);
   };
 
   return (
@@ -466,38 +588,44 @@ export default function ConfirmationAttachments() {
                   </Button>
                 )}
               </div>
-              <CardDescription>Upload an invoice for each hotel stay</CardDescription>
+              <CardDescription>Upload a payment order and invoice for each hotel stay</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {visibleHotelStays.map((stay, idx) => {
                 // Count how many times this hotel appeared before this index
                 const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
-                const match = getMatchingAttachment(stay.hotel, sameHotelBefore);
-                const hasInvoice = !!match;
-                const expense = match && expenseMap?.[match.id];
+                const stayKey = getStayKey(stay.hotel, sameHotelBefore);
+                const invoiceMatch = getMatchingAttachment(stay.hotel, sameHotelBefore, "invoice");
+                const paymentMatch = getMatchingAttachment(stay.hotel, sameHotelBefore, "payment");
+                const hasInvoiceUpload = !!invoiceMatch;
+                const manualChecked = manualInvoiceChecks.includes(stayKey);
+                const invoiceChecked = hasInvoiceUpload || manualChecked;
+                const hasPayment = !!paymentMatch;
+                const isSavingCheck = invoiceCheckSaving === stayKey;
+                const expense = invoiceMatch && expenseMap?.[invoiceMatch.id];
 
                 return (
                   <div
                     key={`${stay.hotel}-${idx}`}
                     className={cn(
                       "flex items-center gap-3 p-3 rounded-lg border transition-colors group",
-                      hasInvoice
+                      invoiceChecked
                         ? "bg-emerald-500/5 border-emerald-500/20"
                         : "bg-muted/30 border-border"
                     )}
                   >
                     <div className={cn(
                       "flex items-center justify-center h-7 w-7 rounded-full shrink-0",
-                      hasInvoice
+                      invoiceChecked
                         ? "bg-emerald-500 text-white"
                         : "border-2 border-muted-foreground/30"
                     )}>
-                      {hasInvoice && <CheckCircle className="h-4 w-4" />}
+                      {invoiceChecked && <CheckCircle className="h-4 w-4" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "text-sm font-medium truncate",
-                        hasInvoice && "text-emerald-700 dark:text-emerald-400"
+                        invoiceChecked && "text-emerald-700 dark:text-emerald-400"
                       )}>
                         {stay.hotel}
                       </p>
@@ -505,84 +633,184 @@ export default function ConfirmationAttachments() {
                         {stay.checkIn}{stay.checkOut && stay.checkOut !== stay.checkIn ? ` → ${stay.checkOut}` : ""}
                       </p>
                     </div>
-                    {hasInvoice && expense?.amount != null && (
+                    {hasInvoiceUpload && expense?.amount != null && (
                       <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
                         {expense.currency === "GEL" ? "₾" : "$"}{expense.amount.toLocaleString()}
                       </Badge>
                     )}
-                    {hasInvoice && match ? (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDownload(match.file_path, match.file_name, match.id)}
-                          disabled={downloadingId === match.id}
-                          title="Download"
-                        >
-                          {downloadingId === match.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Download className="h-4 w-4" />
-                          )}
-                        </Button>
-                        {canDelete && (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete "{match.file_name}"? This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => deleteMutation.mutate({
-                                    attachmentId: match.id,
-                                    filePath: match.file_path,
-                                    confirmationId: id!,
-                                  })}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <div className={cn(
+                        "flex items-center gap-2 rounded-md border px-2 py-1",
+                        invoiceChecked ? "border-emerald-200 bg-emerald-50/70 text-emerald-700" : "border-border bg-background"
+                      )}>
+                        <span className="text-xs font-medium w-16">Invoice</span>
+                        {!hasInvoiceUpload && (
+                          <label className="flex items-center gap-2">
+                            <Checkbox
+                              checked={manualChecked}
+                              onCheckedChange={(checked) => toggleManualInvoiceCheck(stayKey, Boolean(checked))}
+                              disabled={isSavingCheck}
+                            />
+                            <span className="sr-only">Checked</span>
+                          </label>
                         )}
+                        {hasInvoiceUpload && invoiceMatch ? (
+                          <div className="flex items-center gap-1 ml-auto">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handlePreview(invoiceMatch.file_path, invoiceMatch.file_name, invoiceMatch.id)}
+                              disabled={previewLoadingId === invoiceMatch.id}
+                              title="Preview invoice"
+                              className="h-7 w-7"
+                            >
+                              {previewLoadingId === invoiceMatch.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            {canDelete && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                    title="Delete invoice"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{invoiceMatch.file_name}"? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteMutation.mutate({
+                                        attachmentId: invoiceMatch.id,
+                                        filePath: invoiceMatch.file_path,
+                                        confirmationId: id!,
+                                      })}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        ) : canUpload ? (
+                          <label className="ml-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0 border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-50"
+                              asChild
+                            >
+                              <span>
+                                <Upload className="h-3.5 w-3.5" />
+                                <span className="sr-only">Upload invoice</span>
+                              </span>
+                            </Button>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) => handleHotelFileSelect(e, stay.hotel, "invoice")}
+                              disabled={uploadMutation.isPending}
+                            />
+                          </label>
+                        ) : null}
                       </div>
-                    ) : canUpload ? (
-                      <label className="shrink-0">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 pointer-events-none"
-                          asChild
-                        >
-                          <span>
-                            <Upload className="h-3.5 w-3.5" />
-                            Upload
-                          </span>
-                        </Button>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept=".pdf,application/pdf"
-                          onChange={(e) => handleHotelFileSelect(e, stay.hotel)}
-                          disabled={uploadMutation.isPending}
-                        />
-                      </label>
-                    ) : null}
+
+                      <div className={cn(
+                        "flex items-center gap-2 rounded-md border px-2 py-1",
+                        hasPayment ? "border-amber-200 bg-amber-50/70 text-amber-700" : "border-border bg-background"
+                      )}>
+                        <span className="text-xs font-medium w-16">Payment</span>
+                        {hasPayment && paymentMatch ? (
+                          <div className="flex items-center gap-1 ml-auto">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handlePreview(paymentMatch.file_path, paymentMatch.file_name, paymentMatch.id)}
+                              disabled={previewLoadingId === paymentMatch.id}
+                              title="Preview payment order"
+                              className="h-7 w-7"
+                            >
+                              {previewLoadingId === paymentMatch.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            {canDelete && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                    title="Delete payment order"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Payment Order</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{paymentMatch.file_name}"? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => deleteMutation.mutate({
+                                        attachmentId: paymentMatch.id,
+                                        filePath: paymentMatch.file_path,
+                                        confirmationId: id!,
+                                      })}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        ) : canUpload ? (
+                          <label className="ml-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0 border-amber-200 text-amber-700 bg-amber-50/60 hover:bg-amber-50"
+                              asChild
+                            >
+                              <span>
+                                <Upload className="h-3.5 w-3.5" />
+                                <span className="sr-only">Upload payment order</span>
+                              </span>
+                            </Button>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) => handleHotelFileSelect(e, stay.hotel, "payment")}
+                              disabled={uploadMutation.isPending}
+                            />
+                          </label>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -601,20 +829,21 @@ export default function ConfirmationAttachments() {
             setInvoiceName("");
             setInvoiceAmount("");
             setInvoiceCurrency("USD");
+            setUploadType("invoice");
           }
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Upload Invoice</DialogTitle>
+              <DialogTitle>{uploadType === "payment" ? "Upload Payment Order" : "Upload Invoice"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="invoice-name">Invoice Name</Label>
+                <Label htmlFor="invoice-name">{uploadType === "payment" ? "Payment Order Name" : "Invoice Name"}</Label>
                 <Input
                   id="invoice-name"
                   value={invoiceName}
                   onChange={(e) => setInvoiceName(e.target.value)}
-                  placeholder="e.g. Hotel Marriott - Room 204"
+                  placeholder={uploadType === "payment" ? "e.g. Hotel Marriott - Payment Order" : "e.g. Hotel Marriott - Room 204"}
                 />
                 <p className="text-xs text-muted-foreground">.pdf will be added automatically</p>
               </div>
@@ -659,10 +888,12 @@ export default function ConfirmationAttachments() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  This will be recorded as a hotel expense
-                  {invoiceCurrency === "GEL" && invoiceAmount && (
+                  {uploadType === "payment"
+                    ? "This will be saved as a payment order (no expense recorded)."
+                    : "This will be recorded as a hotel expense"}
+                  {uploadType !== "payment" && invoiceCurrency === "GEL" && invoiceAmount && (
                     <span className="text-muted-foreground">
-                      {" "}(≈ ${(parseFloat(invoiceAmount) * exchangeRate.gel_to_usd).toFixed(2)} USD)
+                      {" "}(??? ${(parseFloat(invoiceAmount) * exchangeRate.gel_to_usd).toFixed(2)} USD)
                     </span>
                   )}
                 </p>
@@ -688,6 +919,49 @@ export default function ConfirmationAttachments() {
                   </>
                 )}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Preview Dialog */}
+        <Dialog open={previewOpen} onOpenChange={(open) => {
+          if (!open) {
+            setPreviewOpen(false);
+            setPreviewUrl(null);
+            setPreviewAttachment(null);
+          }
+        }}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{previewAttachment?.fileName || "Preview"}</DialogTitle>
+            </DialogHeader>
+            <div className="rounded-md border bg-muted/30 h-[70vh] overflow-hidden">
+              {previewUrl ? (
+                <iframe
+                  src={previewUrl}
+                  title={previewAttachment?.fileName || "Preview"}
+                  className="h-full w-full"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-sm text-muted-foreground">
+                  Loading preview...
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPreviewOpen(false)}>
+                Close
+              </Button>
+              {previewUrl && previewAttachment && (
+                <Button
+                  onClick={() => {
+                    handleDownload(previewAttachment.filePath, previewAttachment.fileName, previewAttachment.id);
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

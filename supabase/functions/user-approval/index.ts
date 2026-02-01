@@ -159,6 +159,11 @@ Deno.serve(async (req) => {
         return new Response("Error approving user", { status: 500 });
       }
 
+      // Confirm the user's email so they can sign in
+      await supabase.auth.admin.updateUserById(userId, {
+        email_confirm: true,
+      });
+
       // Assign 'visitor' role to the newly approved user
       const { error: roleError } = await supabase
         .from("user_roles")
@@ -220,6 +225,59 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json();
       const { userEmail, userId: bodyUserId, action: postAction } = body;
+
+      // Approve user + confirm email (called from admin panel)
+      if (postAction === "approve-user" && bodyUserId && userEmail) {
+        const { error: approveError } = await supabase
+          .from("profiles")
+          .update({ approved: true })
+          .eq("id", bodyUserId);
+
+        if (approveError) {
+          return new Response(JSON.stringify({ error: approveError.message }), {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          });
+        }
+
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .upsert({ user_id: bodyUserId, role: "visitor" }, { onConflict: "user_id,role" });
+
+        if (roleError) {
+          console.error("Error assigning visitor role:", roleError);
+        }
+
+        await supabase.auth.admin.updateUserById(bodyUserId, {
+          email_confirm: true,
+        });
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+
+      // Reject user (called from admin panel)
+      if (postAction === "reject-user" && bodyUserId) {
+        // Remove profile first
+        await supabase
+          .from("profiles")
+          .delete()
+          .eq("id", bodyUserId);
+
+        // Remove roles
+        await supabase
+          .from("user_roles")
+          .delete()
+          .eq("user_id", bodyUserId);
+
+        // Delete auth user
+        await supabase.auth.admin.deleteUser(bodyUserId);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
 
       // Send notification to user that they've been approved (called from admin panel)
       if (postAction === "notify-approved" && userEmail) {

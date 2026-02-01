@@ -145,23 +145,11 @@ const AdminPanel = () => {
 
   const approveMutation = useMutation({
     mutationFn: async ({ userId, userEmail }: { userId: string; userEmail: string }) => {
-      // Update approval status
-      const { error } = await supabase
-        .from("profiles")
-        .update({ approved: true })
-        .eq("id", userId);
-      
-      if (error) throw error;
-
-      // Assign 'visitor' role to the newly approved user
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .upsert({ user_id: userId, role: "visitor" }, { onConflict: "user_id,role" });
-
-      if (roleError) {
-        console.error("Error assigning visitor role:", roleError);
-        // Don't fail the approval, just log the error
-      }
+      // Approve via edge function to confirm email + update profile/role
+      const { error: approveError } = await supabase.functions.invoke("user-approval", {
+        body: { action: "approve-user", userId, userEmail },
+      });
+      if (approveError) throw approveError;
 
       // Send notification email to user
       await supabase.functions.invoke("user-approval", {
@@ -180,11 +168,9 @@ const AdminPanel = () => {
 
   const rejectMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", userId);
-      
+      const { error } = await supabase.functions.invoke("user-approval", {
+        body: { action: "reject-user", userId },
+      });
       if (error) throw error;
     },
     onSuccess: () => {

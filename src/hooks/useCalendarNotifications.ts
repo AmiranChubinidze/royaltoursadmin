@@ -8,6 +8,7 @@ export interface CalendarNotificationSettings {
   time_local: string;
   tz_offset_min: number;
   use_all_hotels: boolean;
+  use_all_other_hotels: boolean;
   remind_offset_days: number;
 }
 
@@ -55,6 +56,7 @@ export const useUpsertCalendarNotificationSettings = () => {
         time_local: settings.time_local || "09:00",
         tz_offset_min: settings.tz_offset_min ?? 0,
         use_all_hotels: settings.use_all_hotels ?? true,
+        use_all_other_hotels: settings.use_all_other_hotels ?? true,
         remind_offset_days: settings.remind_offset_days ?? 1,
       };
       const { data, error } = await supabase

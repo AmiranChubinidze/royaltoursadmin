@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,6 +30,7 @@ import { cn } from "@/lib/utils";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useSavedHotels } from "@/hooks/useSavedData";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useToast } from "@/hooks/use-toast";
 import {
   useCalendarNotificationHotels,
   useCalendarNotificationSettings,
@@ -41,6 +43,7 @@ type OwnedStay = {
   hotel: string;
   code: string;
   client: string | null;
+  isOwned: boolean;
 };
 
 const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
@@ -67,16 +70,26 @@ export default function CalendarPage() {
   const { data: selectedHotelIds } = useCalendarNotificationHotels();
   const upsertSettings = useUpsertCalendarNotificationSettings();
   const setNotificationHotels = useSetCalendarNotificationHotels();
+  const { toast } = useToast();
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [timeLocal, setTimeLocal] = useState("09:00");
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [useAllHotelsState, setUseAllHotelsState] = useState(true);
+  const [useAllOtherHotelsState, setUseAllOtherHotelsState] = useState(true);
   const [remindOffsetDays, setRemindOffsetDays] = useState(1);
   const [tzOffsetState] = useState(-240);
   const [selectedHotelIdsState, setSelectedHotelIdsState] = useState<string[]>([]);
   const [hasSyncedHotels, setHasSyncedHotels] = useState(false);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [pendingSettings, setPendingSettings] = useState({
+    enabled: remindersEnabled,
+    time_local: timeLocal,
+    use_all_hotels: useAllHotelsState,
+    use_all_other_hotels: useAllOtherHotelsState,
+    remind_offset_days: remindOffsetDays,
+  });
 
   useEffect(() => {
     if (notificationSettings?.time_local) {
@@ -88,6 +101,9 @@ export default function CalendarPage() {
     if (notificationSettings?.use_all_hotels !== undefined) {
       setUseAllHotelsState(notificationSettings.use_all_hotels);
     }
+    if (notificationSettings?.use_all_other_hotels !== undefined) {
+      setUseAllOtherHotelsState(notificationSettings.use_all_other_hotels);
+    }
     if (notificationSettings?.remind_offset_days !== undefined) {
       setRemindOffsetDays(notificationSettings.remind_offset_days);
     }
@@ -95,8 +111,19 @@ export default function CalendarPage() {
     notificationSettings?.time_local,
     notificationSettings?.enabled,
     notificationSettings?.use_all_hotels,
+    notificationSettings?.use_all_other_hotels,
     notificationSettings?.remind_offset_days,
   ]);
+
+  useEffect(() => {
+    setPendingSettings({
+      enabled: remindersEnabled,
+      time_local: timeLocal,
+      use_all_hotels: useAllHotelsState,
+      use_all_other_hotels: useAllOtherHotelsState,
+      remind_offset_days: remindOffsetDays,
+    });
+  }, [remindersEnabled, timeLocal, useAllHotelsState, useAllOtherHotelsState, remindOffsetDays]);
 
   useEffect(() => {
     if (!hasSyncedHotels && selectedHotelIds) {
@@ -116,10 +143,13 @@ export default function CalendarPage() {
   const ownedHotels = useMemo(() => {
     return (savedHotels || []).filter((h) => h.is_owned);
   }, [savedHotels]);
+  const otherHotels = useMemo(() => {
+    return (savedHotels || []).filter((h) => !h.is_owned);
+  }, [savedHotels]);
 
-  const ownedStaysByDate = useMemo(() => {
+  const staysByDate = useMemo(() => {
     const map = new Map<string, OwnedStay[]>();
-    if (!confirmations || ownedHotelSet.size === 0) return map;
+    if (!confirmations) return map;
 
     for (const c of confirmations) {
       const code = c.confirmation_code;
@@ -128,12 +158,12 @@ export default function CalendarPage() {
       for (const day of itinerary) {
         const hotelName = String(day?.hotel || "").trim();
         if (!hotelName) continue;
-        if (!ownedHotelSet.has(hotelName.toLowerCase())) continue;
         const date = parseDateFlexible(day?.date);
         if (!date) continue;
+        const isOwned = ownedHotelSet.has(hotelName.toLowerCase());
         const key = format(date, "yyyy-MM-dd");
         const list = map.get(key) || [];
-        list.push({ dateKey: key, hotel: hotelName, code, client });
+        list.push({ dateKey: key, hotel: hotelName, code, client, isOwned });
         map.set(key, list);
       }
     }
@@ -160,7 +190,7 @@ export default function CalendarPage() {
   }
 
   const selectedKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const selectedStays = selectedKey ? ownedStaysByDate.get(selectedKey) || [] : [];
+  const selectedStays = selectedKey ? staysByDate.get(selectedKey) || [] : [];
   const selectedDateLabel = selectedDate
     ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(selectedDate)
     : "Select a Date";
@@ -169,15 +199,38 @@ export default function CalendarPage() {
   const tzOffset = tzOffsetState;
 
   const updateSettings = (
-    next: Partial<{ enabled: boolean; time_local: string; use_all_hotels: boolean; remind_offset_days: number }>
+    next: Partial<{
+      enabled: boolean;
+      time_local: string;
+      use_all_hotels: boolean;
+      use_all_other_hotels: boolean;
+      remind_offset_days: number;
+    }>
   ) => {
-    upsertSettings.mutate({
-      enabled: next.enabled ?? remindersEnabled,
-      time_local: next.time_local ?? timeLocal,
-      tz_offset_min: tzOffset,
-      use_all_hotels: next.use_all_hotels ?? useAllHotelsState,
-      remind_offset_days: next.remind_offset_days ?? remindOffsetDays,
-    });
+    setPendingSettings((prev) => ({
+      ...prev,
+      ...next,
+    }));
+  };
+
+  const saveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      await upsertSettings.mutateAsync({
+        enabled: pendingSettings.enabled,
+        time_local: pendingSettings.time_local,
+        tz_offset_min: tzOffset,
+        use_all_hotels: pendingSettings.use_all_hotels,
+        use_all_other_hotels: pendingSettings.use_all_other_hotels,
+        remind_offset_days: pendingSettings.remind_offset_days,
+      });
+      toast({ title: "Saved", description: "Reminder settings updated." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to save settings.";
+      toast({ title: "Save failed", description: message, variant: "destructive" });
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const toggleHotelSelection = (hotelId: string) => {
@@ -263,8 +316,10 @@ export default function CalendarPage() {
               {days.map((day) => {
                 const inMonth = isSameMonth(day, monthStart);
                 const dayKey = format(day, "yyyy-MM-dd");
-                const stays = ownedStaysByDate.get(dayKey) || [];
+                const stays = staysByDate.get(dayKey) || [];
                 const hasStays = stays.length > 0;
+                const ownedCount = stays.filter((s) => s.isOwned).length;
+                const otherCount = stays.length - ownedCount;
                 const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
 
                 return (
@@ -274,27 +329,60 @@ export default function CalendarPage() {
                     className={cn(
                       "min-h-[58px] sm:min-h-[92px] rounded-xl border px-2 py-2 text-left transition-colors hover:bg-[#F7FAFB] hover:border-[#0F4C5C]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
                       inMonth ? "bg-white/80" : "bg-muted/30",
-                      hasStays ? "border-[#0F4C5C]/30 shadow-[0_1px_8px_rgba(15,76,92,0.08)]" : "border-border/50",
+                      hasStays
+                        ? ownedCount > 0
+                          ? "border-[#00A9B7]/55 shadow-[0_1px_10px_rgba(0,169,183,0.18)] bg-[#E7FBFD]"
+                          : "border-[#6B6F76]/45 shadow-[0_1px_10px_rgba(79,82,87,0.10)] bg-[#F4F5F7]"
+                        : "border-border/50",
                       isSelected && "ring-2 ring-[#0F4C5C]/40"
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
-                      {dayNumberFormatter.format(day)}
-                    </span>
-                      {hasStays && (
-                        <Badge className={cn(
-                          "bg-[#0F4C5C]/10 text-[#0F4C5C] border-0 text-[10px] px-1.5",
-                          isMobile && "rounded-full h-5 w-5 p-0 flex items-center justify-center"
-                        )}>
-                          {stays.length}
-                        </Badge>
-                      )}
-                    </div>
+                    {isMobile ? (
+                      <div className="relative h-8">
+                        <div className="flex h-8 items-center justify-center">
+                          <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
+                            {dayNumberFormatter.format(day)}
+                          </span>
+                        </div>
+                        {hasStays && (
+                          <Badge
+                            className={cn(
+                              "absolute right-0 top-0 h-5 w-5 rounded-full p-0 text-[10px] flex items-center justify-center border-0",
+                              ownedCount > 0
+                                ? "bg-[#00A9B7]/20 text-[#0A7E88]"
+                                : "bg-[#6B6F76]/20 text-[#4B4F55]"
+                            )}
+                          >
+                            {stays.length}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
+                          {dayNumberFormatter.format(day)}
+                        </span>
+                        {hasStays && (
+                          <Badge className={cn(
+                            ownedCount > 0
+                              ? "bg-[#00A9B7]/20 text-[#0A7E88] border-0 text-[10px] px-1.5"
+                              : "bg-[#6B6F76]/20 text-[#4B4F55] border-0 text-[10px] px-1.5"
+                          )}>
+                            {stays.length}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                     {hasStays && !isMobile && (
                       <div className="mt-2 space-y-1">
                         {stays.slice(0, 2).map((s, idx) => (
-                          <div key={`${dayKey}-${idx}`} className="text-[11px] text-[#0F4C5C] truncate">
+                          <div
+                            key={`${dayKey}-${idx}`}
+                            className={cn(
+                              "text-[11px] truncate",
+                              s.isOwned ? "text-[#0A7E88] font-medium" : "text-[#4B4F55]"
+                            )}
+                          >
                             {s.hotel}
                           </div>
                         ))}
@@ -324,7 +412,7 @@ export default function CalendarPage() {
                 </div>
               </div>
                 <Switch
-                  checked={remindersEnabled}
+                  checked={pendingSettings.enabled}
                   onCheckedChange={(checked) => {
                     setRemindersEnabled(checked);
                     updateSettings({ enabled: checked });
@@ -338,7 +426,7 @@ export default function CalendarPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Before</Label>
                 <Select
-                  value={String(remindOffsetDays)}
+                  value={String(pendingSettings.remind_offset_days)}
                   onValueChange={(value) => {
                     const nextValue = Number(value);
                     setRemindOffsetDays(nextValue);
@@ -359,7 +447,7 @@ export default function CalendarPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Time</Label>
                 <Select
-                  value={timeLocal}
+                  value={pendingSettings.time_local}
                   onValueChange={(value) => {
                     setTimeLocal(value);
                     updateSettings({ time_local: value });
@@ -369,8 +457,10 @@ export default function CalendarPage() {
                     <SelectValue placeholder="Choose" />
                   </SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 24 }).map((_, hour) => {
-                      const value = `${String(hour).padStart(2, "0")}:00`;
+                    {Array.from({ length: 24 * 4 }).map((_, idx) => {
+                      const hour = Math.floor(idx / 4);
+                      const minute = (idx % 4) * 15;
+                      const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
                       return (
                         <SelectItem key={value} value={value}>
                           {value}
@@ -385,12 +475,12 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-xs text-muted-foreground">Owned Hotels</Label>
-                <p className="text-[11px] text-muted-foreground">Pick which hotels trigger reminders.</p>
+                <p className="text-[11px] text-muted-foreground">Pick which owned hotels trigger reminders.</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-muted-foreground">All Owned</span>
-                  <Switch
-                    checked={useAllHotelsState}
+                <Switch
+                    checked={pendingSettings.use_all_hotels}
                     onCheckedChange={(checked) => {
                       setUseAllHotelsState(checked);
                       updateSettings({ use_all_hotels: checked });
@@ -399,7 +489,24 @@ export default function CalendarPage() {
                   />
               </div>
             </div>
-            {useAllHotelsState ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-xs text-muted-foreground">Other Hotels</Label>
+                <p className="text-[11px] text-muted-foreground">Pick which other hotels trigger reminders.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">All Other</span>
+                <Switch
+                    checked={pendingSettings.use_all_other_hotels}
+                    onCheckedChange={(checked) => {
+                      setUseAllOtherHotelsState(checked);
+                      updateSettings({ use_all_other_hotels: checked });
+                    }}
+                    aria-label="Use all other hotels"
+                  />
+              </div>
+            </div>
+            {pendingSettings.use_all_hotels ? (
               <div className="rounded-lg border border-dashed border-border/70 bg-[#F7FAFB] px-3 py-2 text-xs text-muted-foreground">
                 All owned hotels are included.
               </div>
@@ -453,6 +560,70 @@ export default function CalendarPage() {
                 </ScrollArea>
               </div>
             )}
+            {pendingSettings.use_all_other_hotels ? (
+              <div className="rounded-lg border border-dashed border-border/70 bg-[#F7FAFB] px-3 py-2 text-xs text-muted-foreground">
+                All other hotels are included.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
+                <ScrollArea className="h-[220px]">
+                  <div className="p-2 space-y-2">
+                    {otherHotels.length === 0 ? (
+                      <div className="text-xs text-muted-foreground">No other hotels saved yet.</div>
+                    ) : (
+                      otherHotels.map((hotel) => {
+                        const checked = selectedSet.has(hotel.id);
+                        return (
+                          <div
+                            key={hotel.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => toggleHotelSelection(hotel.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                toggleHotelSelection(hotel.id);
+                              }
+                            }}
+                            className={cn(
+                              "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B4F55]/25",
+                              checked
+                                ? "border-[#4B4F55]/40 bg-[#F2F3F5] shadow-[0_1px_6px_rgba(75,79,85,0.08)]"
+                                : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
+                            )}
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
+                              <div className="text-[11px] text-muted-foreground truncate">Other hotel</div>
+                            </div>
+                            <div
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={() => toggleHotelSelection(hotel.id)}
+                                className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#4B4F55] data-[state=checked]:text-white cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            )}
+            <div className="flex items-center justify-end">
+              <Button
+                size="sm"
+                className="h-9 px-4 bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
+                onClick={saveSettings}
+                disabled={isSavingSettings}
+              >
+                {isSavingSettings ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
           </CardContent>
           </Card>
         )}
@@ -482,7 +653,16 @@ export default function CalendarPage() {
                       {s.code} {s.client ? ` - ${s.client}` : ""}
                     </div>
                   </div>
-                  <Badge className="bg-emerald-500/10 text-emerald-700 border-0">Owned</Badge>
+                  <Badge
+                    className={cn(
+                      "border-0",
+                      s.isOwned
+                        ? "bg-[#00A9B7]/20 text-[#0A7E88]"
+                        : "bg-[#6B6F76]/20 text-[#4B4F55]"
+                    )}
+                  >
+                    {s.isOwned ? "Owned" : "Other"}
+                  </Badge>
                 </div>
               ))}
             </div>

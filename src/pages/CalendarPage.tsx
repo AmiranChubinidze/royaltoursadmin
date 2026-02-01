@@ -74,6 +74,7 @@ export default function CalendarPage() {
   const [remindOffsetDays, setRemindOffsetDays] = useState(1);
   const [tzOffsetState] = useState(-240);
   const [selectedHotelIdsState, setSelectedHotelIdsState] = useState<string[]>([]);
+  const [hasSyncedHotels, setHasSyncedHotels] = useState(false);
 
   useEffect(() => {
     if (notificationSettings?.time_local) {
@@ -96,10 +97,11 @@ export default function CalendarPage() {
   ]);
 
   useEffect(() => {
-    if (selectedHotelIds) {
+    if (!hasSyncedHotels && selectedHotelIds) {
       setSelectedHotelIdsState(selectedHotelIds);
+      setHasSyncedHotels(true);
     }
-  }, [selectedHotelIds]);
+  }, [selectedHotelIds, hasSyncedHotels]);
 
   const ownedHotelSet = useMemo(() => {
     return new Set(
@@ -418,7 +420,7 @@ export default function CalendarPage() {
                               }
                             }}
                             className={cn(
-                              "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
+                              "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
                               checked
                                 ? "border-[#0F4C5C]/40 bg-[#F1FAFB] shadow-[0_1px_6px_rgba(15,76,92,0.08)]"
                                 : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
@@ -435,7 +437,7 @@ export default function CalendarPage() {
                               <Checkbox
                                 checked={checked}
                                 onCheckedChange={() => toggleHotelSelection(hotel.id)}
-                                className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#0F4C5C] data-[state=checked]:text-white"
+                                className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#0F4C5C] data-[state=checked]:text-white cursor-pointer"
                               />
                             </div>
                           </div>

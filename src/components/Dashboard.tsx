@@ -195,17 +195,21 @@ export function Dashboard() {
     return (
       <div className="flex flex-col">
         <div className="flex-1 overflow-y-auto">
+          <div className="px-4 pt-4">
+            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">Dashboard</h1>
+            <p className="text-xs text-muted-foreground">Arrivals, confirmations, and quick actions.</p>
+          </div>
 
           {/* Mobile Stats */}
           <div className="px-4 py-4">
             <div className="flex gap-3">
-              <div className="bg-card border border-border rounded-xl p-4 flex-1">
+              <div className="stat-card p-4 flex-1">
                 <p className="text-xs text-muted-foreground">Total</p>
                 <p className="text-2xl font-bold text-foreground stat-number">
                   {isLoading ? "..." : confirmations?.length || 0}
                 </p>
               </div>
-              <div className="bg-card border border-border rounded-xl p-4 flex-1">
+              <div className="stat-card p-4 flex-1">
                 <p className="text-xs text-muted-foreground">This Month</p>
                 <p className="text-2xl font-bold text-accent stat-number">
                   {isLoading

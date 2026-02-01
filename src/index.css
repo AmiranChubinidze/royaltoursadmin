@@ -171,6 +171,17 @@
     background-attachment: fixed;
   }
 
+  @media (max-width: 640px) {
+    body {
+      background: linear-gradient(180deg, #F8FBFB 0%, #F2F7F7 100%);
+      background-attachment: fixed;
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
+
   /* Display headings — Playfair Display serif for editorial luxury */
   h1, h2 {
     font-family: 'Playfair Display', Georgia, serif;
@@ -300,6 +311,25 @@
 .stat-card,
 .bg-card {
   background: linear-gradient(180deg, #F9FFFE 0%, #E6FBF7 50%, #EAF3FF 100%);
+}
+
+@media (max-width: 640px) {
+  .stat-card,
+  .bg-card,
+  .card-elevated {
+    background: #ffffff !important;
+    border-radius: 18px;
+    box-shadow: 0 10px 24px rgba(15, 76, 92, 0.08);
+  }
+
+  .page-title {
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+  }
 }
 
 /* Dark mode: revert to solid */

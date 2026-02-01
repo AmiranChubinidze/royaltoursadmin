@@ -530,6 +530,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         email: null,
         address: null,
         activities: Array.from(activitiesSet),
+        is_owned: false,
       });
       createdCount++;
     }

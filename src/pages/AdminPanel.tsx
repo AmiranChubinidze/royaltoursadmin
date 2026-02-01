@@ -225,7 +225,7 @@ const AdminPanel = () => {
       // Then insert new role
       const { error } = await supabase
         .from("user_roles")
-        .insert({ user_id: userId, role: newRole });
+        .insert({ user_id: userId, role: newRole as "admin" | "user" | "worker" | "visitor" | "booking" | "accountant" });
       
       if (error) throw error;
     },

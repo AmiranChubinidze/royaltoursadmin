@@ -118,7 +118,6 @@ export default function ConfirmationAttachments() {
   useEffect(() => {
     if (!confirmation || !attachments || !id || markPaidMutation.isPending) return;
     const isPaidNow = (confirmation as any).is_paid;
-    if (isPaidNow) return;
 
     const itineraryData = confirmation.raw_payload?.itinerary || [];
     const stays: { hotel: string }[] = [];

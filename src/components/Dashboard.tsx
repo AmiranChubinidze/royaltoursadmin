@@ -196,22 +196,22 @@ export function Dashboard() {
       <div className="flex flex-col">
         <div className="flex-1 overflow-y-auto">
           <div className="px-4 pt-4">
-            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">Dashboard</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">Dashboard</h1>
             <p className="text-xs text-muted-foreground">Arrivals, confirmations, and quick actions.</p>
           </div>
 
           {/* Mobile Stats */}
           <div className="px-4 py-4">
             <div className="flex gap-3">
-              <div className="stat-card p-4 flex-1">
+              <div className="stat-card p-4 flex-1 border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
                 <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold text-foreground stat-number">
+                <p className="text-2xl font-bold text-[#0F4C5C] stat-number">
                   {isLoading ? "..." : confirmations?.length || 0}
                 </p>
               </div>
-              <div className="stat-card p-4 flex-1">
+              <div className="stat-card p-4 flex-1 border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
                 <p className="text-xs text-muted-foreground">This Month</p>
-                <p className="text-2xl font-bold text-accent stat-number">
+                <p className="text-2xl font-bold text-[#0F4C5C] stat-number">
                   {isLoading
                     ? "..."
                     : confirmations?.filter((c) => {
@@ -237,13 +237,13 @@ export function Dashboard() {
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 h-11 rounded-full bg-white"
+                  className="pl-10 h-11 rounded-full bg-white border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/25"
                 />
               </div>
               <Button
                 variant={showMobileFilters || hasActiveFilters ? "secondary" : "outline"}
                 size="icon"
-                className="h-11 w-11 flex-shrink-0 rounded-full"
+                className="h-11 w-11 flex-shrink-0 rounded-full border-[#0F4C5C]/20"
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
               >
                 <Filter className="h-4 w-4" />
@@ -252,7 +252,7 @@ export function Dashboard() {
 
             {/* Collapsible filter options */}
             {showMobileFilters && (
-              <div className="bg-white border border-border/60 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+              <div className="bg-white border border-[#0F4C5C]/10 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
                 <div className="flex flex-wrap gap-2">
                   {["all", "this-month", "last-month", "next-month"].map((filter) => (
                     <Button
@@ -374,32 +374,36 @@ export function Dashboard() {
   return (
     <div className="animate-fade-in">
       <div className="max-w-7xl mx-auto">
+        <div className="mb-5">
+          <h1 className="text-2xl font-semibold text-[#0F4C5C]">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Arrivals, confirmations, and quick actions.</p>
+        </div>
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          <div className="stat-card">
+          <div className="stat-card border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
             <CardContent className="py-5 px-5">
               <div className="flex items-center gap-3.5">
-                <div className="h-9 w-9 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-4 w-4 text-white" />
+                <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 flex items-center justify-center flex-shrink-0 text-[#0F4C5C]">
+                  <FileText className="h-4 w-4" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Total Confirmations</p>
-                  <div className="text-2xl font-bold text-foreground stat-number mt-0.5">
+                  <div className="text-2xl font-bold text-[#0F4C5C] stat-number mt-0.5">
                     {isLoading ? <Skeleton className="h-7 w-14" /> : confirmations?.length || 0}
                   </div>
                 </div>
               </div>
             </CardContent>
           </div>
-          <div className="stat-card">
+          <div className="stat-card border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
             <CardContent className="py-5 px-5">
               <div className="flex items-center gap-3.5">
-                <div className="h-9 w-9 rounded-full bg-teal-500 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-4 w-4 text-white" />
+                <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 flex items-center justify-center flex-shrink-0 text-[#0F4C5C]">
+                  <FileText className="h-4 w-4" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">This Month Arrivals</p>
-                  <div className="text-2xl font-bold text-foreground stat-number mt-0.5">
+                  <div className="text-2xl font-bold text-[#0F4C5C] stat-number mt-0.5">
                     {isLoading ? (
                       <Skeleton className="h-7 w-14" />
                     ) : (
@@ -418,14 +422,14 @@ export function Dashboard() {
               </div>
             </CardContent>
           </div>
-          <div className="stat-card">
+          <div className="stat-card border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
             <CardContent className="py-5 px-5 flex items-center justify-between h-full">
               <div className="flex flex-col">
                 {effectiveCanEditConfirmations ? (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 rounded-lg border-[#BFE3E6] bg-[#EAF3F4] text-[#0F4C5C] hover:bg-accent hover:text-accent-foreground"
+                    className="h-9 rounded-lg border-[#BFE3E6] bg-[#EAF3F4] text-[#0F4C5C] hover:bg-[#0F4C5C]/10"
                     onClick={() => navigate("/new")}
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -442,7 +446,7 @@ export function Dashboard() {
         </div>
 
         {/* Search and Filter */}
-        <Card className="mb-4 border-border/60 shadow-none bg-[#FCFCFB] dark:bg-card">
+        <Card className="mb-4 border-[#0F4C5C]/10 shadow-[0_10px_24px_rgba(15,76,92,0.08)] bg-white/95">
           <CardContent className="pt-4 pb-4">
             <div className="flex flex-wrap gap-3 items-center">
               <div className="relative flex-1 min-w-[200px]">
@@ -451,12 +455,12 @@ export function Dashboard() {
                   placeholder="Search by code, client name, or source..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/25"
                 />
               </div>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[180px] justify-between">
+                  <Button variant="outline" className="w-[180px] justify-between border-[#0F4C5C]/20">
                     <span>
                       {filterMonth === "all" && !dateFrom && !dateTo && "All time"}
                       {filterMonth === "this-month" && "This month"}
@@ -553,9 +557,9 @@ export function Dashboard() {
         </Card>
 
         {/* Table */}
-        <Card className="bg-blue-50/50 dark:bg-card">
+        <Card className="bg-white/95 border-[#0F4C5C]/10 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
           <CardHeader>
-            <CardTitle>Recent Confirmations</CardTitle>
+            <CardTitle className="text-[#0F4C5C]">Recent Confirmations</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -583,16 +587,16 @@ export function Dashboard() {
                 )}
               </div>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/20 border-b border-border/60">
-                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Code</TableHead>
-                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Client</TableHead>
-                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Arrival</TableHead>
-                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Source</TableHead>
-                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest">Duration</TableHead>
-                      <TableHead className="font-medium text-[#6B7280] text-[11px] uppercase tracking-widest text-right">Actions</TableHead>
+                    <TableRow className="bg-[#F7FBFC] border-b border-[#0F4C5C]/10">
+                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Code</TableHead>
+                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Client</TableHead>
+                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Arrival</TableHead>
+                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Source</TableHead>
+                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Duration</TableHead>
+                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -605,7 +609,7 @@ export function Dashboard() {
                       return (
                         <TableRow
                           key={confirmation.id}
-                          className="cursor-pointer hover:bg-[#F6F8F8] transition-colors"
+                          className="cursor-pointer hover:bg-[#F1FAFB] transition-colors"
                           onClick={() => navigate(`/confirmation/${confirmation.id}`)}
                         >
                           <TableCell className="font-mono font-semibold text-primary tracking-tight">

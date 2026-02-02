@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Hotel, X, Pencil, Mail, MapPin, Sparkles } from "lucide-react";
+import { Plus, Trash2, Hotel, X, Pencil, Mail, MapPin } from "lucide-react";
 import {
   useSavedHotels,
   useCreateSavedHotel,
@@ -172,10 +172,6 @@ export default function SavedData() {
         <div className={cn("mb-8", isMobile && "mb-5")}>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#0F4C5C]/60">
-                <Sparkles className="h-3.5 w-3.5" />
-                Hotel Library
-              </div>
               <h1 className={cn("page-title text-foreground", isMobile && "text-[22px]")}>Saved Hotels</h1>
               <p className={cn("text-muted-foreground", isMobile && "text-xs")}>
                 Manage hotels and activities for quick reuse

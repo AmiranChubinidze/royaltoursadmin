@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Hotel, X, Pencil } from "lucide-react";
+import { Plus, Trash2, Hotel, X, Pencil, Mail, MapPin, Sparkles } from "lucide-react";
 import {
   useSavedHotels,
   useCreateSavedHotel,
@@ -157,26 +157,74 @@ export default function SavedData() {
     resetForm();
   };
 
+  const stats = useMemo(() => {
+    const total = hotels?.length ?? 0;
+    const owned = hotels?.filter((h) => h.is_owned).length ?? 0;
+    const withEmail = hotels?.filter((h) => h.email).length ?? 0;
+    const activities = hotels?.reduce((sum, h) => sum + (h.activities?.length || 0), 0) ?? 0;
+    return { total, owned, withEmail, activities };
+  }, [hotels]);
+
   return (
     <div>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className={cn("mb-8", isMobile && "mb-5")}>
-          <h1 className={cn("page-title text-foreground", isMobile && "text-[22px]")}>Saved Hotels</h1>
-          <p className={cn("text-muted-foreground", isMobile && "text-xs")}>
-            Manage hotels and activities for quick reuse
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#0F4C5C]/60">
+                <Sparkles className="h-3.5 w-3.5" />
+                Hotel Library
+              </div>
+              <h1 className={cn("page-title text-foreground", isMobile && "text-[22px]")}>Saved Hotels</h1>
+              <p className={cn("text-muted-foreground", isMobile && "text-xs")}>
+                Manage hotels and activities for quick reuse
+              </p>
+            </div>
+            {!isMobile && (
+              <div className="flex items-center gap-3">
+                <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
+                  {stats.total} hotels - {stats.activities} activities
+                </div>
+              </div>
+            )}
+          </div>
+          <div className={cn("mt-5 grid gap-3", isMobile ? "grid-cols-2" : "grid-cols-4")}>
+            {[
+              { label: "Total Hotels", value: stats.total },
+              { label: "Owned", value: stats.owned },
+              { label: "With Email", value: stats.withEmail },
+              { label: "Activities", value: stats.activities },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] px-4 py-3 shadow-[0_8px_20px_rgba(15,76,92,0.08)]"
+              >
+                <div className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60">{stat.label}</div>
+                <div className="mt-1 text-xl font-semibold text-[#0F4C5C]">{stat.value}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <Card className={cn(isMobile && "rounded-2xl border-border/60 bg-white/95 shadow-[0_10px_24px_rgba(15,76,92,0.08)]")}>
+        <Card className={cn(
+          "border-border/60 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)]",
+          isMobile && "rounded-2xl"
+        )}>
           <CardHeader className={cn("flex flex-row items-center justify-between", isMobile && "px-4 py-4")}>
-            <CardTitle>Hotels & Activities</CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Hotel className="h-5 w-5 text-[#0F4C5C]" />
+                Hotels & Activities
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">Quick references for bookings and confirmations.</p>
+            </div>
             <Dialog open={hotelDialogOpen} onOpenChange={(open) => {
               if (!open) closeAddDialog();
               else setHotelDialogOpen(true);
             }}>
               <DialogTrigger asChild>
-                <Button size="sm" className={cn(isMobile && "rounded-full")}>
+                <Button size="sm" className={cn("rounded-full bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90", isMobile && "rounded-full")}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Hotel
                 </Button>
@@ -296,23 +344,23 @@ export default function SavedData() {
                   {hotels?.map((hotel) => (
                     <div
                       key={hotel.id}
-                      className="rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]"
+                      className="rounded-2xl border border-[#0F4C5C]/10 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-sm font-semibold text-foreground">{hotel.name}</div>
-                          <div className="mt-1 text-xs text-muted-foreground">
+                          <div className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
                             {hotel.is_owned ? "Company-owned" : hotel.email || "No email"}
                           </div>
                         </div>
                         {hotel.is_owned && (
-                          <Badge variant="secondary" className="text-[10px]">Owned</Badge>
+                          <Badge variant="secondary" className="text-[10px] bg-[#0F4C5C]/10 text-[#0F4C5C]">Owned</Badge>
                         )}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {hotel.activities?.length > 0 ? (
                           hotel.activities.map((activity) => (
-                            <Badge key={activity} variant="outline" className="text-[10px]">
+                            <Badge key={activity} variant="outline" className="text-[10px] border-[#0F4C5C]/20 text-[#0F4C5C]">
                               {activity}
                             </Badge>
                           ))
@@ -363,22 +411,40 @@ export default function SavedData() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Activities</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Name</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Contact</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Activities</TableHead>
+                      <TableHead className="text-right text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {hotels?.map((hotel) => (
-                      <TableRow key={hotel.id}>
-                        <TableCell className="font-medium">{hotel.name}</TableCell>
-                        <TableCell>
+                      <TableRow key={hotel.id} className="hover:bg-[#F7FBFC] transition-colors">
+                        <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
+                            <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 text-[#0F4C5C] flex items-center justify-center text-xs font-semibold">
+                              {hotel.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold">{hotel.name}</div>
+                              {hotel.address && (
+                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {hotel.address}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-sm">
                             {hotel.is_owned ? (
-                              <Badge variant="secondary" className="text-xs">Owned</Badge>
+                              <Badge variant="secondary" className="text-xs bg-[#0F4C5C]/10 text-[#0F4C5C]">Owned</Badge>
                             ) : (
-                              <span>{hotel.email || "—"}</span>
+                              <span className="inline-flex items-center gap-2 text-muted-foreground">
+                                <Mail className="h-3.5 w-3.5" />
+                                {hotel.email || "--"}
+                              </span>
                             )}
                           </div>
                         </TableCell>
@@ -386,12 +452,12 @@ export default function SavedData() {
                           <div className="flex flex-wrap gap-1">
                             {hotel.activities?.length > 0 ? (
                               hotel.activities.map((activity) => (
-                                <Badge key={activity} variant="outline" className="text-xs">
+                                <Badge key={activity} variant="outline" className="text-xs border-[#0F4C5C]/20 text-[#0F4C5C]">
                                   {activity}
                                 </Badge>
                               ))
                             ) : (
-                              <span className="text-muted-foreground">—</span>
+                              <span className="text-muted-foreground">--</span>
                             )}
                           </div>
                         </TableCell>

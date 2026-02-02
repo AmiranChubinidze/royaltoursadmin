@@ -421,19 +421,14 @@ export default function SavedData() {
                     {hotels?.map((hotel) => (
                       <TableRow key={hotel.id} className="hover:bg-[#F7FBFC] transition-colors">
                         <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 text-[#0F4C5C] flex items-center justify-center text-xs font-semibold">
-                              {hotel.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="text-sm font-semibold">{hotel.name}</div>
-                              {hotel.address && (
-                                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <MapPin className="h-3 w-3" />
-                                  {hotel.address}
-                                </div>
-                              )}
-                            </div>
+                          <div>
+                            <div className="text-sm font-semibold">{hotel.name}</div>
+                            {hotel.address && (
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {hotel.address}
+                              </div>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

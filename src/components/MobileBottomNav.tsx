@@ -16,10 +16,12 @@ export function MobileBottomNav() {
   const isAdmin = effectiveRole === "admin";
   const isBooking = effectiveRole === "booking";
   const canSeeFinances = ["admin", "accountant", "coworker"].includes(effectiveRole);
+  const isCoworker = effectiveRole === "coworker";
 
   const items = [
     { to: "/", label: "Home", icon: Home },
     ...(canSeeFinances ? [{ to: "/finances", label: "Finances", icon: Wallet }] : []),
+    ...(isCoworker ? [{ to: "/saved-data", label: "Data", icon: Database }] : []),
     { to: "/calendar", label: "Calendar", icon: CalendarDays },
     ...(isBooking ? [{ to: "/saved-data", label: "Saved", icon: Database }] : []),
     ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: Shield }] : []),

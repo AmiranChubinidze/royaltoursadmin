@@ -825,14 +825,14 @@ export default function ConfirmationAttachments() {
           </CardContent>
         </Card>
 
-        {/* Hotel Invoices Checklist */}
+        {/* Hotel Payments Checklist */}
         {visibleHotelStays.length > 0 && (
           <Card className="mb-6">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Hotel className="h-5 w-5 text-primary" />
-                  Hotel Invoices
+                  Hotel Payments
                 </CardTitle>
                 {canAddTransaction && (
                   <Button size="sm" variant="outline" onClick={() => setTransactionModalOpen(true)}>
@@ -876,7 +876,7 @@ export default function ConfirmationAttachments() {
                         }
                       }}
                       disabled={hasInvoiceUpload || isSavingCheck}
-                      aria-label={invoiceChecked ? "Invoice checked" : "Mark invoice checked"}
+                      aria-label={invoiceChecked ? "Payment checked" : "Mark payment checked"}
                       className={cn(
                         "flex items-center justify-center h-7 w-7 rounded-full shrink-0 transition-colors",
                         invoiceChecked
@@ -909,7 +909,7 @@ export default function ConfirmationAttachments() {
                         "flex items-center gap-2 rounded-md border px-2 py-1",
                         invoiceChecked ? "border-emerald-200 bg-emerald-50/70 text-emerald-700" : "border-border bg-background"
                       )}>
-                        <span className="text-xs font-medium w-16">Invoice</span>
+                        <span className="text-xs font-medium w-16">Payment</span>
                         {hasInvoiceUpload && invoiceMatch ? (
                           <div className="flex items-center gap-1 ml-auto">
                             <Button
@@ -917,7 +917,7 @@ export default function ConfirmationAttachments() {
                               size="icon"
                               onClick={() => handlePreview(invoiceMatch.file_path, invoiceMatch.file_name, invoiceMatch.id)}
                               disabled={previewLoadingId === invoiceMatch.id}
-                              title="Preview invoice"
+                              title="Preview payment"
                               className="h-7 w-7"
                             >
                               {previewLoadingId === invoiceMatch.id ? (
@@ -940,7 +940,7 @@ export default function ConfirmationAttachments() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                                    <AlertDialogTitle>Delete Payment</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Are you sure you want to delete "{invoiceMatch.file_name}"? This action cannot be undone.
                                     </AlertDialogDescription>
@@ -994,7 +994,7 @@ export default function ConfirmationAttachments() {
                         "flex items-center gap-2 rounded-md border px-2 py-1",
                         hasPayment ? "border-amber-200 bg-amber-50/70 text-amber-700" : "border-border bg-background"
                       )}>
-                        <span className="text-xs font-medium w-16">Payment</span>
+                        <span className="text-xs font-medium w-16">Invoice</span>
                         {hasPayment && paymentMatch ? (
                           <div className="flex items-center gap-1 ml-auto">
                             <Button
@@ -1002,7 +1002,7 @@ export default function ConfirmationAttachments() {
                               size="icon"
                               onClick={() => handlePreview(paymentMatch.file_path, paymentMatch.file_name, paymentMatch.id)}
                               disabled={previewLoadingId === paymentMatch.id}
-                              title="Preview payment order"
+                              title="Preview invoice"
                               className="h-7 w-7"
                             >
                               {previewLoadingId === paymentMatch.id ? (
@@ -1025,7 +1025,7 @@ export default function ConfirmationAttachments() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Payment Order</AlertDialogTitle>
+                                    <AlertDialogTitle>Delete Invoice Order</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Are you sure you want to delete "{paymentMatch.file_name}"? This action cannot be undone.
                                     </AlertDialogDescription>
@@ -1085,7 +1085,7 @@ export default function ConfirmationAttachments() {
 
 
 
-        {/* Upload Invoice Dialog */}
+        {/* Upload Payment Dialog */}
         <Dialog open={uploadDialogOpen} onOpenChange={(open) => {
           if (!open) {
             setUploadDialogOpen(false);
@@ -1099,16 +1099,16 @@ export default function ConfirmationAttachments() {
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{uploadType === "payment" ? "Upload Payment Order" : "Upload Invoice"}</DialogTitle>
+              <DialogTitle>{uploadType === "payment" ? "Upload Invoice Order" : "Upload Payment"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="invoice-name">{uploadType === "payment" ? "Payment Order Name" : "Invoice Name"}</Label>
+                <Label htmlFor="invoice-name">{uploadType === "payment" ? "Invoice Order Name" : "Payment Name"}</Label>
                 <Input
                   id="invoice-name"
                   value={invoiceName}
                   onChange={(e) => setInvoiceName(e.target.value)}
-                  placeholder={uploadType === "payment" ? "e.g. Hotel Marriott - Payment Order" : "e.g. Hotel Marriott - Room 204"}
+                  placeholder={uploadType === "payment" ? "e.g. Hotel Marriott - Invoice Order" : "e.g. Hotel Marriott - Room 204"}
                 />
                 <p className="text-xs text-muted-foreground">.pdf will be added automatically</p>
               </div>

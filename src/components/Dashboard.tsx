@@ -332,7 +332,7 @@ export function Dashboard() {
           </div>
 
           {/* Mobile Confirmation List */}
-          <div className="px-4 pb-24 space-y-3">
+          <div className="px-4 pb-[calc(9rem+env(safe-area-inset-bottom))] space-y-3">
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (

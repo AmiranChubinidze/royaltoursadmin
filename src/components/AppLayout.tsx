@@ -24,7 +24,13 @@ export function AppLayout() {
               </span>
             </header>
           )}
-          <main className={isMobile ? "flex-1 px-4 pt-4 pb-28 min-h-screen" : "flex-1 p-4 md:p-6 min-h-screen"}>
+          <main
+            className={
+              isMobile
+                ? "flex-1 px-4 pt-4 pb-[calc(8.5rem+env(safe-area-inset-bottom))] min-h-screen"
+                : "flex-1 p-4 md:p-6 min-h-screen"
+            }
+          >
             <Outlet />
           </main>
           {isMobile && <MobileBottomNav />}

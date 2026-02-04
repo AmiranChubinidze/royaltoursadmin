@@ -272,7 +272,7 @@ export default function FinancesPage() {
       <div className="flex flex-col">
         <div className="flex-1 overflow-y-auto">
           <div className="px-4 pt-4">
-            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">Finances</h1>
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">Finances</h1>
             <p className="text-xs text-muted-foreground">Track balances, exchanges, and cashflow.</p>
           </div>
 
@@ -282,7 +282,12 @@ export default function FinancesPage() {
               <Button
                 variant={isThisMonth ? "secondary" : "outline"}
                 size="sm"
-                className="flex-shrink-0 h-9 rounded-full px-4"
+                className={cn(
+                  "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15",
+                  isThisMonth
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => {
                   setDateFrom(startOfMonth(new Date()));
                   setDateTo(endOfMonth(new Date()));
@@ -293,7 +298,12 @@ export default function FinancesPage() {
               <Button
                 variant={isAllTime ? "secondary" : "outline"}
                 size="sm"
-                className="flex-shrink-0 h-9 rounded-full px-4"
+                className={cn(
+                  "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15",
+                  isAllTime
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => {
                   setDateFrom(undefined);
                   setDateTo(undefined);
@@ -304,7 +314,12 @@ export default function FinancesPage() {
               <Button
                 variant={showMobileFilters ? "secondary" : "outline"}
                 size="sm"
-                className="flex-shrink-0 h-9 rounded-full px-4"
+                className={cn(
+                  "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15",
+                  showMobileFilters
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
               >
                 <Filter className="h-3.5 w-3.5 mr-1" />
@@ -314,11 +329,11 @@ export default function FinancesPage() {
 
             {/* Custom date picker */}
             {showMobileFilters && (
-              <div className="bg-white border border-border/60 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+              <div className="bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 border border-[#0F4C5C]/10 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
                 <div className="flex gap-2">
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-1 rounded-full">
+                      <Button variant="outline" size="sm" className="flex-1 rounded-full border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateFrom ? format(dateFrom, "MMM d") : "From"}
                       </Button>
@@ -335,7 +350,7 @@ export default function FinancesPage() {
                   </Popover>
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-1 rounded-full">
+                      <Button variant="outline" size="sm" className="flex-1 rounded-full border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]">
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateTo ? format(dateTo, "MMM d") : "To"}
                       </Button>
@@ -368,7 +383,12 @@ export default function FinancesPage() {
               <Button
                 variant={mobileView === "summary" ? "secondary" : "outline"}
                 size="sm"
-                className="flex-1"
+                className={cn(
+                  "flex-1 border border-[#0F4C5C]/15",
+                  mobileView === "summary"
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => setMobileView("summary")}
               >
                 Summary
@@ -376,7 +396,12 @@ export default function FinancesPage() {
               <Button
                 variant={mobileView === "transactions" ? "secondary" : "outline"}
                 size="sm"
-                className="flex-1"
+                className={cn(
+                  "flex-1 border border-[#0F4C5C]/15",
+                  mobileView === "transactions"
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => setMobileView("transactions")}
               >
                 Transactions
@@ -447,7 +472,7 @@ export default function FinancesPage() {
 
         {/* FAB for adding transaction */}
         <Button
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 hover:shadow-glow transition-all duration-200"
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-[#0F4C5C] hover:bg-[#0F4C5C]/90 hover:shadow-glow transition-all duration-200"
           onClick={() => {
             setEditingTransaction(null);
             setTransactionModalOpen(true);
@@ -474,7 +499,7 @@ export default function FinancesPage() {
       <div className="max-w-7xl mx-auto space-y-5">
         {/* Page title */}
         <div className="space-y-1">
-          <h1 className="page-title text-foreground">Finances</h1>
+          <h1 className="page-title text-[#0F4C5C]">Finances</h1>
         </div>
 
         {/* Summary Cards */}
@@ -489,18 +514,18 @@ export default function FinancesPage() {
         />
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="rounded-xl border border-border/60 bg-card/70 backdrop-blur-sm p-2.5">
+          <div className="rounded-xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-2.5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <TabsList className="bg-muted/50 p-1 rounded-xl">
+              <TabsList className="bg-[#EAF7F8] p-1 rounded-xl">
                 {canSeeHoldings && (
-                  <TabsTrigger value="holders" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  <TabsTrigger value="holders" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C]">
                     Holdings
                   </TabsTrigger>
                 )}
-                <TabsTrigger value="ledger" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="ledger" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C]">
               Ledger
             </TabsTrigger>
-                <TabsTrigger value="categories" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <TabsTrigger value="categories" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C]">
               Categories
             </TabsTrigger>
               </TabsList>
@@ -509,7 +534,7 @@ export default function FinancesPage() {
             <div className="flex items-center gap-2">
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-9 w-9">
+                  <Button variant="outline" size="icon" className="h-9 w-9 border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]">
                     <CalendarIcon className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
@@ -553,7 +578,12 @@ export default function FinancesPage() {
               <Button
                 variant={isThisMonth ? "secondary" : "ghost"}
                 size="sm"
-                className="h-9"
+                className={cn(
+                  "h-9 border border-[#0F4C5C]/15",
+                  isThisMonth
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => {
                   setDateFrom(startOfMonth(new Date()));
                   setDateTo(endOfMonth(new Date()));
@@ -564,7 +594,12 @@ export default function FinancesPage() {
               <Button
                 variant={isAllTime ? "secondary" : "ghost"}
                 size="sm"
-                className="h-9"
+                className={cn(
+                  "h-9 border border-[#0F4C5C]/15",
+                  isAllTime
+                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                )}
                 onClick={() => {
                   setDateFrom(undefined);
                   setDateTo(undefined);

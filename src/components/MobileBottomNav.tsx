@@ -27,7 +27,7 @@ export function MobileBottomNav() {
   const isFinances = location.pathname.startsWith("/finances");
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">
+    <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="relative mx-auto flex max-w-md items-center justify-between rounded-[26px] border border-border/70 bg-white/90 px-3 py-2 shadow-[0_10px_30px_rgba(15,76,92,0.12)] backdrop-blur">
         {isFinances ? (
           <button

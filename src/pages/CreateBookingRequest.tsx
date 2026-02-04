@@ -554,14 +554,14 @@ export default function CreateBookingRequest() {
   return (
     <div>
       {/* Minimal Header */}
-      <div className="border-b border-border/50 bg-muted/30 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4">
+      <div className="border-b border-[#0F4C5C]/10 bg-gradient-to-r from-white via-white to-[#EAF7F8] -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
-          <Plane className="h-4 w-4 text-primary" />
-          <h1 className="text-sm font-semibold">
+          <Plane className="h-4 w-4 text-[#0F4C5C]" />
+          <h1 className="text-sm font-semibold text-[#0F4C5C]">
             {editingDraftId ? "Edit Booking Draft" : "Create Booking Request"}
           </h1>
           {editingDraftId && (
-            <Badge variant="outline" className="ml-2 border-amber-500 text-amber-600">
+            <Badge variant="outline" className="ml-2 border-[#0F4C5C]/20 text-[#0F4C5C] bg-[#EAF7F8]">
               Editing
             </Badge>
           )}
@@ -570,10 +570,10 @@ export default function CreateBookingRequest() {
 
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
         {/* Guest Settings Card */}
-        <Card className="border-border/50 shadow-sm overflow-hidden">
-          <div className="bg-gradient-to-r from-muted/50 to-muted/30 px-5 py-3 border-b border-border/50">
+        <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] overflow-hidden">
+          <div className="bg-gradient-to-r from-white via-white to-[#EAF7F8] px-5 py-3 border-b border-[#0F4C5C]/10">
             <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
+              <Users className="h-4 w-4 text-[#0F4C5C]" />
               <span className="font-semibold text-sm">Guest Settings</span>
             </div>
           </div>
@@ -589,7 +589,7 @@ export default function CreateBookingRequest() {
                     min={1}
                     value={sharedGuests.adults}
                     onChange={(e) => updateSharedGuests('adults', parseInt(e.target.value) || 1)}
-                    className="w-16 h-10 text-center font-medium"
+                    className="w-16 h-10 text-center font-medium border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/20 focus-visible:border-[#0F4C5C]/40"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -601,7 +601,7 @@ export default function CreateBookingRequest() {
                     min={0}
                     value={sharedGuests.kids}
                     onChange={(e) => updateSharedGuests('kids', parseInt(e.target.value) || 0)}
-                    className="w-16 h-10 text-center font-medium"
+                    className="w-16 h-10 text-center font-medium border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/20 focus-visible:border-[#0F4C5C]/40"
                   />
                 </div>
               </div>
@@ -620,7 +620,7 @@ export default function CreateBookingRequest() {
         </Card>
 
         {/* Itinerary Cards */}
-        <Card className="border-border/50 shadow-sm">
+        <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)]">
           <CardContent className="p-5">
             <DndContext
               sensors={sensors}
@@ -670,13 +670,13 @@ export default function CreateBookingRequest() {
                   
                   {/* Add Hotel Card */}
                   <Card 
-                    className="min-w-[240px] w-[240px] flex-shrink-0 border-dashed border-2 border-border/60 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all duration-300 flex items-center justify-center group"
+                    className="min-w-[240px] w-[240px] flex-shrink-0 border-dashed border-2 border-[#0F4C5C]/20 bg-gradient-to-br from-white via-white to-[#EAF7F8]/60 cursor-pointer hover:border-[#0F4C5C]/50 hover:bg-[#EAF7F8] transition-all duration-300 flex items-center justify-center group"
                     onClick={addHotelBooking}
                     style={{ minHeight: '420px' }}
                   >
-                    <div className="text-center text-muted-foreground group-hover:text-primary transition-colors duration-300">
-                      <div className="w-14 h-14 rounded-full bg-muted/50 group-hover:bg-primary/10 flex items-center justify-center mx-auto mb-4 transition-all duration-300 group-hover:scale-110">
-                        <Plus className="h-7 w-7" />
+                    <div className="text-center text-[#0F4C5C]/70 group-hover:text-[#0F4C5C] transition-colors duration-300">
+                      <div className="w-14 h-14 rounded-full bg-[#0F4C5C]/10 group-hover:bg-[#0F4C5C]/15 flex items-center justify-center mx-auto mb-4 transition-all duration-300 group-hover:scale-110">
+                        <Plus className="h-7 w-7 text-[#0F4C5C]" />
                       </div>
                       <span className="text-sm font-semibold">Add Stop</span>
                       <p className="text-xs mt-1 opacity-70">Click to add another hotel</p>
@@ -690,13 +690,13 @@ export default function CreateBookingRequest() {
 
         {/* Email Preview */}
         {validEmailCount > 0 && (
-          <Card className="border-border/50 shadow-sm overflow-hidden">
+          <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] overflow-hidden">
             <Accordion type="single" collapsible defaultValue="">
               <AccordionItem value="email-preview" className="border-none">
-                <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-muted/30 transition-colors">
+                <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-[#EAF7F8]/70 transition-colors">
                   <div className="flex items-center gap-3 text-left">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Mail className="h-4 w-4 text-primary" />
+                    <div className="w-8 h-8 rounded-lg bg-[#0F4C5C]/10 flex items-center justify-center">
+                      <Mail className="h-4 w-4 text-[#0F4C5C]" />
                     </div>
                     <div>
                       <span className="font-semibold">Email Preview</span>
@@ -709,13 +709,13 @@ export default function CreateBookingRequest() {
                 <AccordionContent className="px-5 pb-5">
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {hotelBookings.filter(b => b.hotelName && b.hotelEmail).map((booking, index) => (
-                      <Card key={index} className="bg-muted/20 border-border/40 overflow-hidden">
-                        <CardHeader className="py-3 px-4 bg-muted/30 border-b border-border/30">
+                      <Card key={index} className="bg-white/90 border-[#0F4C5C]/10 overflow-hidden shadow-[0_6px_16px_rgba(15,76,92,0.06)]">
+                        <CardHeader className="py-3 px-4 bg-[#EAF7F8]/60 border-b border-[#0F4C5C]/10">
                           <CardTitle className="text-sm font-semibold">{booking.hotelName}</CardTitle>
                           <p className="text-xs text-muted-foreground">{booking.hotelEmail}</p>
                         </CardHeader>
                         <CardContent className="p-4">
-                          <pre className="text-xs whitespace-pre-wrap font-mono bg-background p-3 rounded-lg border border-border/30 max-h-48 overflow-auto">
+                          <pre className="text-xs whitespace-pre-wrap font-mono bg-white p-3 rounded-lg border border-[#0F4C5C]/10 max-h-48 overflow-auto">
                             {generateEmailBody(booking)}
                           </pre>
                         </CardContent>
@@ -729,10 +729,10 @@ export default function CreateBookingRequest() {
         )}
 
         {/* Saved Drafts Section */}
-        <Card className="border-border/50 shadow-sm overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-muted/50 to-muted/30 py-4 px-5 border-b border-border/50">
+        <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-white via-white to-[#EAF7F8] py-4 px-5 border-b border-[#0F4C5C]/10">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-primary" />
+              <FileText className="h-4 w-4 text-[#0F4C5C]" />
               <CardTitle className="text-sm font-semibold">Saved Drafts</CardTitle>
               {drafts && drafts.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
@@ -755,7 +755,7 @@ export default function CreateBookingRequest() {
             ) : (
               <div className="space-y-3">
                 {drafts.map((draft) => (
-                  <Card key={draft.id} className="bg-muted/20 border-border/40 overflow-hidden">
+                  <Card key={draft.id} className="bg-white/90 border-[#0F4C5C]/10 overflow-hidden shadow-[0_6px_16px_rgba(15,76,92,0.06)]">
                     <div className="p-4 flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -781,7 +781,7 @@ export default function CreateBookingRequest() {
                           variant="outline"
                           onClick={() => handleEditDraft(draft)}
                           disabled={editingDraftId === draft.id}
-                          className="gap-1.5"
+                          className="gap-1.5 border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]"
                         >
                           <Edit className="h-4 w-4" />
                           {editingDraftId === draft.id ? "Editing..." : "Edit"}
@@ -790,7 +790,7 @@ export default function CreateBookingRequest() {
                           size="sm"
                           onClick={() => handleTransferToConfirmation(draft)}
                           disabled={isTransferring === draft.id || editingDraftId === draft.id}
-                          className="gap-1.5"
+                          className="gap-1.5 bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
                         >
                           <ArrowUpRight className="h-4 w-4" />
                           {isTransferring === draft.id ? "Transferring..." : "Transfer"}
@@ -824,7 +824,7 @@ export default function CreateBookingRequest() {
             size="lg"
             variant="outline"
             onClick={handleCancelEdit}
-            className="gap-2 px-6 h-14 text-base font-semibold shadow-xl bg-background rounded-full"
+            className="gap-2 px-6 h-14 text-base font-semibold shadow-xl bg-background rounded-full border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]"
           >
             <X className="h-5 w-5" />
             Cancel
@@ -834,7 +834,7 @@ export default function CreateBookingRequest() {
           size="lg"
           onClick={editingDraftId ? handleSaveEditedDraft : handleSubmit}
           disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
-          className="gap-2 px-6 h-14 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 bg-primary hover:bg-primary/90 rounded-full"
+          className="gap-2 px-6 h-14 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 bg-[#0F4C5C] hover:bg-[#0F4C5C]/90 rounded-full"
         >
           <Send className="h-5 w-5" />
           {isSubmitting 

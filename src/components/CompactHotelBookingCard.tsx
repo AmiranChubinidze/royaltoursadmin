@@ -66,19 +66,19 @@ const DatePicker = ({
           variant="outline"
           className={cn(
             "w-full justify-start text-left font-medium h-10 text-xs px-2",
-            "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30",
+            "bg-white/90 border-[#0F4C5C]/15 hover:bg-[#EAF7F8] hover:border-[#0F4C5C]/40",
             "transition-all duration-200 overflow-hidden",
             !value && "text-muted-foreground font-normal",
-            isLinked && "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+            isLinked && "border-[#0F4C5C]/50 bg-[#EAF7F8] ring-1 ring-[#0F4C5C]/20 text-[#0F4C5C]"
           )}
         >
-          {!value && isLinked && <Link2 className="h-3 w-3 mr-1 shrink-0 text-primary" />}
-          {!value && !isLinked && <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-muted-foreground" />}
+          {!value && isLinked && <Link2 className="h-3 w-3 mr-1 shrink-0 text-[#0F4C5C]" />}
+          {!value && !isLinked && <CalendarIcon className="h-3 w-3 mr-1 shrink-0 text-[#0F4C5C]/60" />}
           <span className="truncate">{value || placeholder}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-auto p-0 bg-popover border border-border shadow-lg z-50" 
+        className="w-auto p-0 bg-popover border border-[#0F4C5C]/10 shadow-lg z-50" 
         align="start"
         side="bottom"
         sideOffset={4}
@@ -122,20 +122,20 @@ const HotelSelector = ({
           aria-expanded={open}
           className={cn(
             "w-full justify-between h-10 text-sm font-medium",
-            "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30",
+            "bg-white/90 border-[#0F4C5C]/15 hover:bg-[#EAF7F8] hover:border-[#0F4C5C]/40",
             "transition-all duration-200",
             !value && "text-muted-foreground font-normal"
           )}
         >
           <div className="flex items-center gap-2 truncate">
-            <Hotel className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Hotel className="h-4 w-4 shrink-0 text-[#0F4C5C]/60" />
             <span className="truncate">{value || "Select hotel..."}</span>
           </div>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[220px] p-0 bg-popover border border-border shadow-lg z-50" 
+        className="w-[220px] p-0 bg-popover border border-[#0F4C5C]/10 shadow-lg z-50" 
         align="start"
         sideOffset={4}
       >
@@ -219,27 +219,27 @@ export const CompactHotelBookingCard = ({
       style={style}
       className={cn(
         "p-0 min-w-[240px] w-[240px] flex-shrink-0 relative overflow-hidden",
-        "bg-card border-border/60 shadow-md",
+        "bg-white/95 border-[#0F4C5C]/10 shadow-[0_10px_24px_rgba(15,76,92,0.08)]",
         "transition-all duration-300 ease-out",
-        "hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5",
-        isDragging && "opacity-90 shadow-2xl scale-[1.02] z-50 border-primary ring-2 ring-primary/20"
+        "hover:shadow-lg hover:border-[#0F4C5C]/30 hover:-translate-y-0.5",
+        isDragging && "opacity-90 shadow-2xl scale-[1.02] z-50 border-[#0F4C5C] ring-2 ring-[#0F4C5C]/20"
       )}
     >
       {/* Gradient Header */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 px-4 py-3 flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#0F4C5C] to-[#0F4C5C]/85 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
             {...attributes}
             {...listeners}
             className="cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-white/20 transition-colors"
           >
-            <GripVertical className="h-4 w-4 text-primary-foreground/80" />
+            <GripVertical className="h-4 w-4 text-white/80" />
           </button>
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
-              <span className="text-xs font-bold text-primary-foreground">{index + 1}</span>
+              <span className="text-xs font-bold text-white">{index + 1}</span>
             </div>
-            <span className="text-sm font-semibold text-primary-foreground tracking-wide">
+            <span className="text-sm font-semibold text-white tracking-wide">
               Stop
             </span>
           </div>
@@ -248,7 +248,7 @@ export const CompactHotelBookingCard = ({
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-primary-foreground/80 hover:text-primary-foreground hover:bg-white/20"
+            className="h-7 w-7 text-white/80 hover:text-white hover:bg-white/20"
             onClick={onRemove}
           >
             <X className="h-4 w-4" />
@@ -306,7 +306,7 @@ export const CompactHotelBookingCard = ({
                 min={1}
                 value={booking.numAdults}
                 onChange={(e) => updateField("numAdults", parseInt(e.target.value) || 1)}
-                className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+                className="h-10 text-sm text-center font-medium bg-white/90 border-[#0F4C5C]/15 hover:border-[#0F4C5C]/40 focus:border-[#0F4C5C]/50 transition-colors"
               />
             </div>
             <div>
@@ -318,7 +318,7 @@ export const CompactHotelBookingCard = ({
                 min={0}
                 value={booking.numKids}
                 onChange={(e) => updateField("numKids", parseInt(e.target.value) || 0)}
-                className="h-10 text-sm text-center font-medium bg-background/80 border-border hover:border-primary/30 focus:border-primary transition-colors"
+                className="h-10 text-sm text-center font-medium bg-white/90 border-[#0F4C5C]/15 hover:border-[#0F4C5C]/40 focus:border-[#0F4C5C]/50 transition-colors"
               />
             </div>
           </div>
@@ -339,8 +339,8 @@ export const CompactHotelBookingCard = ({
                   className={cn(
                     "flex-1 h-9 text-sm font-semibold transition-all duration-200",
                     booking.mealType === "BB" 
-                      ? "bg-primary text-primary-foreground shadow-md" 
-                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                      ? "bg-[#0F4C5C] text-white shadow-md" 
+                      : "bg-white/90 border-[#0F4C5C]/15 hover:bg-[#EAF7F8] hover:border-[#0F4C5C]/30"
                   )}
                   onClick={() => updateField("mealType", "BB")}
                 >
@@ -353,8 +353,8 @@ export const CompactHotelBookingCard = ({
                   className={cn(
                     "flex-1 h-9 text-sm font-semibold transition-all duration-200",
                     booking.mealType === "FB" 
-                      ? "bg-primary text-primary-foreground shadow-md" 
-                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                      ? "bg-[#0F4C5C] text-white shadow-md" 
+                      : "bg-white/90 border-[#0F4C5C]/15 hover:bg-[#EAF7F8] hover:border-[#0F4C5C]/30"
                   )}
                   onClick={() => updateField("mealType", "FB")}
                 >
@@ -375,8 +375,8 @@ export const CompactHotelBookingCard = ({
                   className={cn(
                     "flex-1 h-9 text-sm font-semibold transition-all duration-200",
                     booking.roomCategory === "Standard" 
-                      ? "bg-primary text-primary-foreground shadow-md" 
-                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                      ? "bg-[#0F4C5C] text-white shadow-md" 
+                      : "bg-white/90 border-[#0F4C5C]/15 hover:bg-[#EAF7F8] hover:border-[#0F4C5C]/30"
                   )}
                   onClick={() => updateField("roomCategory", "Standard")}
                 >
@@ -389,8 +389,8 @@ export const CompactHotelBookingCard = ({
                   className={cn(
                     "flex-1 h-9 text-sm font-semibold transition-all duration-200",
                     booking.roomCategory === "Upgrade" 
-                      ? "bg-primary text-primary-foreground shadow-md" 
-                      : "bg-background/80 border-border hover:bg-accent/50 hover:border-primary/30"
+                      ? "bg-[#0F4C5C] text-white shadow-md" 
+                      : "bg-white/90 border-[#0F4C5C]/15 hover:bg-[#EAF7F8] hover:border-[#0F4C5C]/30"
                   )}
                   onClick={() => updateField("roomCategory", "Upgrade")}
                 >

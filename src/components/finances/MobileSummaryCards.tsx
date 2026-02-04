@@ -117,7 +117,7 @@ export function MobileSummaryCards({
         return (
           <div
             key={card.label}
-            className="bg-card border border-border/50 rounded-lg p-2.5"
+            className="bg-gradient-to-br from-white via-white to-[#EAF7F8] border border-[#0F4C5C]/10 rounded-xl p-2.5 shadow-[0_6px_16px_rgba(15,76,92,0.08)]"
           >
             <div className="flex items-center gap-2">
               <div className={cn(
@@ -127,7 +127,7 @@ export function MobileSummaryCards({
                 <IconComponent className={cn("h-3.5 w-3.5", card.iconColor)} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-medium text-muted-foreground">
+                <p className="text-[10px] font-medium text-[#0F4C5C]/60">
                   {card.label}
                 </p>
                 {isLoading ? (

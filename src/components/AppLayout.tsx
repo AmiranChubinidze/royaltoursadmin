@@ -18,7 +18,7 @@ export function AppLayout() {
           {isMobile && (
             <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-border/70 bg-white/90 backdrop-blur px-4 py-3 shadow-[0_6px_16px_rgba(15,76,92,0.08)]">
               <SidebarTrigger className="h-8 w-8" />
-              <img src={rtgLogoFull} alt="RGT" className="h-7 w-auto" />
+              <img src={rtgLogoFull} alt="RGT" className="h-9 w-auto" />
               <span className="font-display text-sm font-semibold text-foreground tracking-tight">
                 Royal Georgian Tours
               </span>

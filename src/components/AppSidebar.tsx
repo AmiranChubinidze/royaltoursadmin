@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMyHolderBalance } from "@/hooks/useHolders";
@@ -31,6 +32,8 @@ import {
   Shield,
   LogOut,
   Eye,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import rtgLogoFull from "@/assets/rtg-logo-full.png";
 
@@ -50,6 +53,7 @@ export function AppSidebar() {
   const { isAdmin, isAccountant, isWorker, isCoworker, canEdit, role } = useUserRole();
   const { viewAsRole, setViewAsRole } = useViewAs();
   const { setOpenMobile } = useSidebar();
+  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
@@ -107,13 +111,13 @@ export function AppSidebar() {
       {/* Header — logo + brand */}
       <SidebarHeader className="px-4 pt-5 pb-4">
         <div
-          className="flex items-center gap-3 cursor-pointer group"
+          className="flex items-center gap-0.5 cursor-pointer group"
           onClick={() => go("/")}
         >
           <img
             src={rtgLogoFull}
             alt="RGT"
-            className="h-10 w-auto transition-transform duration-300 group-hover:scale-[1.03] flex-shrink-0"
+            className="h-14 w-auto transition-transform duration-300 group-hover:scale-[1.03] flex-shrink-0"
           />
           <div className="flex flex-col min-w-0">
             <span className="font-display font-semibold text-[13.5px] leading-none text-sidebar-accent-foreground tracking-[-0.015em] whitespace-nowrap">
@@ -253,36 +257,79 @@ export function AppSidebar() {
       {/* Footer */}
       <SidebarFooter className="px-4 py-2 space-y-2 border-t border-[#E5E7EB]">
         {/* User info */}
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-[10px] font-semibold text-white">
-              {user?.email?.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[11px] text-sidebar-foreground truncate min-w-0 max-w-[9.5rem] flex-1">
-                {displayName}
+        <div className="w-full">
+          <button
+            type="button"
+            onClick={() => setIsUserPanelOpen((open) => !open)}
+            className="flex w-full items-center gap-2 rounded-full border border-transparent bg-white/80 px-2.5 py-2 text-left transition hover:border-[#0F4C5C]/10 hover:bg-white"
+            aria-expanded={isUserPanelOpen}
+          >
+            <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              <span className="text-[10px] font-semibold text-white">
+                {user?.email?.charAt(0).toUpperCase()}
               </span>
-              {role && (
-                <Badge
-                  variant={
-                    role === "admin"
-                      ? "default"
-                      : role === "worker" || role === "accountant"
-                      ? "secondary"
-                      : "outline"
-                  }
-                  className="text-[9px] capitalize shrink-0"
-                >
-                  {roleLabel(role)}
-                </Badge>
-              )}
             </div>
-            <div className="text-[10px] text-muted-foreground truncate">
-              {myBalance
-                ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "₾")}`
-                : "No linked holder"}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[11px] text-sidebar-foreground truncate min-w-0 max-w-[9.5rem] flex-1">
+                  {displayName}
+                </span>
+                {role && (
+                  <Badge
+                    variant={
+                      role === "admin"
+                        ? "default"
+                        : role === "worker" || role === "accountant"
+                        ? "secondary"
+                        : "outline"
+                    }
+                    className="text-[9px] capitalize shrink-0"
+                  >
+                    {roleLabel(role)}
+                  </Badge>
+                )}
+              </div>
+              <div className="text-[10px] text-muted-foreground truncate">
+                {myBalance
+                  ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "?")}`
+                  : "No linked holder"}
+              </div>
+            </div>
+            <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full border border-[#0F4C5C]/10 bg-white text-[#0F4C5C]/70">
+              {isUserPanelOpen ? (
+                <ChevronUp className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5" />
+              )}
+            </span>
+          </button>
+
+          <div
+            className={`overflow-hidden transition-[max-height,opacity,transform] duration-200 ease-out ${
+              isUserPanelOpen ? "max-h-40 opacity-100 translate-y-0" : "max-h-0 opacity-0 -translate-y-1"
+            }`}
+          >
+            <div className="mt-2 rounded-xl border border-[#0F4C5C]/10 bg-white/80 p-2.5 shadow-[0_10px_20px_rgba(15,76,92,0.08)]">
+              <div className="text-[10px] text-muted-foreground truncate">{user?.email || "?"}</div>
+              <div className="mt-2 flex items-center justify-between rounded-lg border border-[#0F4C5C]/10 bg-[#F7FBFC] px-2.5 py-2">
+                <span className="text-[10px] uppercase tracking-[0.22em] text-[#0F4C5C]/60">
+                  Balance
+                </span>
+                <span className="text-[11px] font-semibold text-[#0F4C5C]">
+                  {myBalance
+                    ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "?")}`
+                    : "No linked holder"}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full rounded-lg border-[#0F4C5C]/15 text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                onClick={signOut}
+              >
+                <LogOut className="h-3.5 w-3.5 mr-2" />
+                Sign Out
+              </Button>
             </div>
           </div>
         </div>
@@ -332,15 +379,6 @@ export function AppSidebar() {
             </Popover>
           )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-sidebar-foreground/40 hover:text-destructive ml-auto"
-            onClick={signOut}
-            title="Sign Out"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>

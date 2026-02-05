@@ -274,7 +274,7 @@ export function AppSidebar() {
                 <span className="text-[11px] text-sidebar-foreground truncate min-w-0 max-w-[9.5rem] flex-1">
                   {displayName}
                 </span>
-                {role && (
+                {role && displayName?.trim().toLowerCase() !== roleLabel(role).toLowerCase() && (
                   <Badge
                     variant={
                       role === "admin"
@@ -330,6 +330,44 @@ export function AppSidebar() {
                 <LogOut className="h-3.5 w-3.5 mr-2" />
                 Sign Out
               </Button>
+              {isAdmin && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full rounded-lg border-[#0F4C5C]/15 text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                      title={viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-2" />
+                      View As
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-40 p-1" side="top" align="start">
+                    <div className="space-y-0.5">
+                      <Button
+                        variant={viewAsRole === null ? "secondary" : "ghost"}
+                        size="sm"
+                        className="w-full justify-start text-sm"
+                        onClick={() => setViewAsRole(null)}
+                      >
+                        My Role ({roleLabel(role || "")})
+                      </Button>
+                      {(["worker", "coworker", "accountant", "visitor"] as const).map((r) => (
+                        <Button
+                          key={r}
+                          variant={viewAsRole === r ? "secondary" : "ghost"}
+                          size="sm"
+                          className="w-full justify-start text-sm"
+                          onClick={() => setViewAsRole(r)}
+                        >
+                          {roleLabel(r)}
+                        </Button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
             </div>
           </div>
         </div>
@@ -340,46 +378,7 @@ export function AppSidebar() {
           </Badge>
         )}
 
-        <div className="flex items-center gap-1">
-          {isAdmin && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={viewAsRole ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-8 w-8"
-                  title={viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-40 p-1" side="top" align="start">
-                <div className="space-y-0.5">
-                  <Button
-                    variant={viewAsRole === null ? "secondary" : "ghost"}
-                    size="sm"
-                    className="w-full justify-start text-sm"
-                    onClick={() => setViewAsRole(null)}
-                  >
-                    My Role ({roleLabel(role || "")})
-                  </Button>
-                  {(["worker", "coworker", "accountant", "visitor"] as const).map((r) => (
-                    <Button
-                      key={r}
-                      variant={viewAsRole === r ? "secondary" : "ghost"}
-                      size="sm"
-                      className="w-full justify-start text-sm"
-                      onClick={() => setViewAsRole(r)}
-                    >
-                      {roleLabel(r)}
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-
-        </div>
+        <div className="flex items-center gap-1"></div>
       </SidebarFooter>
     </Sidebar>
   );

@@ -38,6 +38,8 @@ import {
   useUnmarkAsPaid,
   useAttachmentExpenses,
   type ConfirmationAttachment,
+  type AttachmentExpense,
+  type AttachmentExpenseRecord,
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSavedHotels } from "@/hooks/useSavedData";
@@ -61,13 +63,20 @@ export default function ConfirmationAttachments() {
   
   const { data: confirmation, isLoading: confirmationLoading } = useConfirmation(id);
   const { data: attachments, isLoading: attachmentsLoading } = useConfirmationAttachments(id);
-  const { data: expenseMap } = useAttachmentExpenses(id);
+  const { data: expenseInfo } = useAttachmentExpenses(id);
   const { data: savedHotels } = useSavedHotels();
   const uploadMutation = useUploadAttachment();
   const deleteMutation = useDeleteAttachment();
   const markPaidMutation = useMarkAsPaid();
   const unmarkPaidMutation = useUnmarkAsPaid();
   const updateNotesMutation = useUpdateConfirmationNotes();
+  const expenseMap: Record<string, AttachmentExpense> = expenseInfo?.amountMap || {};
+  const expenseRecords: Record<string, AttachmentExpenseRecord> = expenseInfo?.records || {};
+  
+  const invoiceAmountMap = useMemo(() => {
+    const raw = (confirmation as any)?.raw_payload?.invoice_amounts;
+    return raw && typeof raw === "object" ? (raw as Record<string, { amount: number; currency?: string }>) : {};
+  }, [confirmation]);
   
   const [isDragging, setIsDragging] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -95,9 +104,10 @@ export default function ConfirmationAttachments() {
   // Notes state
   const [notes, setNotes] = useState("");
   const [notesEditing, setNotesEditing] = useState(false);
-  const [manualInvoiceChecks, setManualInvoiceChecks] = useState<string[]>([]);
-  const [invoiceCheckSaving, setInvoiceCheckSaving] = useState<string | null>(null);
+  const [manualPaymentChecks, setManualPaymentChecks] = useState<string[]>([]);
+  const [paymentCheckSaving, setPaymentCheckSaving] = useState<string | null>(null);
   const autoPaidStatusRef = useRef<"paid" | "pending" | null>(null);
+  const paymentExpenseMigrationRef = useRef<string | null>(null);
   
   // Sync notes when confirmation loads
   useEffect(() => {
@@ -108,8 +118,9 @@ export default function ConfirmationAttachments() {
 
   useEffect(() => {
     if (confirmation) {
+      // Legacy field name: invoice_checks now tracks manual payment checks.
       const rawChecks = (confirmation as any).raw_payload?.invoice_checks;
-      setManualInvoiceChecks(Array.isArray(rawChecks) ? rawChecks : []);
+      setManualPaymentChecks(Array.isArray(rawChecks) ? rawChecks : []);
     }
   }, [confirmation]);
   
@@ -312,9 +323,28 @@ export default function ConfirmationAttachments() {
     (stay) => !ownedHotelSet.has(stay.hotel.trim().toLowerCase())
   );
 
-  const isPaymentAttachment = (fileName: string) => {
-    const lower = fileName.toLowerCase();
-    return lower.includes("payment") || lower.includes("paid") || lower.includes("po");
+  const getAttachmentKind = (
+    attachment: ConfirmationAttachment,
+    expenseLookup?: Record<string, AttachmentExpense>,
+    invoiceLookup?: Record<string, { amount: number; currency?: string }>
+  ): "invoice" | "payment" => {
+    const lower = attachment.file_name.toLowerCase();
+    if (lower.includes("payment") || lower.includes("paid") || lower.includes("po")) return "payment";
+    if (lower.includes("invoice")) return "invoice";
+    if (invoiceLookup && invoiceLookup[attachment.id]) return "invoice";
+    if (expenseLookup && expenseLookup[attachment.id]) return "payment";
+    return "invoice";
+  };
+
+  const getAttachmentKindByName = (
+    attachment: ConfirmationAttachment,
+    invoiceLookup?: Record<string, { amount: number; currency?: string }>
+  ): "invoice" | "payment" | "unknown" => {
+    const lower = attachment.file_name.toLowerCase();
+    if (lower.includes("payment") || lower.includes("paid") || lower.includes("po")) return "payment";
+    if (lower.includes("invoice")) return "invoice";
+    if (invoiceLookup && invoiceLookup[attachment.id]) return "invoice";
+    return "unknown";
   };
 
   const getStayKey = (hotelName: string, stayIndex: number) =>
@@ -338,7 +368,9 @@ export default function ConfirmationAttachments() {
   const buildAttachmentStayMap = (
     items: ConfirmationAttachment[],
     stays: { hotel: string }[],
-    existing: Record<string, string>
+    existing: Record<string, string>,
+    expenseLookup?: Record<string, AttachmentExpense>,
+    invoiceLookup?: Record<string, { amount: number; currency?: string }>
   ) => {
     const map = { ...existing };
     const attachmentIds = new Set(items.map((a) => a.id));
@@ -442,7 +474,7 @@ export default function ConfirmationAttachments() {
         if (!stayKey) return;
         const counts = stayCounts.get(stayKey);
         if (!counts) return;
-        if (isPaymentAttachment(attachment.file_name)) {
+        if (getAttachmentKind(attachment, expenseLookup, invoiceLookup) === "payment") {
           counts.payment += 1;
         } else {
           counts.invoice += 1;
@@ -454,7 +486,7 @@ export default function ConfirmationAttachments() {
         .sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
 
       remaining.forEach((attachment) => {
-        const isPayment = isPaymentAttachment(attachment.file_name);
+        const isPayment = getAttachmentKind(attachment, expenseLookup, invoiceLookup) === "payment";
         const targetStay =
           stayOrder.find((key) => {
             const counts = stayCounts.get(key);
@@ -488,8 +520,14 @@ export default function ConfirmationAttachments() {
     if (!attachments || !visibleHotelStays.length) {
       return { map: rawAttachmentStayMap, changed: false };
     }
-    return buildAttachmentStayMap(attachments, visibleHotelStays, rawAttachmentStayMap);
-  }, [attachments, visibleHotelStays, rawAttachmentStayMap]);
+    return buildAttachmentStayMap(
+      attachments,
+      visibleHotelStays,
+      rawAttachmentStayMap,
+      expenseMap,
+      invoiceAmountMap
+    );
+  }, [attachments, visibleHotelStays, rawAttachmentStayMap, expenseMap, invoiceAmountMap]);
 
 
   useEffect(() => {
@@ -522,7 +560,7 @@ export default function ConfirmationAttachments() {
       const stayKey = derivedStayMapInfo.map[attachment.id] || null;
       if (!stayKey) return;
       const bucket = buckets.get(stayKey) || { invoice: [], payment: [] };
-      if (isPaymentAttachment(attachment.file_name)) {
+      if (getAttachmentKind(attachment, expenseMap, invoiceAmountMap) === "payment") {
         bucket.payment.push(attachment);
       } else {
         bucket.invoice.push(attachment);
@@ -537,7 +575,93 @@ export default function ConfirmationAttachments() {
     });
 
     return map;
+  }, [attachments, visibleHotelStays, derivedStayMapInfo.map, expenseMap, invoiceAmountMap]);
+
+  const attachmentsByStayRaw = useMemo(() => {
+    const map = new Map<string, ConfirmationAttachment[]>();
+    if (!attachments || visibleHotelStays.length === 0) return map;
+
+    attachments.forEach((attachment) => {
+      const stayKey = derivedStayMapInfo.map[attachment.id] || null;
+      if (!stayKey) return;
+      const list = map.get(stayKey) || [];
+      list.push(attachment);
+      map.set(stayKey, list);
+    });
+
+    return map;
   }, [attachments, visibleHotelStays, derivedStayMapInfo.map]);
+
+  useEffect(() => {
+    if (!id || attachmentsLoading || !attachments || !expenseInfo) return;
+    if (paymentExpenseMigrationRef.current === id) return;
+
+    const updates: Array<{ expense: AttachmentExpenseRecord; payment: ConfirmationAttachment }> = [];
+
+    attachmentsByStayRaw.forEach((list) => {
+      if (list.length < 2) return;
+      const paymentAttachment = list.find(
+        (attachment) => getAttachmentKindByName(attachment, invoiceAmountMap) === "payment"
+      );
+      const invoiceAttachment = list.find(
+        (attachment) => getAttachmentKindByName(attachment, invoiceAmountMap) === "invoice"
+      );
+      if (!paymentAttachment || !invoiceAttachment) return;
+      if (expenseRecords[paymentAttachment.id]) return;
+
+      const invoiceExpense = expenseRecords[invoiceAttachment.id];
+      if (!invoiceExpense) return;
+
+      updates.push({ expense: invoiceExpense, payment: paymentAttachment });
+    });
+
+    paymentExpenseMigrationRef.current = id;
+    if (updates.length === 0) return;
+
+    const migrate = async () => {
+      try {
+        await Promise.all(
+          updates.map(async ({ expense, payment }) => {
+            const description = `Payment: ${payment.file_name}`;
+            const { error: expenseError } = await supabase
+              .from("expenses")
+              .update({ attachment_id: payment.id, description })
+              .eq("id", expense.id);
+            if (expenseError) {
+              console.error("Failed to migrate expense:", expenseError);
+              return;
+            }
+
+            if (expense.description) {
+              const { error: transactionError } = await supabase
+                .from("transactions")
+                .update({ description })
+                .eq("confirmation_id", id)
+                .eq("type", "expense")
+                .eq("description", expense.description);
+              if (transactionError) {
+                console.error("Failed to migrate transaction:", transactionError);
+              }
+            }
+          })
+        );
+      } finally {
+        queryClient.invalidateQueries({ queryKey: ["attachment-expenses", id] });
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      }
+    };
+
+    void migrate();
+  }, [
+    id,
+    attachmentsLoading,
+    attachments,
+    expenseInfo,
+    attachmentsByStayRaw,
+    invoiceAmountMap,
+    expenseRecords,
+    queryClient,
+  ]);
 
   const setPaidStatusSilently = useCallback(
     async (nextPaid: boolean) => {
@@ -568,7 +692,7 @@ export default function ConfirmationAttachments() {
     [id, queryClient]
   );
 
-  // Auto-mark as paid when all visible hotel stays have invoice uploaded or manually checked
+  // Auto-mark as paid when all visible hotel stays have payment order uploaded or manually checked
   useEffect(() => {
     if (!confirmation || !id || attachmentsLoading) return;
     const isPaidNow = Boolean((confirmation as any).is_paid);
@@ -581,8 +705,8 @@ export default function ConfirmationAttachments() {
     const allCovered = visibleHotelStays.every((stay, idx) => {
       const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
       const stayKey = getStayKey(stay.hotel, sameHotelBefore);
-      const invoiceMatch = attachmentsByStay.get(stayKey)?.invoice;
-      return Boolean(invoiceMatch) || manualInvoiceChecks.includes(stayKey);
+      const paymentMatch = attachmentsByStay.get(stayKey)?.payment;
+      return Boolean(paymentMatch) || manualPaymentChecks.includes(stayKey);
     });
 
     if (allCovered && !isPaidNow) {
@@ -598,7 +722,7 @@ export default function ConfirmationAttachments() {
     attachmentsLoading,
     visibleHotelStays,
     attachmentsByStay,
-    manualInvoiceChecks,
+    manualPaymentChecks,
     setPaidStatusSilently,
   ]);
 
@@ -636,14 +760,14 @@ export default function ConfirmationAttachments() {
   }
 
 
-  const toggleManualInvoiceCheck = async (stayKey: string, nextChecked: boolean) => {
+  const toggleManualPaymentCheck = async (stayKey: string, nextChecked: boolean) => {
     if (!id) return;
-    const prev = manualInvoiceChecks;
+    const prev = manualPaymentChecks;
     const nextChecks = nextChecked
-      ? Array.from(new Set([...manualInvoiceChecks, stayKey]))
-      : manualInvoiceChecks.filter((k) => k !== stayKey);
-    setManualInvoiceChecks(nextChecks);
-    setInvoiceCheckSaving(stayKey);
+      ? Array.from(new Set([...manualPaymentChecks, stayKey]))
+      : manualPaymentChecks.filter((k) => k !== stayKey);
+    setManualPaymentChecks(nextChecks);
+    setPaymentCheckSaving(stayKey);
 
     const rawPayload = { ...(confirmation?.raw_payload || {}), invoice_checks: nextChecks };
     const { error } = await supabase
@@ -652,7 +776,7 @@ export default function ConfirmationAttachments() {
       .eq("id", id);
 
     if (error) {
-      setManualInvoiceChecks(prev);
+      setManualPaymentChecks(prev);
       toast({
         title: "Update failed",
         description: error.message,
@@ -661,7 +785,7 @@ export default function ConfirmationAttachments() {
     } else {
       queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
     }
-    setInvoiceCheckSaving(null);
+    setPaymentCheckSaving(null);
   };
 
   const handleHotelFileSelect = (
@@ -694,11 +818,11 @@ export default function ConfirmationAttachments() {
     type: "invoice" | "payment"
   ) => {
     deleteMutation.mutate(
-      { attachmentId, filePath, confirmationId },
+      { attachmentId, filePath, confirmationId, attachmentType: type },
       {
         onSuccess: () => {
-          if (type === "invoice" && manualInvoiceChecks.includes(stayKey)) {
-            toggleManualInvoiceCheck(stayKey, false);
+          if (type === "payment" && manualPaymentChecks.includes(stayKey)) {
+            toggleManualPaymentCheck(stayKey, false);
           }
         },
       }
@@ -852,18 +976,25 @@ export default function ConfirmationAttachments() {
                 const invoiceMatch = attachmentMatches?.invoice ?? null;
                 const paymentMatch = attachmentMatches?.payment ?? null;
                 const hasInvoiceUpload = !!invoiceMatch;
-                const manualChecked = manualInvoiceChecks.includes(stayKey);
-                const invoiceChecked = hasInvoiceUpload || manualChecked;
                 const hasPayment = !!paymentMatch;
-                const isSavingCheck = invoiceCheckSaving === stayKey;
-                const expense = invoiceMatch && expenseMap?.[invoiceMatch.id];
+                const manualChecked = manualPaymentChecks.includes(stayKey);
+                const paymentChecked = hasPayment || manualChecked;
+                const isSavingCheck = paymentCheckSaving === stayKey;
+                const paymentExpense = paymentMatch ? expenseMap?.[paymentMatch.id] : undefined;
+                const rawInvoiceAmount = invoiceMatch ? invoiceAmountMap[invoiceMatch.id] : undefined;
+                const invoiceAmount =
+                  typeof rawInvoiceAmount === "number"
+                    ? { amount: rawInvoiceAmount, currency: "USD" }
+                    : rawInvoiceAmount;
+                const displayAmount = paymentExpense || invoiceAmount;
+                const displayCurrency = displayAmount?.currency || "USD";
 
                 return (
                   <div
                     key={`${stay.hotel}-${idx}`}
                     className={cn(
                       "flex items-center gap-3 p-3 rounded-lg border transition-colors group",
-                      invoiceChecked
+                      paymentChecked
                         ? "bg-emerald-500/5 border-emerald-500/20"
                         : "bg-muted/30 border-border"
                     )}
@@ -871,27 +1002,27 @@ export default function ConfirmationAttachments() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (!hasInvoiceUpload) {
-                          toggleManualInvoiceCheck(stayKey, !manualChecked);
+                        if (!hasPayment) {
+                          toggleManualPaymentCheck(stayKey, !manualChecked);
                         }
                       }}
-                      disabled={hasInvoiceUpload || isSavingCheck}
-                      aria-label={invoiceChecked ? "Payment checked" : "Mark payment checked"}
+                      disabled={hasPayment || isSavingCheck}
+                      aria-label={paymentChecked ? "Payment checked" : "Mark payment checked"}
                       className={cn(
                         "flex items-center justify-center h-7 w-7 rounded-full shrink-0 transition-colors",
-                        invoiceChecked
+                        paymentChecked
                           ? "bg-emerald-500 text-white"
                           : "border-2 border-muted-foreground/30",
-                        !hasInvoiceUpload && "hover:border-emerald-500/70 hover:bg-emerald-50",
-                        (hasInvoiceUpload || isSavingCheck) && "cursor-default"
+                        !hasPayment && "hover:border-emerald-500/70 hover:bg-emerald-50",
+                        (hasPayment || isSavingCheck) && "cursor-default"
                       )}
                     >
-                      {invoiceChecked && <CheckCircle className="h-4 w-4" />}
+                      {paymentChecked && <CheckCircle className="h-4 w-4" />}
                     </button>
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "text-sm font-medium truncate",
-                        invoiceChecked && "text-emerald-700 dark:text-emerald-400"
+                        paymentChecked && "text-emerald-700 dark:text-emerald-400"
                       )}>
                         {stay.hotel}
                       </p>
@@ -899,102 +1030,25 @@ export default function ConfirmationAttachments() {
                         {stay.checkIn}{stay.checkOut && stay.checkOut !== stay.checkIn ? ` → ${stay.checkOut}` : ""}
                       </p>
                     </div>
-                    {hasInvoiceUpload && expense?.amount != null && (
-                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
-                        {expense.currency === "GEL" ? "₾" : "$"}{expense.amount.toLocaleString()}
+                    {displayAmount?.amount != null && (
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "shrink-0",
+                          hasPayment
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : "border border-amber-200 bg-amber-50/70 text-amber-700 dark:border-amber-500/30 dark:bg-amber-900/30 dark:text-amber-400"
+                        )}
+                      >
+                        {displayCurrency === "GEL" ? "₾" : "$"}{displayAmount.amount.toLocaleString()}
                       </Badge>
                     )}
                     <div className="flex flex-col gap-2 shrink-0">
                       <div className={cn(
                         "flex items-center gap-2 rounded-md border px-2 py-1",
-                        invoiceChecked ? "border-emerald-200 bg-emerald-50/70 text-emerald-700" : "border-border bg-background"
+                        hasPayment ? "border-emerald-200 bg-emerald-50/70 text-emerald-700" : "border-border bg-background"
                       )}>
                         <span className="text-xs font-medium w-16">Payment</span>
-                        {hasInvoiceUpload && invoiceMatch ? (
-                          <div className="flex items-center gap-1 ml-auto">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handlePreview(invoiceMatch.file_path, invoiceMatch.file_name, invoiceMatch.id)}
-                              disabled={previewLoadingId === invoiceMatch.id}
-                              title="Preview payment"
-                              className="h-7 w-7"
-                            >
-                              {previewLoadingId === invoiceMatch.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Eye className="h-3.5 w-3.5" />
-                              )}
-                            </Button>
-                            {canDelete && (
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-destructive hover:text-destructive"
-                                    title="Delete invoice"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Payment</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete "{invoiceMatch.file_name}"? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDeleteAttachment(
-                                        invoiceMatch.id,
-                                        invoiceMatch.file_path,
-                                        id!,
-                                        stayKey,
-                                        "invoice"
-                                      )}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            )}
-                          </div>
-                        ) : canUpload ? (
-                          <label className="ml-auto">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 w-7 p-0 border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-50"
-                              asChild
-                            >
-                              <span>
-                                <Upload className="h-3.5 w-3.5" />
-                                <span className="sr-only">Upload invoice</span>
-                              </span>
-                            </Button>
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept=".pdf,application/pdf"
-                              onChange={(e) =>
-                                handleHotelFileSelect(e, stay.hotel, stayKey, sameHotelBefore, "invoice")
-                              }
-                              disabled={uploadMutation.isPending}
-                            />
-                          </label>
-                        ) : null}
-                      </div>
-
-                      <div className={cn(
-                        "flex items-center gap-2 rounded-md border px-2 py-1",
-                        hasPayment ? "border-amber-200 bg-amber-50/70 text-amber-700" : "border-border bg-background"
-                      )}>
-                        <span className="text-xs font-medium w-16">Invoice</span>
                         {hasPayment && paymentMatch ? (
                           <div className="flex items-center gap-1 ml-auto">
                             <Button
@@ -1002,7 +1056,7 @@ export default function ConfirmationAttachments() {
                               size="icon"
                               onClick={() => handlePreview(paymentMatch.file_path, paymentMatch.file_name, paymentMatch.id)}
                               disabled={previewLoadingId === paymentMatch.id}
-                              title="Preview invoice"
+                              title="Preview payment order"
                               className="h-7 w-7"
                             >
                               {previewLoadingId === paymentMatch.id ? (
@@ -1025,7 +1079,7 @@ export default function ConfirmationAttachments() {
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
                                   <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Invoice Order</AlertDialogTitle>
+                                    <AlertDialogTitle>Delete Payment Order</AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Are you sure you want to delete "{paymentMatch.file_name}"? This action cannot be undone.
                                     </AlertDialogDescription>
@@ -1054,7 +1108,7 @@ export default function ConfirmationAttachments() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-7 w-7 p-0 border-amber-200 text-amber-700 bg-amber-50/60 hover:bg-amber-50"
+                              className="h-7 w-7 p-0 border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-50"
                               asChild
                             >
                               <span>
@@ -1068,6 +1122,91 @@ export default function ConfirmationAttachments() {
                               accept=".pdf,application/pdf"
                               onChange={(e) =>
                                 handleHotelFileSelect(e, stay.hotel, stayKey, sameHotelBefore, "payment")
+                              }
+                              disabled={uploadMutation.isPending}
+                            />
+                          </label>
+                        ) : null}
+                      </div>
+
+                      <div className={cn(
+                        "flex items-center gap-2 rounded-md border px-2 py-1",
+                        hasInvoiceUpload ? "border-amber-200 bg-amber-50/70 text-amber-700" : "border-border bg-background"
+                      )}>
+                        <span className="text-xs font-medium w-16">Invoice</span>
+                        {hasInvoiceUpload && invoiceMatch ? (
+                          <div className="flex items-center gap-1 ml-auto">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handlePreview(invoiceMatch.file_path, invoiceMatch.file_name, invoiceMatch.id)}
+                              disabled={previewLoadingId === invoiceMatch.id}
+                              title="Preview invoice"
+                              className="h-7 w-7"
+                            >
+                              {previewLoadingId === invoiceMatch.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            {canDelete && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                    title="Delete invoice"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete "{invoiceMatch.file_name}"? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteAttachment(
+                                        invoiceMatch.id,
+                                        invoiceMatch.file_path,
+                                        id!,
+                                        stayKey,
+                                        "invoice"
+                                      )}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
+                        ) : canUpload ? (
+                          <label className="ml-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0 border-amber-200 text-amber-700 bg-amber-50/60 hover:bg-amber-50"
+                              asChild
+                            >
+                              <span>
+                                <Upload className="h-3.5 w-3.5" />
+                                <span className="sr-only">Upload invoice</span>
+                              </span>
+                            </Button>
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept=".pdf,application/pdf"
+                              onChange={(e) =>
+                                handleHotelFileSelect(e, stay.hotel, stayKey, sameHotelBefore, "invoice")
                               }
                               disabled={uploadMutation.isPending}
                             />
@@ -1099,21 +1238,23 @@ export default function ConfirmationAttachments() {
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{uploadType === "payment" ? "Upload Invoice Order" : "Upload Payment"}</DialogTitle>
+              <DialogTitle>{uploadType === "payment" ? "Upload Payment Order" : "Upload Invoice"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="invoice-name">{uploadType === "payment" ? "Invoice Order Name" : "Payment Name"}</Label>
+                <Label htmlFor="invoice-name">{uploadType === "payment" ? "Payment Order Name" : "Invoice Name"}</Label>
                 <Input
                   id="invoice-name"
                   value={invoiceName}
                   onChange={(e) => setInvoiceName(e.target.value)}
-                  placeholder={uploadType === "payment" ? "e.g. Hotel Marriott - Invoice Order" : "e.g. Hotel Marriott - Room 204"}
+                  placeholder={uploadType === "payment" ? "e.g. Hotel Marriott - Payment Order" : "e.g. Hotel Marriott - Room 204"}
                 />
                 <p className="text-xs text-muted-foreground">.pdf will be added automatically</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-amount">Amount Paid</Label>
+                <Label htmlFor="invoice-amount">
+                  {uploadType === "payment" ? "Amount Paid" : "Invoice Amount"}
+                </Label>
                 <div className="flex gap-2">
                   <Input
                     id="invoice-amount"
@@ -1154,8 +1295,8 @@ export default function ConfirmationAttachments() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {uploadType === "payment"
-                    ? "This will be saved as a payment order (no expense recorded)."
-                    : "This will be recorded as a hotel expense"}
+                    ? "This will be recorded as a hotel expense."
+                    : "Reference only (no ledger entry)."}
                   {uploadType !== "payment" && invoiceCurrency === "GEL" && invoiceAmount && (
                     <span className="text-muted-foreground">
                       {" "}(??? ${(parseFloat(invoiceAmount) * exchangeRate.gel_to_usd).toFixed(2)} USD)

@@ -36,11 +36,23 @@ export interface AttachmentExpense {
   currency: string;
 }
 
+export interface AttachmentExpenseRecord {
+  id: string;
+  attachment_id: string;
+  amount: number;
+  description: string | null;
+}
+
+export interface AttachmentExpenseInfo {
+  amountMap: Record<string, AttachmentExpense>;
+  records: Record<string, AttachmentExpenseRecord>;
+}
+
 export const useAttachmentExpenses = (confirmationId?: string) => {
   return useQuery({
     queryKey: ["attachment-expenses", confirmationId],
     queryFn: async () => {
-      if (!confirmationId) return {};
+      if (!confirmationId) return { amountMap: {}, records: {} } as AttachmentExpenseInfo;
       
       // Get from transactions table which has currency info
       const { data, error } = await supabase
@@ -54,12 +66,13 @@ export const useAttachmentExpenses = (confirmationId?: string) => {
       // Also get attachment mapping from expenses table
       const { data: expenses } = await supabase
         .from("expenses")
-        .select("attachment_id, amount, description")
+        .select("id, attachment_id, amount, description")
         .eq("confirmation_id", confirmationId)
         .not("attachment_id", "is", null);
       
       // Create a map of attachment_id -> {amount, currency}
       const expenseMap: Record<string, AttachmentExpense> = {};
+      const expenseRecords: Record<string, AttachmentExpenseRecord> = {};
       expenses?.forEach((expense) => {
         if (expense.attachment_id) {
           // Find matching transaction to get currency
@@ -68,9 +81,15 @@ export const useAttachmentExpenses = (confirmationId?: string) => {
             amount: Number(expense.amount),
             currency: matchingTx?.currency || "USD",
           };
+          expenseRecords[expense.attachment_id] = {
+            id: expense.id,
+            attachment_id: expense.attachment_id,
+            amount: Number(expense.amount),
+            description: expense.description,
+          };
         }
       });
-      return expenseMap;
+      return { amountMap: expenseMap, records: expenseRecords } as AttachmentExpenseInfo;
     },
     enabled: !!confirmationId,
   });
@@ -94,9 +113,9 @@ export const useUploadAttachment = () => {
       confirmationId: string; 
       file: File;
       customName?: string;
-      amount?: number; // Amount in USD for storage
-      originalCurrency?: string; // Original currency entered
-      originalAmount?: number; // Original amount before conversion
+      amount?: number; // Amount entered by user
+      originalCurrency?: string; // Currency selected
+      originalAmount?: number; // Kept for compatibility
       attachmentType?: "invoice" | "payment";
       stayKey?: string;
     }) => {
@@ -108,6 +127,7 @@ export const useUploadAttachment = () => {
         customName?.toLowerCase().includes("payment") ||
         customName?.toLowerCase().includes("paid") ||
         customName?.toLowerCase().includes("po");
+      const hasAmount = typeof amount === "number" && !Number.isNaN(amount) && amount > 0;
 
       // Upload to storage
       const fileExt = file.name.split('.').pop();
@@ -139,47 +159,156 @@ export const useUploadAttachment = () => {
 
       if (error) throw error;
 
-      // Create transaction for ledger tracking if amount is provided
-      if (!isPaymentOrder && amount && amount > 0 && data) {
-        // Store in original currency for display, amount is already converted to USD
-        const storageCurrency = originalCurrency || "USD";
-        const storageAmount = originalAmount || amount;
-        
-        const { error: transactionError } = await supabase
-          .from("transactions")
-          .insert({
-            date: new Date().toISOString().split('T')[0],
-            kind: "out",
-            type: "expense",
-            category: "hotel",
-            description: `Invoice: ${displayName}`,
-            amount: storageAmount,
-            currency: storageCurrency,
-            status: "confirmed",
-            confirmation_id: confirmationId,
-            is_auto_generated: false,
-            is_paid: true,
-          });
-        
-        if (transactionError) {
-          console.error("Failed to create transaction:", transactionError);
+      const storageCurrency = originalCurrency || "USD";
+      const storageAmount = originalAmount || amount || 0;
+
+      // Invoice amount is for reference only (not ledger)
+      if (!isPaymentOrder && hasAmount && data) {
+        try {
+          const { data: confirmation } = await supabase
+            .from("confirmations")
+            .select("raw_payload")
+            .eq("id", confirmationId)
+            .maybeSingle();
+
+          const rawPayload = (confirmation?.raw_payload && typeof confirmation.raw_payload === "object")
+            ? (confirmation.raw_payload as Record<string, any>)
+            : {};
+          const existing = rawPayload.invoice_amounts && typeof rawPayload.invoice_amounts === "object"
+            ? { ...rawPayload.invoice_amounts }
+            : {};
+          existing[data.id] = { amount: storageAmount, currency: storageCurrency };
+
+          const { error: payloadError } = await supabase
+            .from("confirmations")
+            .update({ raw_payload: { ...rawPayload, invoice_amounts: existing } })
+            .eq("id", confirmationId);
+
+          if (payloadError) {
+            console.error("Failed to store invoice amount:", payloadError);
+          }
+        } catch (err) {
+          console.error("Failed to store invoice amount:", err);
+        }
+      }
+
+      // Create or update ledger expense when payment order is uploaded
+      if (isPaymentOrder && hasAmount && data) {
+        const today = new Date().toISOString().split("T")[0];
+        const description = `Payment: ${displayName}`;
+        let existingExpense: { id: string; description: string | null } | null = null;
+
+        if (stayPathKey) {
+          const { data: stayAttachments, error: stayError } = await supabase
+            .from("confirmation_attachments")
+            .select("id")
+            .eq("confirmation_id", confirmationId)
+            .ilike("file_path", `%/${stayPathKey}/%`);
+
+          if (!stayError && stayAttachments?.length) {
+            const stayAttachmentIds = stayAttachments.map((a) => a.id);
+            const { data: existingExpenses, error: expenseLookupError } = await supabase
+              .from("expenses")
+              .select("id, description")
+              .eq("confirmation_id", confirmationId)
+              .in("attachment_id", stayAttachmentIds)
+              .limit(1);
+
+            if (!expenseLookupError && existingExpenses?.length) {
+              existingExpense = existingExpenses[0];
+            }
+          }
         }
 
-        // Also create expense record linked to attachment for tracking
-        const { error: expenseError } = await supabase
-          .from("expenses")
-          .insert({
-            confirmation_id: confirmationId,
-            expense_type: "hotel",
-            description: `Invoice: ${displayName}`,
-            amount: storageAmount,
-            expense_date: new Date().toISOString().split('T')[0],
-            created_by: user.id,
-            attachment_id: data.id,
-          });
-        
-        if (expenseError) {
-          console.error("Failed to create expense:", expenseError);
+        if (existingExpense) {
+          const { error: updateExpenseError } = await supabase
+            .from("expenses")
+            .update({
+              attachment_id: data.id,
+              amount: storageAmount,
+              description,
+              expense_type: "hotel",
+              expense_date: today,
+            })
+            .eq("id", existingExpense.id);
+
+          if (updateExpenseError) {
+            console.error("Failed to update expense:", updateExpenseError);
+          }
+
+          if (existingExpense.description) {
+            const { error: updateTxError } = await supabase
+              .from("transactions")
+              .update({
+                amount: storageAmount,
+                currency: storageCurrency,
+                description,
+                date: today,
+              })
+              .eq("confirmation_id", confirmationId)
+              .eq("type", "expense")
+              .eq("description", existingExpense.description);
+
+            if (updateTxError) {
+              console.error("Failed to update transaction:", updateTxError);
+            }
+          } else {
+            const { error: transactionError } = await supabase
+              .from("transactions")
+              .insert({
+                date: today,
+                kind: "out",
+                type: "expense",
+                category: "hotel",
+                description,
+                amount: storageAmount,
+                currency: storageCurrency,
+                status: "confirmed",
+                confirmation_id: confirmationId,
+                is_auto_generated: false,
+                is_paid: true,
+              });
+
+            if (transactionError) {
+              console.error("Failed to create transaction:", transactionError);
+            }
+          }
+        } else {
+          const { error: transactionError } = await supabase
+            .from("transactions")
+            .insert({
+              date: today,
+              kind: "out",
+              type: "expense",
+              category: "hotel",
+              description,
+              amount: storageAmount,
+              currency: storageCurrency,
+              status: "confirmed",
+              confirmation_id: confirmationId,
+              is_auto_generated: false,
+              is_paid: true,
+            });
+
+          if (transactionError) {
+            console.error("Failed to create transaction:", transactionError);
+          }
+
+          const { error: expenseError } = await supabase
+            .from("expenses")
+            .insert({
+              confirmation_id: confirmationId,
+              expense_type: "hotel",
+              description,
+              amount: storageAmount,
+              expense_date: today,
+              created_by: user.id,
+              attachment_id: data.id,
+            });
+
+          if (expenseError) {
+            console.error("Failed to create expense:", expenseError);
+          }
         }
       }
 
@@ -194,12 +323,15 @@ export const useUploadAttachment = () => {
         queryKey: ["attachment-expenses", variables.confirmationId] 
       });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", variables.confirmationId] });
       toast({
         title: variables.attachmentType === "payment" ? "Payment order uploaded" : "Invoice uploaded",
         description: variables.attachmentType === "payment"
-          ? "The payment order has been attached successfully."
+          ? variables.amount
+            ? "Payment order uploaded and expense recorded."
+            : "The payment order has been attached successfully."
           : variables.amount 
-            ? `Invoice uploaded and $${variables.amount} expense recorded.`
+            ? "Invoice uploaded (amount saved for reference only)."
             : "The invoice has been attached successfully.",
       });
     },
@@ -221,11 +353,13 @@ export const useDeleteAttachment = () => {
     mutationFn: async ({
       attachmentId,
       filePath,
-      confirmationId
+      confirmationId,
+      attachmentType,
     }: {
       attachmentId: string;
       filePath: string;
       confirmationId: string;
+      attachmentType?: "invoice" | "payment";
     }) => {
       // Look up the attachment name to match the linked transaction description
       const { data: attachment } = await supabase
@@ -234,20 +368,54 @@ export const useDeleteAttachment = () => {
         .eq("id", attachmentId)
         .maybeSingle();
 
-      // Delete associated expense
-      await supabase
-        .from("expenses")
-        .delete()
-        .eq("attachment_id", attachmentId);
-
-      // Delete the matching ledger transaction created during upload.
-      // Transactions don't store attachment_id, so match by description + confirmation.
-      if (attachment?.file_name) {
+      if (attachmentType === "payment") {
+        // Delete associated expense
         await supabase
-          .from("transactions")
+          .from("expenses")
           .delete()
-          .eq("confirmation_id", confirmationId)
-          .eq("description", `Invoice: ${attachment.file_name}`);
+          .eq("attachment_id", attachmentId);
+
+        // Delete the matching ledger transaction created during upload.
+        // Transactions don't store attachment_id, so match by description + confirmation.
+        if (attachment?.file_name) {
+          const descriptions = [
+            `Payment: ${attachment.file_name}`,
+            `Invoice: ${attachment.file_name}`,
+          ];
+          await supabase
+            .from("transactions")
+            .delete()
+            .eq("confirmation_id", confirmationId)
+            .eq("type", "expense")
+            .in("description", descriptions);
+        }
+      }
+
+      if (attachmentType === "invoice") {
+        try {
+          const { data: confirmation } = await supabase
+            .from("confirmations")
+            .select("raw_payload")
+            .eq("id", confirmationId)
+            .maybeSingle();
+
+          const rawPayload = (confirmation?.raw_payload && typeof confirmation.raw_payload === "object")
+            ? (confirmation.raw_payload as Record<string, any>)
+            : {};
+          const existing = rawPayload.invoice_amounts && typeof rawPayload.invoice_amounts === "object"
+            ? { ...rawPayload.invoice_amounts }
+            : {};
+
+          if (existing[attachmentId]) {
+            delete existing[attachmentId];
+            await supabase
+              .from("confirmations")
+              .update({ raw_payload: { ...rawPayload, invoice_amounts: existing } })
+              .eq("id", confirmationId);
+          }
+        } catch (err) {
+          console.error("Failed to remove invoice amount:", err);
+        }
       }
 
       // Delete from storage
@@ -264,7 +432,7 @@ export const useDeleteAttachment = () => {
         .eq("id", attachmentId);
 
       if (error) throw error;
-      return { confirmationId };
+      return { confirmationId, attachmentType };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({
@@ -274,9 +442,12 @@ export const useDeleteAttachment = () => {
       queryClient.invalidateQueries({
         queryKey: ["attachment-expenses", data.confirmationId]
       });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", data.confirmationId] });
       toast({
         title: "File deleted",
-        description: "The attachment and its ledger entry have been removed.",
+        description: data.attachmentType === "payment"
+          ? "The payment order and its ledger entry have been removed."
+          : "The attachment has been removed.",
       });
     },
     onError: (error: Error) => {

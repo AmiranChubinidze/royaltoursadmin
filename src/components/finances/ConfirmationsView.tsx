@@ -172,10 +172,18 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           .reduce((sum, t) => sum + toUSD(t.amount, t.currency), 0);
 
         // Get invoice expenses from attachments with names
-        const invoiceExpenses = confirmationExpenses.map((e) => ({
-          name: e.description?.replace("Invoice: ", "").replace(".pdf", "") || "Invoice",
-          amount: Number(e.amount),
-        }));
+        const invoiceExpenses = confirmationExpenses.map((e) => {
+          const cleanedName = e.description
+            ? e.description
+                .replace(/^invoice:\s*/i, "")
+                .replace(/^payment:\s*/i, "")
+                .replace(/\.pdf$/i, "")
+            : "Hotel";
+          return {
+            name: cleanedName || "Hotel",
+            amount: Number(e.amount),
+          };
+        });
         const invoiceExpensesTotal = invoiceExpenses.reduce((sum, e) => sum + e.amount, 0);
 
         // Get meals expense from transaction or calculate

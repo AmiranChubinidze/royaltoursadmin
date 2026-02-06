@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import royalGeorgianLogo from "@/assets/royal-georgian-logo-new.png";
+import bannerRgt from "@/assets/banner-rgt.png";
 import { Client } from "@/types/confirmation";
 
 const PRINT_STYLE_ID = "luggage-tag-print-styles";
@@ -8,17 +8,38 @@ const PRINT_BODY_CLASS = "printing-luggage-tag";
 const printStyles = `
 @media print {
   @page { 
-    size: A4 portrait; 
+    size: 297mm 210mm; 
     margin: 0 !important; 
   }
 
   html, body {
     margin: 0 !important;
     padding: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
+    width: 297mm !important;
+    height: 210mm !important;
     overflow: hidden !important;
     background: #fff !important;
+  }
+
+  body.${PRINT_BODY_CLASS} {
+    position: relative !important;
+    width: 297mm !important;
+    height: 210mm !important;
+  }
+
+  body.${PRINT_BODY_CLASS} #root,
+  body.${PRINT_BODY_CLASS} .container,
+  body.${PRINT_BODY_CLASS} .confirmation-letter-wrapper {
+    position: relative !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body.${PRINT_BODY_CLASS} .confirmation-letter-wrapper {
+    position: relative !important;
   }
 
   body.${PRINT_BODY_CLASS},
@@ -27,7 +48,7 @@ const printStyles = `
     visibility: hidden !important;
     overflow: hidden !important;
     height: auto !important;
-    max-height: 297mm !important;
+    max-height: 210mm !important;
   }
   
   body.${PRINT_BODY_CLASS} #luggage-tag-content,
@@ -36,29 +57,31 @@ const printStyles = `
   }
 
   body.${PRINT_BODY_CLASS} #luggage-tag-content {
-    position: fixed !important;
+    position: absolute !important;
     top: 50% !important;
     left: 50% !important;
-    width: 180mm !important;
-    height: 180mm !important;
+    width: 260mm !important;
+    height: 160mm !important;
     margin: 0 !important;
     padding: 0 !important;
-    transform: translate(-50%, -50%) rotate(90deg) !important;
+    transform: translate(-50%, -50%) !important;
     transform-origin: center center !important;
     background: #fff !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   body.${PRINT_BODY_CLASS} #luggage-tag-content img {
-    width: 120mm !important;
+    width: 140mm !important;
     height: auto !important;
-    top: -15mm !important;
+    top: 8mm !important;
   }
 
   body.${PRINT_BODY_CLASS} #luggage-tag-content .guest-name-print {
-    font-size: 32pt !important;
-    white-space: nowrap !important;
-    max-width: none !important;
+    font-size: 28pt !important;
+    white-space: normal !important;
+    max-width: 240mm !important;
+    word-break: break-word !important;
+    line-height: 1.1 !important;
   }
 
   body.${PRINT_BODY_CLASS} .print\\:hidden,
@@ -119,45 +142,46 @@ export function LuggageTagView({ clients }: LuggageTagViewProps) {
   }
 
   return (
-    <div className="flex flex-col items-center">
-      <div
-        id="luggage-tag-content"
-        className="bg-white relative overflow-hidden"
+    <div
+      id="luggage-tag-content"
+      className="bg-white relative overflow-hidden mx-auto"
+      style={{
+        width: "120mm",
+        height: "120mm",
+        borderRadius: 0,
+      }}
+    >
+      <img
+        src={bannerRgt}
+        alt="Royal Georgian Tours"
+        className="object-contain absolute left-1/2"
         style={{
-          width: "120mm",
-          height: "120mm",
-          borderRadius: 0,
+          transform: "translateX(-50%)",
+          width: "90mm",
+          height: "auto",
+          top: "4mm",
         }}
-      >
-        <img
-          src={royalGeorgianLogo}
-          alt="Royal Georgian Tours"
-          className="object-contain absolute left-1/2"
-          style={{
-            transform: "translateX(-50%)",
-            width: "80mm",
-            height: "auto",
-            top: "-10mm",
-          }}
-        />
+      />
 
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div
-            className="uppercase leading-tight text-center guest-name-print"
-            style={{
-              fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
-              fontSize: "22pt",
-              fontWeight: 900,
-              color: "#000000",
-              letterSpacing: "1px",
-              lineHeight: 1.2,
-              maxWidth: "105mm",
-              wordBreak: "break-word",
-              padding: "0 6mm",
-            }}
-          >
-            {mainGuest.name}
-          </div>
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{ paddingTop: "18mm" }}
+      >
+        <div
+          className="uppercase leading-tight text-center guest-name-print"
+          style={{
+            fontFamily: "'Arial Black', 'Helvetica Bold', sans-serif",
+            fontSize: "22pt",
+            fontWeight: 900,
+            color: "#000000",
+            letterSpacing: "1px",
+            lineHeight: 1.2,
+            maxWidth: "105mm",
+            wordBreak: "break-word",
+            padding: "0 6mm",
+          }}
+        >
+          {mainGuest.name}
         </div>
       </div>
     </div>

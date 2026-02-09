@@ -18,7 +18,7 @@ export function FinanceSearch({ value, onChange, placeholder = "Search...", clas
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="pl-9 pr-8 h-9"
+        className="pl-9 pr-8 h-9 rounded-xl border-[#0F4C5C]/15 bg-white focus-visible:ring-[#0F4C5C]/25"
       />
       {value && (
         <Button

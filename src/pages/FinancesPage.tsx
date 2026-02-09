@@ -531,11 +531,27 @@ export default function FinancesPage() {
 
   // Desktop Layout
   return (
-    <div>
+    <div className="animate-fade-in">
       <div className="max-w-7xl mx-auto space-y-5">
         {/* Page title */}
-        <div className="space-y-1">
-          <h1 className="page-title text-[#0F4C5C]">Finances</h1>
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="page-title text-foreground">Finances</h1>
+            <p className="text-muted-foreground">Track balances, exchanges, and cashflow.</p>
+          </div>
+          <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
+            {isThisMonth
+              ? "This month"
+              : isAllTime
+              ? "All time"
+              : dateFrom && dateTo
+              ? `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}`
+              : dateFrom
+              ? `From ${format(dateFrom, "MMM d, yyyy")}`
+              : dateTo
+              ? `Until ${format(dateTo, "MMM d, yyyy")}`
+              : "Custom"}
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -550,8 +566,9 @@ export default function FinancesPage() {
         />
         {/* Main Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="rounded-xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+              <div className="flex flex-wrap items-center justify-between gap-3">
               <TabsList className="bg-[#EAF7F8] p-1 rounded-xl">
                 {canSeeHoldings && (
                   <TabsTrigger value="holders" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C]">
@@ -605,7 +622,7 @@ export default function FinancesPage() {
                     </div>
                     <div className="text-xs text-muted-foreground text-center pt-2 border-t">
                       {dateFrom && dateTo
-                        ? `${format(dateFrom, "MMM d")} ??? ${format(dateTo, "MMM d, yyyy")}`
+                        ? `${format(dateFrom, "MMM d")} - ${format(dateTo, "MMM d, yyyy")}`
                         : dateFrom
                         ? `From ${format(dateFrom, "MMM d, yyyy")}`
                         : dateTo
@@ -650,6 +667,7 @@ export default function FinancesPage() {
               </Button>
             </div>
           </div>
+            </div>
           </div>
 
           {canSeeHoldings && (

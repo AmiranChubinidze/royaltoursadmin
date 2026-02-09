@@ -9,16 +9,16 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { Bell, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { Bell, CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -31,6 +31,9 @@ import { useConfirmations } from "@/hooks/useConfirmations";
 import { useSavedHotels } from "@/hooks/useSavedData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
+import { useSalaryProfiles } from "@/hooks/useSalaries";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useViewAs } from "@/contexts/ViewAsContext";
 import {
   useCalendarNotificationHotels,
   useCalendarNotificationSettings,
@@ -44,6 +47,14 @@ type OwnedStay = {
   code: string;
   client: string | null;
   isOwned: boolean;
+};
+
+type SalaryMarker = {
+  dateKey: string;
+  name: string;
+  amount: number;
+  currency: "GEL" | "USD";
+  frequency: "monthly" | "weekly";
 };
 
 const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
@@ -71,10 +82,18 @@ export default function CalendarPage() {
   const upsertSettings = useUpsertCalendarNotificationSettings();
   const setNotificationHotels = useSetCalendarNotificationHotels();
   const { toast } = useToast();
+  const { role } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  const effectiveRole = viewAsRole || role;
+  const canSeeSalaries = ["admin", "worker", "accountant"].includes(effectiveRole || "");
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [timeLocal, setTimeLocal] = useState("09:00");
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [hotelView, setHotelView] = useState<"owned" | "other" | "all">("all");
+  const [checkInsOnly, setCheckInsOnly] = useState(false);
+  const [showSalaries, setShowSalaries] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [useAllHotelsState, setUseAllHotelsState] = useState(true);
   const [useAllOtherHotelsState, setUseAllOtherHotelsState] = useState(true);
@@ -154,12 +173,61 @@ export default function CalendarPage() {
     for (const c of confirmations) {
       const code = c.confirmation_code;
       const client = c.main_client_name || null;
-      const itinerary = (c.raw_payload as any)?.itinerary || [];
+      const payload = c.raw_payload as unknown;
+      const itineraryValue =
+        payload && typeof payload === "object" ? (payload as Record<string, unknown>)["itinerary"] : undefined;
+      const itinerary = Array.isArray(itineraryValue) ? itineraryValue : [];
       for (const day of itinerary) {
         const hotelName = String(day?.hotel || "").trim();
         if (!hotelName) continue;
         const date = parseDateFlexible(day?.date);
         if (!date) continue;
+        const isOwned = ownedHotelSet.has(hotelName.toLowerCase());
+        const key = format(date, "yyyy-MM-dd");
+        const list = map.get(key) || [];
+        list.push({ dateKey: key, hotel: hotelName, code, client, isOwned });
+        map.set(key, list);
+      }
+    }
+
+    return map;
+  }, [confirmations, ownedHotelSet]);
+
+  const checkInsByDate = useMemo(() => {
+    const map = new Map<string, OwnedStay[]>();
+    if (!confirmations) return map;
+
+    for (const c of confirmations) {
+      const code = c.confirmation_code;
+      const client = c.main_client_name || null;
+      const payload = c.raw_payload as unknown;
+      const itineraryValue =
+        payload && typeof payload === "object"
+          ? (payload as Record<string, unknown>)["itinerary"]
+          : undefined;
+      const itineraryRaw = Array.isArray(itineraryValue) ? itineraryValue : [];
+
+      const itinerary = itineraryRaw
+        .map((day) => {
+          const hotelName = String((day as any)?.hotel || "").trim();
+          const date = parseDateFlexible((day as any)?.date);
+          return { hotelName, date };
+        })
+        .filter((d) => !!d.hotelName && !!d.date)
+        .sort((a, b) => (a.date as Date).getTime() - (b.date as Date).getTime());
+
+      let prevHotel = "";
+      for (const day of itinerary) {
+        const hotelName = day.hotelName;
+        if (!hotelName) continue;
+
+        // Check-in day is when the hotel changes (or first hotel).
+        if (prevHotel && prevHotel.toLowerCase() === hotelName.toLowerCase()) {
+          continue;
+        }
+        prevHotel = hotelName;
+
+        const date = day.date as Date;
         const isOwned = ownedHotelSet.has(hotelName.toLowerCase());
         const key = format(date, "yyyy-MM-dd");
         const list = map.get(key) || [];
@@ -189,14 +257,83 @@ export default function CalendarPage() {
     days.push(day);
   }
 
+  const baseStaysByDate = checkInsOnly ? checkInsByDate : staysByDate;
+  const visibleStaysByDate = useMemo(() => {
+    const map = new Map<string, OwnedStay[]>();
+    for (const [key, list] of baseStaysByDate.entries()) {
+      const filtered =
+        hotelView === "all"
+          ? list
+          : hotelView === "owned"
+          ? list.filter((s) => s.isOwned)
+          : list.filter((s) => !s.isOwned);
+      map.set(key, filtered);
+    }
+    return map;
+  }, [baseStaysByDate, hotelView]);
+
   const selectedKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
-  const selectedStays = selectedKey ? staysByDate.get(selectedKey) || [] : [];
+  const selectedStays = selectedKey ? visibleStaysByDate.get(selectedKey) || [] : [];
   const selectedDateLabel = selectedDate
     ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(selectedDate)
     : "Select a Date";
   const notificationsEnabled = notificationSettings?.enabled ?? remindersEnabled;
   const selectedSet = useMemo(() => new Set(selectedHotelIdsState || []), [selectedHotelIdsState]);
   const tzOffset = tzOffsetState;
+
+  const { data: salaryProfiles } = useSalaryProfiles({
+    enabled: canSeeSalaries && showSalaries,
+  });
+
+  const salaryByDate = useMemo(() => {
+    const map = new Map<string, SalaryMarker[]>();
+    if (!canSeeSalaries || !showSalaries || !salaryProfiles?.length) return map;
+
+    const monthStartLocal = startOfMonth(currentMonth);
+    const lastDay = endOfMonth(monthStartLocal).getDate();
+
+    // Monthly occurrences (one per month).
+    for (const p of salaryProfiles) {
+      if (p.frequency === "monthly") {
+        const day = Math.min(Math.max(1, p.dueDay), lastDay);
+        const due = new Date(monthStartLocal.getFullYear(), monthStartLocal.getMonth(), day);
+        const key = format(due, "yyyy-MM-dd");
+        const list = map.get(key) || [];
+        list.push({
+          dateKey: key,
+          name: p.name,
+          amount: p.amount,
+          currency: p.currency,
+          frequency: "monthly",
+        });
+        map.set(key, list);
+      }
+    }
+
+    // Weekly occurrences (every week on pay weekday).
+    for (const p of salaryProfiles) {
+      if (p.frequency !== "weekly") continue;
+      for (const d of days) {
+        if (!isSameMonth(d, monthStartLocal)) continue;
+        const weekday = ((d.getDay() + 6) % 7) + 1; // 1=Mon..7=Sun
+        if (weekday !== p.dueWeekday) continue;
+        const key = format(d, "yyyy-MM-dd");
+        const list = map.get(key) || [];
+        list.push({
+          dateKey: key,
+          name: p.name,
+          amount: p.amount,
+          currency: p.currency,
+          frequency: "weekly",
+        });
+        map.set(key, list);
+      }
+    }
+
+    return map;
+  }, [canSeeSalaries, showSalaries, salaryProfiles, currentMonth, days]);
+
+  const selectedSalaries = selectedKey ? salaryByDate.get(selectedKey) || [] : [];
 
   const updateSettings = (
     next: Partial<{
@@ -246,24 +383,124 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="animate-fade-in max-w-7xl mx-auto space-y-6">
+      <div className="mb-2 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="page-title text-foreground">Calendar</h1>
+          <p className="text-muted-foreground">Hotel stays and arrival reminders.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
+            {monthLabel}
+          </div>
+          <Popover open={viewOpen} onOpenChange={setViewOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]",
+                  viewOpen && "bg-[#EAF7F8] text-[#0F4C5C]",
+                )}
+                aria-label="Calendar view options"
+              >
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+                View
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-[320px] p-4">
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <div className="text-xs font-medium text-muted-foreground">Hotels</div>
+                  <div className="grid grid-cols-3 gap-1 rounded-xl border border-border/70 bg-[#F7FAFB] p-1">
+                    {[
+                      { key: "owned" as const, label: "Owned" },
+                      { key: "all" as const, label: "All" },
+                      { key: "other" as const, label: "Other" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => setHotelView(opt.key)}
+                        className={cn(
+                          "h-9 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
+                          hotelView === opt.key
+                            ? "bg-white text-[#0F4C5C] shadow-sm"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Filters hotel stays shown on the calendar.
+                  </p>
+                </div>
+
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground">Days</div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {checkInsOnly ? "Only check-in days" : "All stay days"}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={checkInsOnly}
+                    onCheckedChange={setCheckInsOnly}
+                    aria-label="Show only check-in days"
+                  />
+                </div>
+
+                {canSeeSalaries && (
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-medium text-muted-foreground">Salaries</div>
+                      <p className="text-[11px] text-muted-foreground">Show salary due days on the calendar.</p>
+                    </div>
+                    <Switch
+                      checked={showSalaries}
+                      onCheckedChange={setShowSalaries}
+                      aria-label="Show salaries on calendar"
+                    />
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <Button
+            size="sm"
+            variant="outline"
+            className={cn(
+              "h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]",
+              remindersOpen && "bg-[#EAF7F8] text-[#0F4C5C]",
+            )}
+            onClick={() => setRemindersOpen((prev) => !prev)}
+          >
+            <Bell className="h-4 w-4 mr-2" />
+            Reminders
+          </Button>
+        </div>
+      </div>
       <div
         className={cn(
           "grid gap-6",
           remindersOpen ? "lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]" : "lg:grid-cols-1"
         )}
       >
-        <Card className="border-border/60 bg-gradient-to-br from-[#F5FBFC] via-white to-[#F1FAFB] shadow-[0_2px_12px_0_rgba(15,76,92,0.06)]">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 text-[#0F4C5C] flex items-center justify-center">
-                  <CalendarDays className="h-5 w-5" />
+                <div className="h-9 w-9 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/10 flex items-center justify-center shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+                  <CalendarDays className="h-4 w-4 text-[#0F4C5C]" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg text-balance">Owned Hotels Calendar</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-[#0F4C5C]">Hotel Stays Calendar</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    See tourist stays in company-owned hotels
+                    {hotelView === "owned" ? "Owned hotels" : hotelView === "other" ? "Other hotels" : "All hotels"}
+                    {checkInsOnly ? " - check-ins only" : " - all stay days"}
+                    {canSeeSalaries && showSalaries ? " - salaries" : ""}
                   </p>
                 </div>
               </div>
@@ -271,31 +508,19 @@ export default function CalendarPage() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className={cn(
-                    "h-9 w-9",
-                    remindersOpen && "border-[#0F4C5C]/40 bg-[#EAF3F4] text-[#0F4C5C]"
-                  )}
-                  aria-label={remindersOpen ? "Hide reminders panel" : "Show reminders panel"}
-                  onClick={() => setRemindersOpen((prev) => !prev)}
-                >
-                  <Bell className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9"
+                  className="h-9 w-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
                   aria-label="Previous month"
                   onClick={() => setCurrentMonth(addDays(monthStart, -1))}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <div className="px-3 py-1.5 rounded-lg bg-[#EAF3F4] text-[#0F4C5C] text-sm font-semibold">
+                <div className="px-3 py-1.5 rounded-full border border-[#0F4C5C]/10 bg-white text-xs text-muted-foreground">
                   {monthLabel}
                 </div>
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-9 w-9"
+                  className="h-9 w-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
                   aria-label="Next month"
                   onClick={() => setCurrentMonth(addDays(monthEnd, 1))}
                 >
@@ -304,7 +529,7 @@ export default function CalendarPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-4">
             <div className="grid grid-cols-7 gap-2 text-xs font-medium text-muted-foreground mb-2">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div key={d} className="px-2 py-1">
@@ -316,10 +541,11 @@ export default function CalendarPage() {
               {days.map((day) => {
                 const inMonth = isSameMonth(day, monthStart);
                 const dayKey = format(day, "yyyy-MM-dd");
-                const stays = staysByDate.get(dayKey) || [];
+                const stays = visibleStaysByDate.get(dayKey) || [];
+                const salaryList = salaryByDate.get(dayKey) || [];
                 const hasStays = stays.length > 0;
+                const hasSalaries = canSeeSalaries && showSalaries && salaryList.length > 0;
                 const ownedCount = stays.filter((s) => s.isOwned).length;
-                const otherCount = stays.length - ownedCount;
                 const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
 
                 return (
@@ -327,30 +553,39 @@ export default function CalendarPage() {
                     key={dayKey}
                     onClick={() => setSelectedDate(day)}
                     className={cn(
-                      "min-h-[58px] sm:min-h-[92px] rounded-xl border px-2 py-2 text-left transition-colors hover:bg-[#F7FAFB] hover:border-[#0F4C5C]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
-                      inMonth ? "bg-white/80" : "bg-muted/30",
+                      "min-h-[58px] sm:min-h-[92px] rounded-xl border px-2 py-2 text-left transition-colors hover:bg-[#EAF7F8]/40 hover:border-[#0F4C5C]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
+                      inMonth ? "bg-white/90 border-[#0F4C5C]/10" : "bg-white/60 border-border/60",
                       hasStays
                         ? ownedCount > 0
-                          ? "border-[#00A9B7]/55 shadow-[0_1px_10px_rgba(0,169,183,0.18)] bg-[#E7FBFD]"
-                          : "border-[#6B6F76]/45 shadow-[0_1px_10px_rgba(79,82,87,0.10)] bg-[#F4F5F7]"
-                        : "border-border/50",
+                          ? "border-[#0F4C5C]/25 shadow-[0_10px_24px_rgba(15,76,92,0.10)] bg-[#EAF7F8]/70"
+                          : "border-slate-200 shadow-[0_10px_24px_rgba(15,76,92,0.06)] bg-slate-50"
+                        : "",
                       isSelected && "ring-2 ring-[#0F4C5C]/40"
                     )}
                   >
                     {isMobile ? (
                       <div className="flex h-10 flex-col items-center justify-between">
                         <div className="flex h-4 w-full items-center justify-center">
-                          {hasStays && (
-                            <Badge
-                              className={cn(
-                                "h-4 min-w-[16px] px-1 rounded-full text-[9px] leading-none border-0",
-                                ownedCount > 0
-                                  ? "bg-[#00A9B7]/25 text-[#0A7E88]"
-                                  : "bg-[#6B6F76]/25 text-[#4B4F55]"
+                          {(hasStays || hasSalaries) && (
+                            <div className="flex items-center gap-1">
+                              {hasStays && (
+                                <Badge
+                                  className={cn(
+                                    "h-4 min-w-[16px] px-1 rounded-full text-[9px] leading-none border-0",
+                                    ownedCount > 0
+                                      ? "bg-[#0F4C5C]/10 text-[#0F4C5C]"
+                                      : "bg-slate-100 text-slate-700"
+                                  )}
+                                >
+                                  {stays.length}
+                                </Badge>
                               )}
-                            >
-                              {stays.length}
-                            </Badge>
+                              {hasSalaries && (
+                                <Badge className="h-4 min-w-[16px] px-1 rounded-full text-[9px] leading-none border-0 bg-amber-100 text-amber-800">
+                                  $
+                                </Badge>
+                              )}
+                            </div>
                           )}
                         </div>
                         <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
@@ -362,14 +597,25 @@ export default function CalendarPage() {
                         <span className={cn("text-sm font-semibold", inMonth ? "text-foreground" : "text-muted-foreground")}>
                           {dayNumberFormatter.format(day)}
                         </span>
-                        {hasStays && (
-                          <Badge className={cn(
-                            ownedCount > 0
-                              ? "bg-[#00A9B7]/20 text-[#0A7E88] border-0 text-[10px] px-1.5"
-                              : "bg-[#6B6F76]/20 text-[#4B4F55] border-0 text-[10px] px-1.5"
-                          )}>
-                            {stays.length}
-                          </Badge>
+                        {(hasStays || hasSalaries) && (
+                          <div className="flex items-center gap-1">
+                            {hasStays && (
+                              <Badge
+                                className={cn(
+                                  ownedCount > 0
+                                    ? "bg-[#0F4C5C]/10 text-[#0F4C5C] border-0 text-[10px] px-1.5"
+                                    : "bg-slate-100 text-slate-700 border-0 text-[10px] px-1.5"
+                                )}
+                              >
+                                {stays.length}
+                              </Badge>
+                            )}
+                            {hasSalaries && (
+                              <Badge className="bg-amber-100 text-amber-800 border-0 text-[10px] px-1.5">
+                                Pay
+                              </Badge>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
@@ -380,7 +626,7 @@ export default function CalendarPage() {
                             key={`${dayKey}-${idx}`}
                             className={cn(
                               "text-[11px] truncate",
-                              s.isOwned ? "text-[#0A7E88] font-medium" : "text-[#4B4F55]"
+                              s.isOwned ? "text-[#0F4C5C] font-medium" : "text-slate-700"
                             )}
                           >
                             {s.hotel}
@@ -399,15 +645,15 @@ export default function CalendarPage() {
         </Card>
 
         {remindersOpen && (
-          <Card className="border-border/60 bg-white/80 shadow-[0_2px_10px_rgba(15,76,92,0.05)]">
-          <CardHeader className="pb-3">
+          <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 text-[#0F4C5C] flex items-center justify-center">
-                  <Bell className="h-4 w-4" />
+                <div className="h-9 w-9 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/10 flex items-center justify-center shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+                  <Bell className="h-4 w-4 text-[#0F4C5C]" />
                 </div>
                 <div>
-                  <CardTitle className="text-base text-balance">Arrival Reminders</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-[#0F4C5C]">Arrival Reminders</CardTitle>
                   <p className="text-xs text-muted-foreground">Email you the day before guests arrive.</p>
                 </div>
               </div>
@@ -421,7 +667,7 @@ export default function CalendarPage() {
                 />
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="p-4 space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Before</Label>
@@ -617,7 +863,7 @@ export default function CalendarPage() {
             <div className="flex items-center justify-end">
               <Button
                 size="sm"
-                className="h-9 px-4 bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
+                className="h-9 px-4 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
                 onClick={saveSettings}
                 disabled={isSavingSettings}
               >
@@ -629,42 +875,68 @@ export default function CalendarPage() {
         )}
       </div>
 
-      <Card className="border-border/60 bg-card/80 shadow-[0_1px_8px_rgba(15,76,92,0.06)]">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base text-balance">{selectedDateLabel}</CardTitle>
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+        <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+          <CardTitle className="text-sm font-semibold text-[#0F4C5C]">{selectedDateLabel}</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-4">
           {isLoading ? (
             <div className="text-sm text-muted-foreground">Loading...</div>
-          ) : selectedStays.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No owned-hotel stays on this day.
-            </div>
+          ) : selectedStays.length === 0 && (!canSeeSalaries || !showSalaries || selectedSalaries.length === 0) ? (
+            <div className="text-sm text-muted-foreground">Nothing scheduled on this day.</div>
           ) : (
-            <div className="space-y-3">
-              {selectedStays.map((s, idx) => (
-                <div
-                  key={`${s.dateKey}-${idx}`}
-                  className="flex items-center justify-between rounded-lg border border-border/60 bg-[#F6FBFC] px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground truncate">{s.hotel}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {s.code} {s.client ? ` - ${s.client}` : ""}
+            <div className="space-y-4">
+              {selectedStays.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-muted-foreground">Hotel Stays</div>
+                  {selectedStays.map((s, idx) => (
+                    <div
+                      key={`${s.dateKey}-${idx}`}
+                      className="flex items-center justify-between rounded-xl border border-[#0F4C5C]/10 bg-white/90 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{s.hotel}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {s.code} {s.client ? ` - ${s.client}` : ""}
+                        </div>
+                      </div>
+                      <Badge
+                        className={cn(
+                          "border-0",
+                          s.isOwned
+                            ? "bg-[#0F4C5C]/10 text-[#0F4C5C]"
+                            : "bg-slate-100 text-slate-700"
+                        )}
+                      >
+                        {s.isOwned ? "Owned" : "Other"}
+                      </Badge>
                     </div>
-                  </div>
-                  <Badge
-                    className={cn(
-                      "border-0",
-                      s.isOwned
-                        ? "bg-[#00A9B7]/20 text-[#0A7E88]"
-                        : "bg-[#6B6F76]/20 text-[#4B4F55]"
-                    )}
-                  >
-                    {s.isOwned ? "Owned" : "Other"}
-                  </Badge>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {canSeeSalaries && showSalaries && selectedSalaries.length > 0 && (
+                <div className="space-y-3">
+                  <div className="text-xs font-medium text-muted-foreground">Salaries</div>
+                  {selectedSalaries.map((s, idx) => (
+                    <div
+                      key={`${s.dateKey}-salary-${idx}`}
+                      className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">{s.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {s.frequency === "weekly" ? "Weekly" : "Monthly"} salary
+                        </div>
+                      </div>
+                      <Badge className="border-0 bg-amber-100 text-amber-800">
+                        {s.currency === "USD" ? "$" : "₾"}
+                        {Math.round(s.amount).toLocaleString()}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </CardContent>

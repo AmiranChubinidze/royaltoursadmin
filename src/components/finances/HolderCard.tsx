@@ -35,11 +35,12 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
     <div
       onClick={onClick}
       className={cn(
-        "group bg-card border rounded-2xl overflow-hidden cursor-pointer transition-all duration-200",
-        "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/40 hover:-translate-y-0.5",
+        "group rounded-2xl overflow-hidden cursor-pointer transition-all duration-200",
+        "border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)]",
+        "hover:shadow-[0_14px_34px_rgba(15,76,92,0.12)] hover:-translate-y-0.5 hover:border-[#0F4C5C]/18",
         hasAnyNegative 
           ? "border-destructive/40 bg-gradient-to-br from-destructive/5 to-transparent" 
-          : "border-border/60"
+          : ""
       )}
     >
       {/* Header */}
@@ -49,18 +50,18 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
             "p-2.5 rounded-xl transition-colors",
             hasAnyNegative 
               ? "bg-destructive/10 text-destructive" 
-              : "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground"
+              : "bg-[#EAF7F8] border border-[#0F4C5C]/10 text-[#0F4C5C]"
           )}>
             <Wallet className="h-4 w-4" />
           </div>
           <h3 className="font-semibold text-foreground">{holder.name}</h3>
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-primary transition-colors" />
+        <ArrowRight className="h-4 w-4 text-muted-foreground/40 group-hover:text-[#0F4C5C] transition-colors" />
       </div>
 
       {/* Balances */}
       <div className="px-4 pb-4">
-        <div className="bg-muted/40 rounded-xl p-3 space-y-2">
+        <div className="rounded-xl border border-[#0F4C5C]/10 bg-[#F7FAFB] p-3 space-y-2">
           {/* USD Row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -89,7 +90,7 @@ export function HolderCard({ holder, onClick }: HolderCardProps) {
           </div>
 
           {/* Divider */}
-          <div className="border-t border-border/50" />
+          <div className="border-t border-[#0F4C5C]/10" />
 
           {/* GEL Row */}
           <div className="flex items-center justify-between">

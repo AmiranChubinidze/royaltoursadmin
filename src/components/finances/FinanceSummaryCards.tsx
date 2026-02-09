@@ -129,7 +129,7 @@ export function FinanceSummaryCards({
         return (
           <Card 
             key={card.label} 
-            className="border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]"
+            className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)]"
           >
             <div className="p-4">
               <div className="flex items-center gap-3">
@@ -156,7 +156,7 @@ export function FinanceSummaryCards({
         );
       })}
 
-      <Card className="border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
+      <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
         <div className="p-4">
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0 h-3 w-3 rounded-full bg-emerald-500" />

@@ -68,11 +68,19 @@ export function HoldersView() {
       {/* Action Buttons */}
       {isAdmin && (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setTransferModalOpen(true)} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setTransferModalOpen(true)}
+            className="gap-2 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
+          >
             <ArrowRightLeft className="h-4 w-4" />
             Quick Transfer
           </Button>
-          <Button variant="outline" onClick={() => setHolderModalOpen(true)} className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setHolderModalOpen(true)}
+            className="gap-2 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
+          >
             <Settings className="h-4 w-4" />
             Manage People
           </Button>
@@ -80,23 +88,23 @@ export function HoldersView() {
       )}
 
       {/* Summary Header - Compact Design */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-card to-card border border-border/60 rounded-xl">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
-        
+      <div className="relative overflow-hidden rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+        <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-[#0F4C5C]/5 blur-2xl -translate-y-1/2 translate-x-1/2" />
+
         <div className="relative p-4">
           {/* Header */}
           <div className="flex items-center gap-2 mb-3">
-            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-              <Wallet className="h-4 w-4" />
+            <div className="h-8 w-8 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/10 flex items-center justify-center shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+              <Wallet className="h-4 w-4 text-[#0F4C5C]" />
             </div>
-            <h3 className="font-medium text-sm text-foreground">Total Holdings</h3>
+            <h3 className="font-semibold text-sm text-[#0F4C5C]">Total Holdings</h3>
           </div>
 
           {/* Currency Cards */}
           <div className="grid grid-cols-2 gap-3">
             {/* USD Card */}
-            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg p-3">
-              <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-primary/40">USD</div>
+            <div className="relative bg-white/90 border border-[#0F4C5C]/10 rounded-xl p-3 shadow-[0_8px_20px_rgba(15,76,92,0.06)]">
+              <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-[#0F4C5C]/45">USD</div>
               
               <div className="mb-2">
                 <span className={`text-xl font-bold tabular-nums tracking-tight ${
@@ -123,8 +131,8 @@ export function HoldersView() {
             </div>
 
             {/* GEL Card */}
-            <div className="relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg p-3">
-              <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-primary/40">GEL</div>
+            <div className="relative bg-white/90 border border-[#0F4C5C]/10 rounded-xl p-3 shadow-[0_8px_20px_rgba(15,76,92,0.06)]">
+              <div className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-widest text-[#0F4C5C]/45">GEL</div>
               
               <div className="mb-2">
                 <span className={`text-xl font-bold tabular-nums tracking-tight ${

@@ -273,75 +273,65 @@ const AdminPanel = () => {
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="page-title text-foreground">Admin Panel</h1>
-          <p className="text-muted-foreground">Manage user approvals</p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="page-title text-foreground">Admin Panel</h1>
+              <p className="text-muted-foreground">Manage user approvals</p>
+            </div>
+            <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
+              {(profiles?.length || 0)} users - {pendingUsers.length} pending
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="stat-card">
-            <CardContent className="pt-6 pb-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <Users className="h-5 w-5 text-primary" />
+          {[
+            { label: "Total Users", value: profiles?.length || 0, icon: Users },
+            { label: "Pending Approval", value: pendingUsers.length, icon: Clock },
+            { label: "Approved", value: approvedUsers.length, icon: CheckCircle },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="h-9 w-9 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/10 flex items-center justify-center shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+                  <s.icon className="h-4 w-4 text-[#0F4C5C]" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold stat-number">{profiles?.length || 0}</p>
-                </div>
-              </div>
-            </CardContent>
-          </div>
-          <div className="stat-card">
-            <CardContent className="pt-6 pb-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-amber-500/10">
-                  <Clock className="h-5 w-5 text-amber-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Approval</p>
-                  <p className="text-2xl font-bold stat-number">{pendingUsers.length}</p>
+                <div className="min-w-0">
+                  <div className="text-xs text-muted-foreground">{s.label}</div>
+                  <div className="mt-1 text-[22px] font-semibold tracking-tight text-[#0F4C5C] stat-number">
+                    {s.value}
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </div>
-          <div className="stat-card">
-            <CardContent className="pt-6 pb-5">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent/10">
-                  <CheckCircle className="h-5 w-5 text-accent" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Approved</p>
-                  <p className="text-2xl font-bold stat-number">{approvedUsers.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </div>
+            </div>
+          ))}
         </div>
 
         {/* Role Permissions Matrix */}
-        <Card className="mb-6">
-          <CardHeader>
+        <Card className="mb-6 rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              Role Permissions
+              <Shield className="h-4 w-4 text-[#0F4C5C]" />
+              <span className="text-sm font-semibold text-[#0F4C5C]">Role Permissions</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-xl border border-border overflow-hidden">
+          <CardContent className="p-0">
+            <div className="px-4 py-3">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>Feature</TableHead>
-                    <TableHead className="text-center">Admin</TableHead>
-                    <TableHead className="text-center">Manager</TableHead>
-                    <TableHead className="text-center">Coworker</TableHead>
-                    <TableHead className="text-center">Visitor</TableHead>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Feature</TableHead>
+                    <TableHead className="text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Admin</TableHead>
+                    <TableHead className="text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Manager</TableHead>
+                    <TableHead className="text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Coworker</TableHead>
+                    <TableHead className="text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Visitor</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
+                  <TableRow className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Eye className="h-4 w-4 text-muted-foreground" />
@@ -353,7 +343,7 @@ const AdminPanel = () => {
                     <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
                     <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
                   </TableRow>
-                  <TableRow>
+                  <TableRow className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
@@ -365,7 +355,7 @@ const AdminPanel = () => {
                     <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
                     <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
                   </TableRow>
-                  <TableRow>
+                  <TableRow className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Upload className="h-4 w-4 text-muted-foreground" />
@@ -377,7 +367,7 @@ const AdminPanel = () => {
                     <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
                     <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
                   </TableRow>
-                  <TableRow>
+                  <TableRow className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Database className="h-4 w-4 text-muted-foreground" />
@@ -389,7 +379,7 @@ const AdminPanel = () => {
                     <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
                     <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
                   </TableRow>
-                  <TableRow>
+                  <TableRow className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -401,7 +391,7 @@ const AdminPanel = () => {
                     <TableCell className="text-center"><Check className="h-4 w-4 text-emerald-500 mx-auto" /></TableCell>
                     <TableCell className="text-center"><X className="h-4 w-4 text-destructive mx-auto" /></TableCell>
                   </TableRow>
-                  <TableRow>
+                  <TableRow className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
@@ -420,14 +410,14 @@ const AdminPanel = () => {
         </Card>
 
         {/* Pending Users */}
-        <Card className="mb-6">
-          <CardHeader>
+        <Card className="mb-6 rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-amber-500" />
-              Pending Approvals
+              <Clock className="h-4 w-4 text-[#0F4C5C]" />
+              <span className="text-sm font-semibold text-[#0F4C5C]">Pending Approvals</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-4">
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (
@@ -437,18 +427,18 @@ const AdminPanel = () => {
             ) : pendingUsers.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No pending approvals</p>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/40 border-b border-border">
-                      <TableHead>Email</TableHead>
-                      <TableHead>Requested</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Email</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Requested</TableHead>
+                      <TableHead className="text-right text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pendingUsers.map((profile) => (
-                      <TableRow key={profile.id}>
+                      <TableRow key={profile.id} className="hover:bg-[#EAF7F8]/40">
                         <TableCell className="font-medium">{profile.email}</TableCell>
                         <TableCell className="text-muted-foreground">
                           {format(new Date(profile.created_at), "MMM d, yyyy HH:mm")}
@@ -459,6 +449,7 @@ const AdminPanel = () => {
                               size="sm"
                               onClick={() => approveMutation.mutate({ userId: profile.id, userEmail: profile.email })}
                               disabled={approveMutation.isPending}
+                              className="h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
                             >
                               <Check className="h-4 w-4 mr-1" />
                               Approve
@@ -468,6 +459,7 @@ const AdminPanel = () => {
                               variant="destructive"
                               onClick={() => rejectMutation.mutate(profile.id)}
                               disabled={rejectMutation.isPending}
+                              className="h-9 rounded-xl"
                             >
                               <X className="h-4 w-4 mr-1" />
                               Reject
@@ -484,14 +476,14 @@ const AdminPanel = () => {
         </Card>
 
         {/* Approved Users */}
-        <Card>
-          <CardHeader>
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-emerald-500" />
-              Approved Users
+              <CheckCircle className="h-4 w-4 text-[#0F4C5C]" />
+              <span className="text-sm font-semibold text-[#0F4C5C]">Approved Users</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-4">
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(3)].map((_, i) => (
@@ -501,14 +493,14 @@ const AdminPanel = () => {
             ) : approvedUsers.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No approved users yet</p>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/40 border-b border-border">
-                      <TableHead>Email</TableHead>
-                      <TableHead>Joined</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Email</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Joined</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Role</TableHead>
+                      <TableHead className="text-right text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -517,7 +509,7 @@ const AdminPanel = () => {
                       const isCurrentUser = profile.id === user?.id;
                       
                       return (
-                        <TableRow key={profile.id}>
+                        <TableRow key={profile.id} className="hover:bg-[#EAF7F8]/40">
                           <TableCell className="font-medium">{profile.email}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {format(new Date(profile.created_at), "MMM d, yyyy")}
@@ -566,7 +558,7 @@ const AdminPanel = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-destructive hover:text-destructive"
+                                className="h-9 rounded-xl border-[#0F4C5C]/15 text-destructive hover:text-destructive hover:bg-[#EAF7F8]"
                                 onClick={() => revokeMutation.mutate(profile.id)}
                                 disabled={revokeMutation.isPending}
                               >
@@ -586,14 +578,14 @@ const AdminPanel = () => {
         </Card>
 
         {/* Activity Log */}
-        <Card className="mt-6">
-          <CardHeader>
+        <Card className="mt-6 rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              Activity Log
+              <Clock className="h-4 w-4 text-[#0F4C5C]" />
+              <span className="text-sm font-semibold text-[#0F4C5C]">Activity Log</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-4">
             {!activity ? (
               <div className="space-y-3">
                 {[...Array(4)].map((_, i) => (
@@ -603,19 +595,19 @@ const AdminPanel = () => {
             ) : activity.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No recent activity</p>
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/40 border-b border-border">
-                      <TableHead>When</TableHead>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>By</TableHead>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">When</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Item</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Action</TableHead>
+                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">By</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {activity.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className="hover:bg-[#EAF7F8]/40">
                         <TableCell className="text-muted-foreground">
                           {format(new Date(item.when), "MMM d, yyyy HH:mm")}
                         </TableCell>

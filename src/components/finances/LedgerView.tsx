@@ -713,6 +713,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   return (
     <div className="space-y-6">
       {/* Search & Filters */}
+      <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4">
       <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
         <FinanceSearch
           value={searchQuery}
@@ -723,7 +724,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         
         <div className="flex flex-wrap items-center gap-2">
           <Select value={kindFilter} onValueChange={(v) => setKindFilter(v as typeof kindFilter)}>
-            <SelectTrigger className="w-[110px] h-9">
+            <SelectTrigger className="w-[110px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -736,7 +737,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           </Select>
 
           <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as typeof categoryFilter)}>
-            <SelectTrigger className="w-[130px] h-9">
+            <SelectTrigger className="w-[130px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -750,7 +751,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           </Select>
 
           <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
-            <SelectTrigger className="w-[110px] h-9">
+            <SelectTrigger className="w-[110px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -761,7 +762,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           </Select>
 
           <Select value={responsibleFilter} onValueChange={setResponsibleFilter}>
-            <SelectTrigger className="w-[130px] h-9">
+            <SelectTrigger className="w-[130px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue placeholder="Responsible" />
             </SelectTrigger>
             <SelectContent>
@@ -778,38 +779,52 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         <div className="flex-1" />
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!transactions?.length}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
+            onClick={handleExportExcel}
+            disabled={!transactions?.length}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export Excel
           </Button>
 
-          <Button size="sm" onClick={handleAdd}>
+          <Button
+            size="sm"
+            className="h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
+            onClick={handleAdd}
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add
           </Button>
         </div>
       </div>
+      </div>
 
       {/* Confirmations (Income) Section */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 px-1">
-          <Receipt className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-sm font-medium text-foreground">Confirmations</h3>
-          <span className="text-xs text-muted-foreground">
-            ({filteredConfirmations.length})
-          </span>
+      <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-[#0F4C5C]" />
+              <div className="text-sm font-semibold text-[#0F4C5C]">Confirmations</div>
+              <div className="text-xs text-muted-foreground">({filteredConfirmations.length})</div>
+            </div>
+            <div className="text-xs text-muted-foreground">Income checklist</div>
+          </div>
         </div>
-        <div className="rounded-lg border bg-card">
+        <div className="p-4 pt-4">
           <Table className="table-fixed">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[100px] font-semibold">Code</TableHead>
-                <TableHead className="w-auto font-semibold">Client</TableHead>
-                <TableHead className="w-[100px] font-semibold">Responsible</TableHead>
-                <TableHead className="w-[90px] font-semibold">Arrival</TableHead>
-                <TableHead className="w-[60px] text-center font-semibold">Days</TableHead>
-                <TableHead className="w-[100px] text-right font-semibold">Amount</TableHead>
-                <TableHead className="w-[90px] text-center font-semibold">Status</TableHead>
+                <TableHead className="w-[100px] text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Code</TableHead>
+                <TableHead className="w-auto text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Client</TableHead>
+                <TableHead className="w-[100px] text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Responsible</TableHead>
+                <TableHead className="w-[90px] text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Arrival</TableHead>
+                <TableHead className="w-[60px] text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Days</TableHead>
+                <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Amount</TableHead>
+                <TableHead className="w-[90px] text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -831,7 +846,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 </TableRow>
               ) : (
                 filteredConfirmations.map((row) => (
-                  <TableRow key={row.id} className="group">
+                  <TableRow key={row.id} className="hover:bg-[#EAF7F8]/40 transition-colors">
                     <TableCell className="font-medium font-mono text-primary">
                       {row.code}
                     </TableCell>
@@ -870,26 +885,29 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       </div>
 
       {/* Transactions */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 px-1">
-          <div className="h-2 w-2 rounded-full bg-primary" />
-          <h3 className="text-sm font-medium text-foreground">Transactions</h3>
-          <span className="text-xs text-muted-foreground">
-            ({filteredTransactions.length})
-          </span>
+      <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-[#0F4C5C]" />
+              <div className="text-sm font-semibold text-[#0F4C5C]">Transactions</div>
+              <div className="text-xs text-muted-foreground">({filteredTransactions.length})</div>
+            </div>
+            <div className="text-xs text-muted-foreground">All movements</div>
+          </div>
         </div>
-        <div className="rounded-lg border bg-card overflow-x-auto">
+        <div className="p-4 pt-4 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="w-20 font-semibold">Date</TableHead>
-                <TableHead className="w-28 font-semibold">Confirmation</TableHead>
-                <TableHead className="w-16 font-semibold">Type</TableHead>
-                <TableHead className="w-24 font-semibold">Category</TableHead>
-                <TableHead className="w-24 font-semibold">Responsible</TableHead>
-                <TableHead className="font-semibold">Description</TableHead>
-                <TableHead className="w-24 text-right font-semibold">Amount</TableHead>
-                <TableHead className="w-16 text-center font-semibold">Status</TableHead>
+                <TableHead className="w-20 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Date</TableHead>
+                <TableHead className="w-28 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Confirmation</TableHead>
+                <TableHead className="w-16 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Type</TableHead>
+                <TableHead className="w-24 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Category</TableHead>
+                <TableHead className="w-24 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Responsible</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Description</TableHead>
+                <TableHead className="w-24 text-right text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Amount</TableHead>
+                <TableHead className="w-16 text-center text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Status</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
@@ -912,7 +930,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 </TableRow>
               ) : (
                 filteredTransactions.map((t) => (
-                  <TableRow key={t.id}>
+                  <TableRow key={t.id} className="hover:bg-[#EAF7F8]/40 transition-colors">
                     <TableCell className="font-medium whitespace-nowrap">
                       {format(new Date(t.date), "MMM d")}
                     </TableCell>
@@ -966,7 +984,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                             expandedDescriptionId === t.id ? null : t.id
                           )}
                           className={cn(
-                            "cursor-pointer hover:text-primary transition-colors",
+                            "cursor-pointer hover:text-[#0F4C5C] transition-colors",
                             expandedDescriptionId === t.id ? "whitespace-normal" : "truncate block"
                           )}
                         >

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { format, parse, isAfter, isBefore, isEqual, startOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -177,6 +177,25 @@ export function Dashboard() {
   };
 
   const hasActiveFilters = searchQuery || filterMonth !== "all" || dateFrom || dateTo;
+  const totalConfirmations = confirmations?.length ?? 0;
+
+  const thisMonthArrivals = useMemo(() => {
+    if (!confirmations) return 0;
+    const now = new Date();
+    return confirmations.filter((c) => {
+      const arrivalDate = parseArrivalDate(c.arrival_date);
+      return (
+        !!arrivalDate &&
+        arrivalDate.getMonth() === now.getMonth() &&
+        arrivalDate.getFullYear() === now.getFullYear()
+      );
+    }).length;
+  }, [confirmations]);
+
+  const paidCount = useMemo(() => {
+    if (!confirmations) return 0;
+    return confirmations.filter((c) => c.client_paid).length;
+  }, [confirmations]);
 
   if (error) {
     return (
@@ -374,79 +393,57 @@ export function Dashboard() {
   return (
     <div className="animate-fade-in">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-5">
-          <h1 className="text-2xl font-semibold text-[#0F4C5C]">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Arrivals, confirmations, and quick actions.</p>
+        <div className="mb-8">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="page-title text-foreground">Dashboard</h1>
+              <p className="text-muted-foreground">Arrivals, confirmations, and quick actions.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
+                {isLoading ? "..." : `${filteredConfirmations.length} of ${totalConfirmations} shown`}
+              </div>
+              {effectiveCanEditConfirmations && (
+                <Button
+                  size="sm"
+                  className="h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
+                  onClick={() => navigate("/new")}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Confirmation
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          <div className="stat-card border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
-            <CardContent className="py-5 px-5">
+          {[
+            { label: "Total Confirmations", value: totalConfirmations, icon: FileText },
+            { label: "This Month Arrivals", value: thisMonthArrivals, icon: CalendarIcon },
+            { label: "Payment Received", value: paidCount, icon: DollarSign },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4"
+            >
               <div className="flex items-center gap-3.5">
-                <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 flex items-center justify-center flex-shrink-0 text-[#0F4C5C]">
-                  <FileText className="h-4 w-4" />
+                <div className="h-9 w-9 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/10 flex items-center justify-center shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+                  <s.icon className="h-4 w-4 text-[#0F4C5C]" />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Total Confirmations</p>
-                  <div className="text-2xl font-bold text-[#0F4C5C] stat-number mt-0.5">
-                    {isLoading ? <Skeleton className="h-7 w-14" /> : confirmations?.length || 0}
+                <div className="min-w-0">
+                  <div className="text-xs text-muted-foreground">{s.label}</div>
+                  <div className="mt-1 text-[22px] font-semibold tracking-tight text-[#0F4C5C] stat-number">
+                    {isLoading ? <Skeleton className="h-7 w-16" /> : s.value}
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </div>
-          <div className="stat-card border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
-            <CardContent className="py-5 px-5">
-              <div className="flex items-center gap-3.5">
-                <div className="h-9 w-9 rounded-full bg-[#0F4C5C]/10 flex items-center justify-center flex-shrink-0 text-[#0F4C5C]">
-                  <FileText className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">This Month Arrivals</p>
-                  <div className="text-2xl font-bold text-[#0F4C5C] stat-number mt-0.5">
-                    {isLoading ? (
-                      <Skeleton className="h-7 w-14" />
-                    ) : (
-                      confirmations?.filter((c) => {
-                        const arrivalDate = parseArrivalDate(c.arrival_date);
-                        if (!arrivalDate) return false;
-                        const now = new Date();
-                        return (
-                          arrivalDate.getMonth() === now.getMonth() &&
-                          arrivalDate.getFullYear() === now.getFullYear()
-                        );
-                      }).length || 0
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </div>
-          <div className="stat-card border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
-            <CardContent className="py-5 px-5 flex items-center justify-between h-full">
-              <div className="flex flex-col">
-                {effectiveCanEditConfirmations ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 rounded-lg border-[#BFE3E6] bg-[#EAF3F4] text-[#0F4C5C] hover:bg-[#0F4C5C]/10"
-                    onClick={() => navigate("/new")}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    <span className="text-[13px] font-semibold">New Confirmation</span>
-                  </Button>
-                ) : (
-                  <p className="text-base font-medium text-foreground mt-1">
-                    {effectiveIsBooking ? "Send booking requests" : "View-only access"}
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </div>
+            </div>
+          ))}
         </div>
 
         {/* Search and Filter */}
-        <Card className="mb-4 border-[#0F4C5C]/10 shadow-[0_10px_24px_rgba(15,76,92,0.08)] bg-white/95">
+        <Card className="mb-4 rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
           <CardContent className="pt-4 pb-4">
             <div className="flex flex-wrap gap-3 items-center">
               <div className="relative flex-1 min-w-[200px]">
@@ -455,12 +452,12 @@ export function Dashboard() {
                   placeholder="Search by code, client name, or source..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/25"
+                  className="pl-10 h-10 rounded-xl border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/25"
                 />
               </div>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[180px] justify-between border-[#0F4C5C]/20">
+                  <Button variant="outline" className="w-[180px] justify-between rounded-xl border-[#0F4C5C]/20">
                     <span>
                       {filterMonth === "all" && !dateFrom && !dateTo && "All time"}
                       {filterMonth === "this-month" && "This month"}
@@ -557,11 +554,16 @@ export function Dashboard() {
         </Card>
 
         {/* Table */}
-        <Card className="bg-white/95 border-[#0F4C5C]/10 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
-          <CardHeader>
-            <CardTitle className="text-[#0F4C5C]">Recent Confirmations</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-[#0F4C5C]">Recent Confirmations</div>
+              <div className="text-xs text-muted-foreground">
+                {hasActiveFilters ? `${filteredConfirmations.length} matches` : `${totalConfirmations} total`}
+              </div>
+            </div>
+          </div>
+          <div className="p-4">
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(5)].map((_, i) => (
@@ -580,26 +582,28 @@ export function Dashboard() {
                     : "Create your first tour confirmation letter"}
                 </p>
                 {!hasActiveFilters && effectiveCanEditConfirmations && (
-                  <Button onClick={() => navigate("/new")}>
+                  <Button
+                    onClick={() => navigate("/new")}
+                    className="h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Create Confirmation
                   </Button>
                 )}
               </div>
             ) : (
-              <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#F7FBFC] border-b border-[#0F4C5C]/10">
-                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Code</TableHead>
-                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Client</TableHead>
-                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Arrival</TableHead>
-                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Source</TableHead>
-                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest">Duration</TableHead>
-                      <TableHead className="font-medium text-[#0F4C5C]/60 text-[11px] uppercase tracking-widest text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Code</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Client</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Arrival</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Source</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Duration</TableHead>
+                    <TableHead className="text-right text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                     {filteredConfirmations.map((confirmation) => {
                       // Check if confirmation was edited (updated_at differs from created_at by more than 1 minute)
                       const createdAt = new Date(confirmation.created_at).getTime();
@@ -609,13 +613,16 @@ export function Dashboard() {
                       return (
                         <TableRow
                           key={confirmation.id}
-                          className="cursor-pointer hover:bg-[#F1FAFB] transition-colors"
+                          className="cursor-pointer hover:bg-[#EAF7F8]/40 transition-colors"
                           onClick={() => navigate(`/confirmation/${confirmation.id}`)}
                         >
                           <TableCell className="font-mono font-semibold text-primary tracking-tight">
                             <div className="flex items-center gap-2">
-                              {confirmation.status === 'draft' && (
-                                <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 text-xs">
+                              {confirmation.status === "draft" && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-slate-100 text-slate-700 border border-slate-200 text-xs"
+                                >
                                   Draft
                                 </Badge>
                               )}
@@ -640,9 +647,12 @@ export function Dashboard() {
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {(() => {
-                              const payload = confirmation.raw_payload as any;
-                              const trackingNumber = payload?.trackingNumber;
-                              if (trackingNumber) {
+                              const payload = confirmation.raw_payload as unknown;
+                              const trackingNumber =
+                                payload && typeof payload === "object"
+                                  ? (payload as Record<string, unknown>)["trackingNumber"]
+                                  : undefined;
+                              if (typeof trackingNumber === "string" && trackingNumber.trim()) {
                                 return trackingNumber;
                               }
                               return confirmation.tour_source || "—";
@@ -661,7 +671,7 @@ export function Dashboard() {
                               size="icon"
                               onClick={() => navigate(`/confirmation/${confirmation.id}`)}
                               title="View"
-                              className="text-[#9CA3AF] hover:text-foreground"
+                              className="text-muted-foreground hover:text-foreground"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -671,14 +681,18 @@ export function Dashboard() {
                                 size="icon"
                                 onClick={() => navigate(`/confirmation/${confirmation.id}/attachments`)}
                                 title="Invoices"
-                                className={confirmation.is_paid ? "text-emerald-500 hover:text-emerald-600" : "text-[#9CA3AF] hover:text-foreground"}
+                                className={
+                                  confirmation.is_paid
+                                    ? "text-emerald-500 hover:text-emerald-600"
+                                    : "text-muted-foreground hover:text-foreground"
+                                }
                               >
                                 <Paperclip className="h-4 w-4" />
                               </Button>
                             )}
                             {effectiveCanEditConfirmations && (
                               <>
-                                {confirmation.status === 'draft' && (
+                                {confirmation.status === "draft" && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -686,12 +700,12 @@ export function Dashboard() {
                                       navigate(`/confirmation/${confirmation.id}/edit?complete=true`)
                                     }
                                     title="Complete Draft"
-                                    className="text-[#9CA3AF] hover:text-amber-600 hover:bg-amber-50"
+                                    className="text-muted-foreground hover:text-amber-700 hover:bg-amber-50"
                                   >
                                     <ClipboardCheck className="h-4 w-4" />
                                   </Button>
                                 )}
-                                {confirmation.status !== 'draft' && (
+                                {confirmation.status !== "draft" && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -699,7 +713,7 @@ export function Dashboard() {
                                       navigate(`/confirmation/${confirmation.id}/edit`)
                                     }
                                     title="Edit"
-                                    className="text-[#9CA3AF] hover:text-foreground"
+                                    className="text-muted-foreground hover:text-foreground"
                                   >
                                     <Edit className="h-4 w-4" />
                                   </Button>
@@ -710,7 +724,7 @@ export function Dashboard() {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="text-[#9CA3AF] hover:text-destructive"
+                                        className="text-muted-foreground hover:text-destructive"
                                         title="Delete"
                                       >
                                         <Trash2 className="h-4 w-4" />
@@ -744,12 +758,11 @@ export function Dashboard() {
                         </TableRow>
                       );
                     })}
-                  </TableBody>
-                </Table>
-              </div>
+                </TableBody>
+              </Table>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

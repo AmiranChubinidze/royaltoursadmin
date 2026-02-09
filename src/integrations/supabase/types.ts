@@ -644,6 +644,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      upsert_salary_profile: {
+        Args: {
+          _name: string
+          _amount: number
+          _due_day: number
+          _currency?: string
+        }
+        Returns: Database["public"]["Tables"]["owners"]["Row"]
+      }
     }
     Enums: {
       app_role:

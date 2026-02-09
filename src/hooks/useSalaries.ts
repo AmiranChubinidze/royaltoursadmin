@@ -55,20 +55,12 @@ export const useUpsertSalaryProfile = () => {
 
   return useMutation({
     mutationFn: async (payload: { name: string; amount: number; dueDay: number; currency: "GEL" | "USD" }) => {
-      const { data, error } = await supabase
-        .from("owners")
-        .upsert(
-          {
-            name: payload.name.trim(),
-            is_active: true,
-            salary_amount: payload.amount,
-            salary_due_day: payload.dueDay,
-            salary_currency: payload.currency,
-          },
-          { onConflict: "name" },
-        )
-        .select("id,name,is_active,salary_amount,salary_due_day,salary_currency")
-        .single();
+      const { data, error } = await supabase.rpc("upsert_salary_profile", {
+        _name: payload.name.trim(),
+        _amount: payload.amount,
+        _due_day: payload.dueDay,
+        _currency: payload.currency,
+      });
 
       if (error) throw error;
       return data;
@@ -77,8 +69,9 @@ export const useUpsertSalaryProfile = () => {
       queryClient.invalidateQueries({ queryKey: ["salary-profiles"] });
       toast({ title: "Salary saved" });
     },
-    onError: () => {
-      toast({ title: "Error saving salary", variant: "destructive" });
+    onError: (err: any) => {
+      const msg = typeof err?.message === "string" ? err.message : "Error saving salary";
+      toast({ title: msg, variant: "destructive" });
     },
   });
 };

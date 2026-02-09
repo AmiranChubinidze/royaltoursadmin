@@ -631,7 +631,7 @@ export default function CreateBookingRequest() {
                 items={hotelBookings.map(b => b.id)}
                 strategy={horizontalListSortingStrategy}
               >
-                <div className="flex gap-5 overflow-x-auto pb-4 items-stretch scrollbar-thin">
+                <div className="flex gap-5 overflow-x-auto pt-3 pb-5 items-stretch scrollbar-thin">
                   {hotelBookings.map((booking, index) => (
                     <div key={booking.id} className="flex flex-col">
                       <CompactHotelBookingCard

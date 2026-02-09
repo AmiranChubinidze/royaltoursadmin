@@ -426,15 +426,55 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     }
   };
 
-  const handleConfirmTransaction = async (id: string, isCurrentlyConfirmed: boolean, responsibleHolderId: string | null) => {
+  const handleConfirmTransaction = async (
+    id: string,
+    isCurrentlyConfirmed: boolean,
+    responsibleHolderId: string | null,
+  ) => {
     const tx = transactions?.find((t) => t.id === id);
     if (tx && !canEditTransaction(tx)) return;
+
+    const willConfirm = !isCurrentlyConfirmed;
+
     try {
-      await confirmTransaction.mutateAsync({ 
-        id, 
-        confirm: !isCurrentlyConfirmed,
-        responsibleHolderId: !isCurrentlyConfirmed ? responsibleHolderId : undefined
+      await confirmTransaction.mutateAsync({
+        id,
+        confirm: willConfirm,
+        responsibleHolderId: willConfirm ? responsibleHolderId : undefined,
       });
+
+      // Keep the confirmation row (top table) in sync when toggling a Tour income transaction.
+      if (tx?.kind === "in" && tx.category === "tour_payment" && tx.confirmation_id) {
+        if (willConfirm) {
+          const { error } = await supabase
+            .from("confirmations")
+            .update({ client_paid: true })
+            .eq("id", tx.confirmation_id);
+          if (error) throw error;
+        } else {
+          // Only uncheck the confirmation if no other confirmed Tour income exists for it.
+          const { data, error } = await supabase
+            .from("transactions")
+            .select("id")
+            .eq("confirmation_id", tx.confirmation_id)
+            .eq("kind", "in")
+            .eq("category", "tour_payment")
+            .eq("status", "confirmed")
+            .neq("id", id)
+            .limit(1);
+          if (error) throw error;
+
+          if (!data?.length) {
+            const { error: updateError } = await supabase
+              .from("confirmations")
+              .update({ client_paid: false })
+              .eq("id", tx.confirmation_id);
+            if (updateError) throw updateError;
+          }
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      }
     } catch (error) {
       toast({ title: "Error updating status", variant: "destructive" });
     }

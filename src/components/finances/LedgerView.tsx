@@ -102,6 +102,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+// Hide some categories from the category filter dropdown (they may still exist historically).
+const HIDDEN_CATEGORY_FILTERS = new Set<string>(["reimbursement", "deposit", "guide"]);
+
 const CATEGORY_COLORS: Record<string, string> = {
   tour_payment: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   hotel: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -727,7 +730,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <SelectTrigger className="w-[110px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent side="bottom" sideOffset={6} avoidCollisions={false} className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="in">Income</SelectItem>
               <SelectItem value="out">Expense</SelectItem>
@@ -740,13 +743,15 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <SelectTrigger className="w-[130px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent side="bottom" sideOffset={6} avoidCollisions={false} className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Categories</SelectItem>
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
+              {Object.entries(CATEGORY_LABELS)
+                .filter(([value]) => !HIDDEN_CATEGORY_FILTERS.has(value))
+                .map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
 
@@ -754,7 +759,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <SelectTrigger className="w-[110px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent side="bottom" sideOffset={6} avoidCollisions={false} className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="confirmed">Confirmed</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
@@ -765,7 +770,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <SelectTrigger className="w-[130px] h-9 rounded-xl border-[#0F4C5C]/15 bg-white">
               <SelectValue placeholder="Responsible" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent side="bottom" sideOffset={6} avoidCollisions={false} className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Holders</SelectItem>
               {holders?.map((holder) => (
                 <SelectItem key={holder.id} value={holder.id}>

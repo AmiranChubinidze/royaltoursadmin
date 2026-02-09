@@ -229,16 +229,25 @@ export default function FinancesPage() {
       GEL: received.GEL - expenses.GEL,
     };
 
-    // Pending: sum per confirmation (price - confirmed income), clamped to 0
+    // Pending: sum per confirmation (price - confirmed income), clamped to 0.
+    // If a confirmation is marked `client_paid` but has no confirmed income transaction yet,
+    // treat it as fully received to avoid showing "pending" for already-paid confirmations.
     const pendingUSD = filteredConfirmations.reduce((sum, c) => {
-      const confirmedIncomeUSD = moneyTx
-        .filter((t) =>
+      const incomeTx = moneyTx.filter(
+        (t) =>
           t.confirmation_id === c.id &&
           t.kind === "in" &&
           t.status === "confirmed"
-        )
-        .reduce((acc, t) => acc + toUSD(Number(t.amount) || 0, t.currency), 0);
+      );
+
       const priceUSD = Number(c.price) || 0;
+      const confirmedIncomeUSD =
+        incomeTx.length > 0
+          ? incomeTx.reduce((acc, t) => acc + toUSD(Number(t.amount) || 0, t.currency), 0)
+          : c.client_paid
+          ? priceUSD
+          : 0;
+
       return sum + Math.max(0, priceUSD - confirmedIncomeUSD);
     }, 0);
     const pending = {

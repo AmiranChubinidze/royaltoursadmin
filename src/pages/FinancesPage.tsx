@@ -164,21 +164,26 @@ export default function FinancesPage() {
       return true;
     });
 
-    const responsibleTx = transactions.filter((t) => t.responsible_holder_id);
+    // Include any transaction that is actually tied to money movement in/out of a holder.
+    // Many expenses use `from_holder_id` (payer) and do not set `responsible_holder_id`,
+    // so filtering only by `responsible_holder_id` would incorrectly exclude them.
+    const moneyTx = transactions.filter(
+      (t) => t.holder_id || t.from_holder_id || t.to_holder_id || t.responsible_holder_id
+    );
 
     // Received: sum of confirmed income transactions by currency (with responsible)
-    const receivedUSD = responsibleTx
-      .filter((t) => t.type === "income" && t.status === "confirmed" && t.currency === "USD")
+    const receivedUSD = moneyTx
+      .filter((t) => t.kind === "in" && t.status === "confirmed" && t.currency === "USD")
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    
-    const receivedGEL = responsibleTx
-      .filter((t) => t.type === "income" && t.status === "confirmed" && t.currency === "GEL")
+     
+    const receivedGEL = moneyTx
+      .filter((t) => t.kind === "in" && t.status === "confirmed" && t.currency === "GEL")
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
     // For confirmations without confirmed income transactions, use client_paid flag (prices are in USD)
     const confirmationsWithoutPaidIncomeTransactions = filteredConfirmations.filter((c) => {
-      const hasConfirmedIncomeTransaction = responsibleTx.some(
-        (t) => t.confirmation_id === c.id && t.type === "income" && t.status === "confirmed"
+      const hasConfirmedIncomeTransaction = moneyTx.some(
+        (t) => t.confirmation_id === c.id && t.kind === "in" && t.status === "confirmed"
       );
       return !hasConfirmedIncomeTransaction && c.client_paid;
     });
@@ -194,12 +199,26 @@ export default function FinancesPage() {
 
     // Expenses: sum of confirmed expense transactions by currency
     // Exclude internal transfers and currency exchanges
-    const expensesUSD = responsibleTx
-      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.currency === "USD" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
+    const expensesUSD = moneyTx
+      .filter(
+        (t) =>
+          t.kind === "out" &&
+          t.status === "confirmed" &&
+          t.currency === "USD" &&
+          t.category !== "transfer_internal" &&
+          t.category !== "currency_exchange"
+      )
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-    
-    const expensesGEL = responsibleTx
-      .filter((t) => t.type === "expense" && t.status === "confirmed" && t.currency === "GEL" && t.category !== "transfer_internal" && t.category !== "currency_exchange")
+     
+    const expensesGEL = moneyTx
+      .filter(
+        (t) =>
+          t.kind === "out" &&
+          t.status === "confirmed" &&
+          t.currency === "GEL" &&
+          t.category !== "transfer_internal" &&
+          t.category !== "currency_exchange"
+      )
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
     const expenses = { USD: expensesUSD, GEL: expensesGEL };
@@ -212,10 +231,10 @@ export default function FinancesPage() {
 
     // Pending: sum per confirmation (price - confirmed income), clamped to 0
     const pendingUSD = filteredConfirmations.reduce((sum, c) => {
-      const confirmedIncomeUSD = responsibleTx
+      const confirmedIncomeUSD = moneyTx
         .filter((t) =>
           t.confirmation_id === c.id &&
-          t.type === "income" &&
+          t.kind === "in" &&
           t.status === "confirmed"
         )
         .reduce((acc, t) => acc + toUSD(Number(t.amount) || 0, t.currency), 0);

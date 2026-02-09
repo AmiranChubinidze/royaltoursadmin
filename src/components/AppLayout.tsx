@@ -11,7 +11,7 @@ export function AppLayout() {
 
   return (
     <ViewAsProvider>
-      <SidebarProvider>
+      <SidebarProvider defaultOpen={false}>
         <AppSidebar />
         <SidebarInset>
           {/* Mobile top bar */}

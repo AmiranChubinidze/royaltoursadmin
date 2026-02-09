@@ -903,9 +903,21 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
-                      {t.from_holder?.name || t.responsible_holder?.name || (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      {(() => {
+                        if (t.kind === "transfer") {
+                          const fromName = t.from_holder?.name;
+                          const toName = t.to_holder?.name;
+                          if (fromName && toName) {
+                            return `${fromName} - ${toName}`;
+                          }
+                          return fromName || toName || (
+                            <span className="text-muted-foreground">—</span>
+                          );
+                        }
+                        return t.from_holder?.name || t.responsible_holder?.name || (
+                          <span className="text-muted-foreground">—</span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell className="max-w-[200px]">
                       {t.description ? (
@@ -1016,3 +1028,4 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     </div>
   );
 }
+

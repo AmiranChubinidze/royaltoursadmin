@@ -409,6 +409,7 @@ export type Database = {
           role: string | null
           salary_amount: number | null
           salary_due_day: number | null
+          salary_currency: string
         }
         Insert: {
           created_at?: string | null
@@ -418,6 +419,7 @@ export type Database = {
           role?: string | null
           salary_amount?: number | null
           salary_due_day?: number | null
+          salary_currency?: string
         }
         Update: {
           created_at?: string | null
@@ -427,6 +429,7 @@ export type Database = {
           role?: string | null
           salary_amount?: number | null
           salary_due_day?: number | null
+          salary_currency?: string
         }
         Relationships: []
       }

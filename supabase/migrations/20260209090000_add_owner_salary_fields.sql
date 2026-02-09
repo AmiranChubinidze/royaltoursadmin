@@ -3,7 +3,8 @@
 
 alter table public.owners
   add column if not exists salary_amount numeric,
-  add column if not exists salary_due_day integer;
+  add column if not exists salary_due_day integer,
+  add column if not exists salary_currency text not null default 'GEL';
 
 -- Basic validation (allow nulls; enforce range when provided).
 do $$
@@ -19,3 +20,15 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'owners_salary_currency_allowed'
+  ) then
+    alter table public.owners
+      add constraint owners_salary_currency_allowed
+      check (salary_currency in ('GEL', 'USD'));
+  end if;
+end $$;

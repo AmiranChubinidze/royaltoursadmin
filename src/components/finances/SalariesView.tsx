@@ -29,6 +29,13 @@ import { useConfirmTransaction } from "@/hooks/useTransactions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   useSalaryMonthTransactions,
   useSalaryProfiles,
   useUpsertSalaryProfile,
@@ -39,6 +46,11 @@ const monthKey = (d: Date) => format(d, "yyyy-MM");
 const clampDueDay = (dueDay: number) => {
   if (!Number.isFinite(dueDay)) return 1;
   return Math.max(1, Math.min(31, Math.trunc(dueDay)));
+};
+
+const formatMoney = (amount: number, currency: "GEL" | "USD") => {
+  const symbol = currency === "USD" ? "$" : "₾";
+  return `${symbol}${Math.round(amount).toLocaleString()}`;
 };
 
 export function SalariesView() {
@@ -69,12 +81,15 @@ export function SalariesView() {
     const list = profiles || [];
     let dueCount = 0;
     let paidCount = 0;
-    let totalExpected = 0;
-    let totalRemaining = 0;
+    let totalExpectedGEL = 0;
+    let totalExpectedUSD = 0;
+    let totalRemainingGEL = 0;
+    let totalRemainingUSD = 0;
 
     const monthStart = startOfMonth(monthDate);
     for (const p of list) {
-      totalExpected += p.amount;
+      if (p.currency === "USD") totalExpectedUSD += p.amount;
+      else totalExpectedGEL += p.amount;
       const t = txByOwner.get(p.id);
       if (t?.status === "confirmed") {
         paidCount += 1;
@@ -86,16 +101,26 @@ export function SalariesView() {
       const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
       const isDue = isPast(dueDate);
       if (isDue) dueCount += 1;
-      totalRemaining += p.amount;
+      if (p.currency === "USD") totalRemainingUSD += p.amount;
+      else totalRemainingGEL += p.amount;
     }
 
-    return { dueCount, paidCount, totalExpected, totalRemaining, totalCount: list.length };
+    return {
+      dueCount,
+      paidCount,
+      totalExpectedGEL,
+      totalExpectedUSD,
+      totalRemainingGEL,
+      totalRemainingUSD,
+      totalCount: list.length,
+    };
   }, [profiles, monthDate, txByOwner]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDay, setDueDay] = useState("15");
+  const [currency, setCurrency] = useState<"GEL" | "USD">("GEL");
 
   const canSave =
     name.trim().length >= 2 &&
@@ -110,11 +135,13 @@ export function SalariesView() {
         name: name.trim(),
         amount: Number(amount),
         dueDay: clampDueDay(Number(dueDay)),
+        currency,
       });
       setDialogOpen(false);
       setName("");
       setAmount("");
       setDueDay("15");
+      setCurrency("GEL");
       // Ensuring will run via effect after query invalidation.
     } catch {
       // toast is handled in mutation onError
@@ -190,7 +217,7 @@ export function SalariesView() {
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="e.g. 1200"
                   />
-                  <p className="text-[11px] text-muted-foreground">Currency defaults to GEL in Ledger.</p>
+                  <p className="text-[11px] text-muted-foreground">Shows in Ledger as a Salary expense.</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="salary-due">Due Day</Label>
@@ -203,6 +230,18 @@ export function SalariesView() {
                   />
                   <p className="text-[11px] text-muted-foreground">1–31, rolls to month end if needed.</p>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select value={currency} onValueChange={(v) => setCurrency(v as "GEL" | "USD")}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GEL">GEL (₾)</SelectItem>
+                    <SelectItem value="USD">USD ($)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter className="gap-2 sm:gap-2">
@@ -238,11 +277,23 @@ export function SalariesView() {
         </div>
         <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4">
           <div className="text-xs text-muted-foreground">Total (Expected)</div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <div className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">
-              {isLoading ? <Skeleton className="h-7 w-28" /> : `₾${Math.round(stats.totalExpected).toLocaleString()}`}
+          {isLoading ? (
+            <div className="mt-2 space-y-2">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-5 w-24" />
             </div>
-          </div>
+          ) : (
+            <div className="mt-2 space-y-1">
+              <div className="text-[18px] font-semibold tracking-tight text-[#0F4C5C] leading-tight">
+                {formatMoney(stats.totalExpectedGEL, "GEL")}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">GEL</span>
+              </div>
+              <div className="text-[18px] font-semibold tracking-tight text-[#0F4C5C] leading-tight">
+                {formatMoney(stats.totalExpectedUSD, "USD")}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">USD</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -303,7 +354,7 @@ export function SalariesView() {
                   <TableRow key={p.id} className="hover:bg-[#EAF7F8]/40">
                     <TableCell className="font-medium">{p.name}</TableCell>
                     <TableCell className="text-right font-semibold text-[#0F4C5C]">
-                      ₾{Math.round(p.amount).toLocaleString()}
+                      {formatMoney(p.amount, p.currency)}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {dueLabel}

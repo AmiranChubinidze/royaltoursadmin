@@ -9,6 +9,7 @@ export type SalaryProfile = {
   name: string;
   amount: number;
   dueDay: number;
+  currency: "GEL" | "USD";
   isActive: boolean;
 };
 
@@ -28,7 +29,7 @@ export const useSalaryProfiles = (opts?: { enabled?: boolean }) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("owners")
-        .select("id,name,is_active,salary_amount,salary_due_day")
+        .select("id,name,is_active,salary_amount,salary_due_day,salary_currency")
         .eq("is_active", true)
         .not("salary_amount", "is", null)
         .not("salary_due_day", "is", null)
@@ -41,6 +42,7 @@ export const useSalaryProfiles = (opts?: { enabled?: boolean }) => {
         name: r.name,
         amount: Number(r.salary_amount || 0),
         dueDay: Number(r.salary_due_day || 1),
+        currency: (r.salary_currency === "USD" ? "USD" : "GEL") as "GEL" | "USD",
         isActive: r.is_active,
       })) satisfies SalaryProfile[];
     },
@@ -52,20 +54,20 @@ export const useUpsertSalaryProfile = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (payload: { name: string; amount: number; dueDay: number }) => {
+    mutationFn: async (payload: { name: string; amount: number; dueDay: number; currency: "GEL" | "USD" }) => {
       const { data, error } = await supabase
         .from("owners")
         .upsert(
           {
             name: payload.name.trim(),
             is_active: true,
-            role: "staff",
             salary_amount: payload.amount,
             salary_due_day: payload.dueDay,
+            salary_currency: payload.currency,
           },
           { onConflict: "name" },
         )
-        .select("id,name,is_active,salary_amount,salary_due_day")
+        .select("id,name,is_active,salary_amount,salary_due_day,salary_currency")
         .single();
 
       if (error) throw error;
@@ -128,7 +130,7 @@ export const ensureCurrentMonthSalaryTransactions = async (args: {
 
   const { data: existing, error } = await supabase
     .from("transactions")
-    .select("id,owner_id,status,amount,date")
+    .select("id,owner_id,status,amount,date,currency")
     .eq("category", "salary")
     .eq("kind", "out")
     .neq("status", "void")
@@ -160,7 +162,7 @@ export const ensureCurrentMonthSalaryTransactions = async (args: {
         category: "salary",
         description: desc,
         amount: p.amount,
-        currency: "GEL",
+        currency: p.currency,
         status: "pending",
         is_paid: false,
         is_auto_generated: true,
@@ -171,12 +173,15 @@ export const ensureCurrentMonthSalaryTransactions = async (args: {
     }
 
     if (existingTx.status !== "confirmed") {
+      const existingCurrency = existingTx.currency === "USD" ? "USD" : "GEL";
       const shouldUpdate =
-        Number(existingTx.amount || 0) !== p.amount || String(existingTx.date) !== dueIso;
+        Number(existingTx.amount || 0) !== p.amount ||
+        String(existingTx.date) !== dueIso ||
+        existingCurrency !== p.currency;
       if (shouldUpdate) {
         updates.push({
           id: existingTx.id as string,
-          patch: { amount: p.amount, date: dueIso, description: desc, notes },
+          patch: { amount: p.amount, date: dueIso, currency: p.currency, description: desc, notes },
         });
       }
     }

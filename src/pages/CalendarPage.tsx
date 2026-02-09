@@ -582,7 +582,7 @@ export default function CalendarPage() {
                               )}
                               {hasSalaries && (
                                 <Badge className="h-4 min-w-[16px] px-1 rounded-full text-[9px] leading-none border-0 bg-amber-100 text-amber-800">
-                                  $
+                                  Pay
                                 </Badge>
                               )}
                             </div>

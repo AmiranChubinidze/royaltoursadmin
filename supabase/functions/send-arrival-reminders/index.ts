@@ -124,7 +124,6 @@ serve(async (req) => {
       selectionByUser.set(row.user_id, list);
     }
 
-    const stayCount = new Map<string, number>();
     const stays: Array<{
       dateKey: string;
       hotelName: string;
@@ -134,6 +133,7 @@ serve(async (req) => {
       touristName: string;
       adults: number;
       kids: number;
+      stayDays: number;
     }> = [];
 
     for (const confirmation of confirmations || []) {
@@ -147,25 +147,53 @@ serve(async (req) => {
         ((payload as any).clients && (payload as any).clients[0]?.name) ||
         "Tourist";
 
-      for (const day of itinerary) {
-        const hotelName = String(day?.hotel || "").trim();
-        if (!hotelName) continue;
-        const hotelLower = hotelName.toLowerCase();
-        if (!ownedNameSet.has(hotelLower) && !otherNameSet.has(hotelLower)) continue;
-        const date = parseDateFlexible(day?.date);
-        if (!date) continue;
-        const dateKey = formatDateKeyUtc(date);
-        const stayKey = `${confirmation.id}:${hotelLower}`;
-        stayCount.set(stayKey, (stayCount.get(stayKey) || 0) + 1);
+      // Only notify on check-in days: the first day of each consecutive hotel segment.
+      const itineraryItems = (Array.isArray(itinerary) ? itinerary : [])
+        .map((day: any) => {
+          const hotelName = String(day?.hotel || "").trim();
+          const date = parseDateFlexible(day?.date);
+          const hotelLower = hotelName.toLowerCase();
+          return { hotelName, hotelLower, date };
+        })
+        .filter((d: any) => {
+          if (!d.hotelName) return false;
+          if (!d.date) return false;
+          if (!ownedNameSet.has(d.hotelLower) && !otherNameSet.has(d.hotelLower)) return false;
+          return true;
+        })
+        .sort((a: any, b: any) => (a.date as Date).getTime() - (b.date as Date).getTime());
+
+      let currentSeg:
+        | { startKey: string; hotelName: string; hotelLower: string; stayDays: number }
+        | null = null;
+      const segments: Array<{ startKey: string; hotelName: string; hotelLower: string; stayDays: number }> = [];
+
+      for (const item of itineraryItems) {
+        if (!currentSeg || currentSeg.hotelLower !== item.hotelLower) {
+          if (currentSeg) segments.push(currentSeg);
+          currentSeg = {
+            startKey: formatDateKeyUtc(item.date as Date),
+            hotelName: item.hotelName,
+            hotelLower: item.hotelLower,
+            stayDays: 1,
+          };
+        } else {
+          currentSeg.stayDays += 1;
+        }
+      }
+      if (currentSeg) segments.push(currentSeg);
+
+      for (const seg of segments) {
         stays.push({
-          dateKey,
-          hotelName,
-          hotelLower,
+          dateKey: seg.startKey,
+          hotelName: seg.hotelName,
+          hotelLower: seg.hotelLower,
           confirmationId: confirmation.id,
           confirmationCode: confirmation.confirmation_code,
           touristName,
           adults,
           kids,
+          stayDays: seg.stayDays,
         });
       }
     }
@@ -241,19 +269,18 @@ serve(async (req) => {
 
       const greetingName = sanitizeString(profile.display_name || profile.email.split("@")[0], MAX_NAME_LENGTH);
       const lines = matching.map((stay) => {
-        const stayKey = `${stay.confirmationId}:${stay.hotelLower}`;
-        const days = stayCount.get(stayKey) || 1;
+        const days = stay.stayDays || 1;
         const adultsText = pluralize(stay.adults, "adult");
         const kidsText = pluralize(stay.kids, "child");
         const daysText = pluralize(days, "day");
         const tourist = sanitizeString(stay.touristName, MAX_NAME_LENGTH);
         const hotel = sanitizeString(stay.hotelName, MAX_NAME_LENGTH);
-        return `- Tomorrow ${tourist} is coming, ${adultsText}, ${kidsText}, staying for ${daysText} (Hotel: ${hotel})`;
+        return `- Tomorrow ${tourist} checks in, ${adultsText}, ${kidsText}, staying for ${daysText} (Hotel: ${hotel})`;
       });
 
       const body = `Hello ${greetingName},
 
-Tomorrow arrivals at owned hotels:
+Tomorrow check-ins:
 ${lines.join("\n")}
 
 Best regards,
@@ -264,7 +291,7 @@ LLC Royal Georgian Tours`;
       await client.send({
         from: gmailUser,
         to: profile.email,
-        subject: "Tomorrow's owned-hotel arrivals",
+        subject: "Tomorrow's hotel check-ins",
         content: finalBody,
       });
 

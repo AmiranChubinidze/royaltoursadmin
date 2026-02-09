@@ -409,7 +409,9 @@ export type Database = {
           role: string | null
           salary_amount: number | null
           salary_due_day: number | null
+          salary_due_weekday: number | null
           salary_currency: string
+          salary_frequency: string
         }
         Insert: {
           created_at?: string | null
@@ -419,7 +421,9 @@ export type Database = {
           role?: string | null
           salary_amount?: number | null
           salary_due_day?: number | null
+          salary_due_weekday?: number | null
           salary_currency?: string
+          salary_frequency?: string
         }
         Update: {
           created_at?: string | null
@@ -429,7 +433,9 @@ export type Database = {
           role?: string | null
           salary_amount?: number | null
           salary_due_day?: number | null
+          salary_due_weekday?: number | null
           salary_currency?: string
+          salary_frequency?: string
         }
         Relationships: []
       }
@@ -648,7 +654,9 @@ export type Database = {
         Args: {
           _name: string
           _amount: number
-          _due_day: number
+          _frequency?: string
+          _due_day?: number
+          _due_weekday?: number
           _currency?: string
         }
         Returns: Database["public"]["Tables"]["owners"]["Row"]

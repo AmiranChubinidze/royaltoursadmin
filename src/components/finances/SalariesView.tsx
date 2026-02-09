@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format, isPast, startOfMonth } from "date-fns";
+import { addDays, format, isPast, startOfMonth, startOfWeek } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,15 +37,29 @@ import {
 } from "@/components/ui/select";
 import {
   useSalaryMonthTransactions,
+  useSalaryWeekTransactions,
   useSalaryProfiles,
   useUpsertSalaryProfile,
 } from "@/hooks/useSalaries";
 
-const monthKey = (d: Date) => format(d, "yyyy-MM");
-
 const clampDueDay = (dueDay: number) => {
   if (!Number.isFinite(dueDay)) return 1;
   return Math.max(1, Math.min(31, Math.trunc(dueDay)));
+};
+
+const clampDueWeekday = (dueWeekday: number) => {
+  if (!Number.isFinite(dueWeekday)) return 1;
+  return Math.max(1, Math.min(7, Math.trunc(dueWeekday)));
+};
+
+const WEEKDAYS: Record<number, string> = {
+  1: "Mon",
+  2: "Tue",
+  3: "Wed",
+  4: "Thu",
+  5: "Fri",
+  6: "Sat",
+  7: "Sun",
 };
 
 const formatMoney = (amount: number, currency: "GEL" | "USD") => {
@@ -57,7 +71,6 @@ export function SalariesView() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const monthDate = useMemo(() => new Date(), []);
-  const mKey = monthKey(monthDate);
 
   const { role } = useUserRole();
   const { viewAsRole } = useViewAs();
@@ -66,16 +79,25 @@ export function SalariesView() {
 
   const { data: profiles, isLoading: profilesLoading } = useSalaryProfiles();
   const { data: monthTx, isLoading: monthTxLoading } = useSalaryMonthTransactions(monthDate);
+  const { data: weekTx, isLoading: weekTxLoading } = useSalaryWeekTransactions(monthDate);
   const upsertSalary = useUpsertSalaryProfile();
   const confirmTransaction = useConfirmTransaction();
 
-  const txByOwner = useMemo(() => {
+  const monthTxByOwner = useMemo(() => {
     const map = new Map<string, (typeof monthTx)[number]>();
     for (const t of monthTx || []) {
       if (t.ownerId) map.set(t.ownerId, t);
     }
     return map;
   }, [monthTx]);
+
+  const weekTxByOwner = useMemo(() => {
+    const map = new Map<string, (typeof weekTx)[number]>();
+    for (const t of weekTx || []) {
+      if (t.ownerId) map.set(t.ownerId, t);
+    }
+    return map;
+  }, [weekTx]);
 
   const stats = useMemo(() => {
     const list = profiles || [];
@@ -87,20 +109,35 @@ export function SalariesView() {
     let totalRemainingUSD = 0;
 
     const monthStart = startOfMonth(monthDate);
+    const weekStart = startOfWeek(monthDate, { weekStartsOn: 1 });
+
     for (const p of list) {
       if (p.currency === "USD") totalExpectedUSD += p.amount;
       else totalExpectedGEL += p.amount;
-      const t = txByOwner.get(p.id);
-      if (t?.status === "confirmed") {
+
+      const t = p.frequency === "weekly" ? weekTxByOwner.get(p.id) : monthTxByOwner.get(p.id);
+      const paid = t?.status === "confirmed";
+      if (paid) {
         paidCount += 1;
         continue;
       }
-      // Use due day to compute due-ness (month tx might exist but is pending)
-      const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
-      const day = Math.min(clampDueDay(p.dueDay), lastDay);
-      const dueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
-      const isDue = isPast(dueDate);
-      if (isDue) dueCount += 1;
+
+      const fallbackDueDate =
+        p.frequency === "weekly"
+          ? addDays(weekStart, clampDueWeekday(p.dueWeekday) - 1)
+          : (() => {
+              const lastDay = new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth() + 1,
+                0,
+              ).getDate();
+              const day = Math.min(clampDueDay(p.dueDay), lastDay);
+              return new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+            })();
+
+      const dueDate = t?.date ? new Date(t.date) : fallbackDueDate;
+      if (isPast(dueDate)) dueCount += 1;
+
       if (p.currency === "USD") totalRemainingUSD += p.amount;
       else totalRemainingGEL += p.amount;
     }
@@ -114,33 +151,50 @@ export function SalariesView() {
       totalRemainingUSD,
       totalCount: list.length,
     };
-  }, [profiles, monthDate, txByOwner]);
+  }, [profiles, monthDate, monthTxByOwner, weekTxByOwner]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
+  const [frequency, setFrequency] = useState<"monthly" | "weekly">("monthly");
   const [dueDay, setDueDay] = useState("15");
+  const [dueWeekday, setDueWeekday] = useState("5");
   const [currency, setCurrency] = useState<"GEL" | "USD">("GEL");
 
   const canSave =
     name.trim().length >= 2 &&
     Number(amount) > 0 &&
     Number.isFinite(Number(amount)) &&
-    clampDueDay(Number(dueDay)) >= 1;
+    (frequency === "monthly"
+      ? clampDueDay(Number(dueDay)) >= 1
+      : clampDueWeekday(Number(dueWeekday)) >= 1);
 
   const handleSave = async () => {
     if (!canSave) return;
     try {
-      await upsertSalary.mutateAsync({
-        name: name.trim(),
-        amount: Number(amount),
-        dueDay: clampDueDay(Number(dueDay)),
-        currency,
-      });
+      if (frequency === "weekly") {
+        await upsertSalary.mutateAsync({
+          name: name.trim(),
+          amount: Number(amount),
+          currency,
+          frequency: "weekly",
+          dueWeekday: clampDueWeekday(Number(dueWeekday)),
+        });
+      } else {
+        await upsertSalary.mutateAsync({
+          name: name.trim(),
+          amount: Number(amount),
+          currency,
+          frequency: "monthly",
+          dueDay: clampDueDay(Number(dueDay)),
+        });
+      }
       setDialogOpen(false);
       setName("");
       setAmount("");
+      setFrequency("monthly");
       setDueDay("15");
+      setDueWeekday("5");
       setCurrency("GEL");
       // Ensuring will run via effect after query invalidation.
     } catch {
@@ -152,14 +206,15 @@ export function SalariesView() {
     try {
       await confirmTransaction.mutateAsync({ id: txId, confirm: true });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["salary-month-transactions", mKey] });
+      queryClient.invalidateQueries({ queryKey: ["salary-month-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["salary-week-transactions"] });
       toast({ title: "Marked as paid" });
     } catch {
       toast({ title: "Error marking as paid", variant: "destructive" });
     }
   };
 
-  const isLoading = profilesLoading || monthTxLoading;
+  const isLoading = profilesLoading || monthTxLoading || weekTxLoading;
 
   return (
     <div className="space-y-4">
@@ -174,7 +229,7 @@ export function SalariesView() {
                 Salaries
               </h2>
               <p className="text-xs text-muted-foreground">
-                Monthly payouts for {format(monthDate, "MMMM yyyy")}
+                Scheduled payouts (monthly/weekly) - {format(monthDate, "MMMM yyyy")}
               </p>
             </div>
           </div>
@@ -193,10 +248,10 @@ export function SalariesView() {
               Add Salary
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[440px]">
-            <DialogHeader>
-              <DialogTitle>Add Monthly Salary</DialogTitle>
-            </DialogHeader>
+            <DialogContent className="sm:max-w-[440px]">
+              <DialogHeader>
+                <DialogTitle>Add Salary</DialogTitle>
+              </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="salary-name">Name</Label>
@@ -206,6 +261,21 @@ export function SalariesView() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Nato"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Schedule</Label>
+                <Select
+                  value={frequency}
+                  onValueChange={(v) => setFrequency(v as "monthly" | "weekly")}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -220,15 +290,38 @@ export function SalariesView() {
                   <p className="text-[11px] text-muted-foreground">Shows in Ledger as a Salary expense.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="salary-due">Due Day</Label>
-                  <Input
-                    id="salary-due"
-                    inputMode="numeric"
-                    value={dueDay}
-                    onChange={(e) => setDueDay(e.target.value)}
-                    placeholder="15"
-                  />
-                  <p className="text-[11px] text-muted-foreground">1–31, rolls to month end if needed.</p>
+                  <Label htmlFor="salary-due">
+                    {frequency === "weekly" ? "Pay Day" : "Due Day"}
+                  </Label>
+                  {frequency === "weekly" ? (
+                    <Select value={dueWeekday} onValueChange={setDueWeekday}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">Monday</SelectItem>
+                        <SelectItem value="2">Tuesday</SelectItem>
+                        <SelectItem value="3">Wednesday</SelectItem>
+                        <SelectItem value="4">Thursday</SelectItem>
+                        <SelectItem value="5">Friday</SelectItem>
+                        <SelectItem value="6">Saturday</SelectItem>
+                        <SelectItem value="7">Sunday</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      id="salary-due"
+                      inputMode="numeric"
+                      value={dueDay}
+                      onChange={(e) => setDueDay(e.target.value)}
+                      placeholder="15"
+                    />
+                  )}
+                  <p className="text-[11px] text-muted-foreground">
+                    {frequency === "weekly"
+                      ? "Auto-created at week start (Mon)."
+                      : "1-31, rolls to month end if needed."}
+                  </p>
                 </div>
               </div>
               <div className="space-y-2">
@@ -258,7 +351,7 @@ export function SalariesView() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4">
-          <div className="text-xs text-muted-foreground">Due This Month</div>
+          <div className="text-xs text-muted-foreground">Due</div>
           <div className="mt-1 flex items-baseline gap-2">
             <div className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">
               {isLoading ? <Skeleton className="h-7 w-16" /> : stats.dueCount}
@@ -300,7 +393,7 @@ export function SalariesView() {
       <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
         <div className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-[#0F4C5C]">This Month</div>
+            <div className="text-sm font-semibold text-[#0F4C5C]">Current</div>
             <div className="text-xs text-muted-foreground">{format(monthDate, "MMMM yyyy")}</div>
           </div>
         </div>
@@ -336,23 +429,53 @@ export function SalariesView() {
             ) : !profiles?.length ? (
               <TableRow>
                 <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                  No salaries yet. Add one to start tracking monthly payments.
+                  No salaries yet. Add one to start tracking payments.
                 </TableCell>
               </TableRow>
             ) : (
               profiles.map((p) => {
-                const t = txByOwner.get(p.id);
-                const dueLabel = `Day ${p.dueDay}`;
+                const t =
+                  p.frequency === "weekly"
+                    ? weekTxByOwner.get(p.id)
+                    : monthTxByOwner.get(p.id);
                 const paid = t?.status === "confirmed";
-                const monthStart = startOfMonth(monthDate);
-                const lastDay = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
-                const day = Math.min(clampDueDay(p.dueDay), lastDay);
-                const fallbackDueDate = new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+
+                const dueLabel =
+                  p.frequency === "weekly"
+                    ? WEEKDAYS[clampDueWeekday(p.dueWeekday)] || "Day"
+                    : `Day ${p.dueDay}`;
+
+                const fallbackDueDate = (() => {
+                  if (p.frequency === "weekly") {
+                    const ws = startOfWeek(monthDate, { weekStartsOn: 1 });
+                    const offset = clampDueWeekday(p.dueWeekday) - 1;
+                    return addDays(ws, offset);
+                  }
+                  const monthStart = startOfMonth(monthDate);
+                  const lastDay = new Date(
+                    monthStart.getFullYear(),
+                    monthStart.getMonth() + 1,
+                    0,
+                  ).getDate();
+                  const day = Math.min(clampDueDay(p.dueDay), lastDay);
+                  return new Date(monthStart.getFullYear(), monthStart.getMonth(), day);
+                })();
+
                 const dueDate = t?.date ? new Date(t.date) : fallbackDueDate;
-                const dueNow = !paid && !!t?.id && isPast(dueDate);
+                const dueNow = !paid && isPast(dueDate);
                 return (
                   <TableRow key={p.id} className="hover:bg-[#EAF7F8]/40">
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{p.name}</span>
+                        <Badge
+                          variant="outline"
+                          className="h-6 rounded-full px-2 border-[#0F4C5C]/15 text-[#0F4C5C]/80"
+                        >
+                          {p.frequency === "weekly" ? "Weekly" : "Monthly"}
+                        </Badge>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-semibold text-[#0F4C5C]">
                       {formatMoney(p.amount, p.currency)}
                     </TableCell>

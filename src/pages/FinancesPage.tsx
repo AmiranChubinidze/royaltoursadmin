@@ -23,7 +23,11 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { ensureCurrentMonthSalaryTransactions, useSalaryProfiles } from "@/hooks/useSalaries";
+import {
+  ensureCurrentMonthSalaryTransactions,
+  ensureCurrentWeekSalaryTransactions,
+  useSalaryProfiles,
+} from "@/hooks/useSalaries";
 
 export default function FinancesPage() {
   const isMobile = useIsMobile();
@@ -80,16 +84,17 @@ export default function FinancesPage() {
     if (!canSeeSalaries) return;
     if (!salaryProfiles?.length) return;
 
-    const monthDate = new Date();
-    const mKey = format(monthDate, "yyyy-MM");
+    const now = new Date();
 
     (async () => {
       try {
-        await ensureCurrentMonthSalaryTransactions({ monthDate, profiles: salaryProfiles });
+        await ensureCurrentMonthSalaryTransactions({ monthDate: now, profiles: salaryProfiles });
+        await ensureCurrentWeekSalaryTransactions({ weekDate: now, profiles: salaryProfiles });
         queryClient.invalidateQueries({ queryKey: ["transactions"] });
-        queryClient.invalidateQueries({ queryKey: ["salary-month-transactions", mKey] });
+        queryClient.invalidateQueries({ queryKey: ["salary-month-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["salary-week-transactions"] });
       } catch {
-        toast({ title: "Error generating monthly salaries", variant: "destructive" });
+        toast({ title: "Error generating salaries", variant: "destructive" });
       }
     })();
   }, [canSeeSalaries, salaryProfiles, queryClient, toast]);

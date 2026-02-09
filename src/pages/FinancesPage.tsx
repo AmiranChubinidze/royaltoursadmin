@@ -12,6 +12,7 @@ import { FinanceSummaryCards } from "@/components/finances/FinanceSummaryCards";
 import { LedgerView } from "@/components/finances/LedgerView";
 import { CategoriesView } from "@/components/finances/CategoriesView";
 import { HoldersView } from "@/components/finances/HoldersView";
+import { SalariesView } from "@/components/finances/SalariesView";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileSummaryCards } from "@/components/finances/MobileSummaryCards";
 import { MobileTransactionCard } from "@/components/finances/MobileTransactionCard";
@@ -20,16 +21,24 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { ensureCurrentMonthSalaryTransactions, useSalaryProfiles } from "@/hooks/useSalaries";
 
 export default function FinancesPage() {
   const isMobile = useIsMobile();
   const { exchangeRate } = useCurrency();
   const { role, isAdmin, isWorker, isAccountant } = useUserRole();
   const { user } = useAuth();
+  const { toast } = useToast();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
+  const queryClient = useQueryClient();
   const canSeeHoldings = effectiveRole
     ? !["coworker", "visitor"].includes(effectiveRole)
+    : isAdmin || isWorker || isAccountant;
+  const canSeeSalaries = effectiveRole
+    ? ["admin", "worker", "accountant"].includes(effectiveRole)
     : isAdmin || isWorker || isAccountant;
   const canEditTransaction = (t: any) => {
     if (["admin", "worker", "accountant"].includes(effectiveRole || "")) return true;
@@ -54,6 +63,7 @@ export default function FinancesPage() {
     dateTo,
   });
   const updateTransaction = useUpdateTransaction();
+  const { data: salaryProfiles } = useSalaryProfiles({ enabled: canSeeSalaries });
 
   const isLoading = confirmationsLoading || transactionsLoading;
 
@@ -61,7 +71,28 @@ export default function FinancesPage() {
     if (!canSeeHoldings && activeTab === "holders") {
       setActiveTab("ledger");
     }
-  }, [canSeeHoldings, activeTab]);
+    if (!canSeeSalaries && activeTab === "salaries") {
+      setActiveTab("ledger");
+    }
+  }, [canSeeHoldings, canSeeSalaries, activeTab]);
+
+  useEffect(() => {
+    if (!canSeeSalaries) return;
+    if (!salaryProfiles?.length) return;
+
+    const monthDate = new Date();
+    const mKey = format(monthDate, "yyyy-MM");
+
+    (async () => {
+      try {
+        await ensureCurrentMonthSalaryTransactions({ monthDate, profiles: salaryProfiles });
+        queryClient.invalidateQueries({ queryKey: ["transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["salary-month-transactions", mKey] });
+      } catch {
+        toast({ title: "Error generating monthly salaries", variant: "destructive" });
+      }
+    })();
+  }, [canSeeSalaries, salaryProfiles, queryClient, toast]);
 
   // Parse dates that might come as DD/MM/YYYY or ISO (YYYY-MM-DD)
   const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
@@ -528,6 +559,11 @@ export default function FinancesPage() {
                 <TabsTrigger value="categories" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C]">
               Categories
             </TabsTrigger>
+                {canSeeSalaries && (
+                  <TabsTrigger value="salaries" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-[#0F4C5C]">
+                    Salaries
+                  </TabsTrigger>
+                )}
               </TabsList>
 
             {/* Date Filter */}
@@ -624,6 +660,12 @@ export default function FinancesPage() {
           <TabsContent value="categories" className="mt-4">
             <CategoriesView dateFrom={dateFrom} dateTo={dateTo} />
           </TabsContent>
+
+          {canSeeSalaries && (
+            <TabsContent value="salaries" className="mt-4">
+              <SalariesView />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

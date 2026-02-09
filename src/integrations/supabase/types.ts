@@ -407,6 +407,8 @@ export type Database = {
           is_active: boolean
           name: string
           role: string | null
+          salary_amount: number | null
+          salary_due_day: number | null
         }
         Insert: {
           created_at?: string | null
@@ -414,6 +416,8 @@ export type Database = {
           is_active?: boolean
           name: string
           role?: string | null
+          salary_amount?: number | null
+          salary_due_day?: number | null
         }
         Update: {
           created_at?: string | null
@@ -421,6 +425,8 @@ export type Database = {
           is_active?: boolean
           name?: string
           role?: string | null
+          salary_amount?: number | null
+          salary_due_day?: number | null
         }
         Relationships: []
       }

@@ -383,15 +383,35 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="animate-fade-in max-w-7xl mx-auto space-y-6">
-      <div className="mb-2 flex flex-wrap items-end justify-between gap-4">
+    <div className="animate-fade-in max-w-7xl mx-auto space-y-5">
+      <div className="mb-1 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="page-title text-foreground">Calendar</h1>
           <p className="text-muted-foreground">Hotel stays and arrival reminders.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
-            {monthLabel}
+          <div className="flex items-center gap-2 rounded-full border border-[#0F4C5C]/10 bg-white px-2 py-1.5 text-xs text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full hover:bg-[#EAF7F8]"
+              aria-label="Previous month"
+              onClick={() => setCurrentMonth(addDays(monthStart, -1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="px-2 py-1 rounded-full border border-[#0F4C5C]/10 bg-white text-xs text-muted-foreground">
+              {monthLabel}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full hover:bg-[#EAF7F8]"
+              aria-label="Next month"
+              onClick={() => setCurrentMonth(addDays(monthEnd, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
           <Popover open={viewOpen} onOpenChange={setViewOpen}>
             <PopoverTrigger asChild>
@@ -468,26 +488,245 @@ export default function CalendarPage() {
               </div>
             </PopoverContent>
           </Popover>
-          <Button
-            size="sm"
-            variant="outline"
-            className={cn(
-              "h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]",
-              remindersOpen && "bg-[#EAF7F8] text-[#0F4C5C]",
-            )}
-            onClick={() => setRemindersOpen((prev) => !prev)}
-          >
-            <Bell className="h-4 w-4 mr-2" />
-            Reminders
-          </Button>
+          <Popover open={remindersOpen} onOpenChange={setRemindersOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]",
+                  remindersOpen && "bg-[#EAF7F8] text-[#0F4C5C]",
+                )}
+                aria-label="Arrival reminder options"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                Reminders
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-[360px] p-4 max-h-[80vh] overflow-y-auto"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[#0F4C5C]">Arrival Reminders</div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Email you before guests arrive.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={pendingSettings.enabled}
+                    onCheckedChange={(checked) => {
+                      setRemindersEnabled(checked);
+                      updateSettings({ enabled: checked });
+                    }}
+                    aria-label="Enable arrival reminders"
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Before</Label>
+                    <Select
+                      value={String(pendingSettings.remind_offset_days)}
+                      onValueChange={(value) => {
+                        const nextValue = Number(value);
+                        setRemindOffsetDays(nextValue);
+                        updateSettings({ remind_offset_days: nextValue });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 rounded-lg border-border/70 bg-[#F7FAFB] text-xs font-medium text-[#0F4C5C]">
+                        <SelectValue placeholder="Choose" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Same day</SelectItem>
+                        <SelectItem value="1">1 day before</SelectItem>
+                        <SelectItem value="2">2 days before</SelectItem>
+                        <SelectItem value="3">3 days before</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Time</Label>
+                    <Select
+                      value={pendingSettings.time_local}
+                      onValueChange={(value) => {
+                        setTimeLocal(value);
+                        updateSettings({ time_local: value });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 rounded-lg border-border/70 bg-[#F7FAFB] text-xs font-medium text-[#0F4C5C]">
+                        <SelectValue placeholder="Choose" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 24 * 4 }).map((_, idx) => {
+                          const hour = Math.floor(idx / 4);
+                          const minute = (idx % 4) * 15;
+                          const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+                          return (
+                            <SelectItem key={value} value={value}>
+                              {value}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Separator className="bg-border/70" />
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label className="text-xs text-muted-foreground">Owned Hotels</Label>
+                    <p className="text-[11px] text-muted-foreground truncate">Which owned hotels trigger reminders.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">All</span>
+                    <Switch
+                      checked={pendingSettings.use_all_hotels}
+                      onCheckedChange={(checked) => {
+                        setUseAllHotelsState(checked);
+                        updateSettings({ use_all_hotels: checked });
+                      }}
+                      aria-label="Use all owned hotels"
+                    />
+                  </div>
+                </div>
+                {!pendingSettings.use_all_hotels && (
+                  <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
+                    <ScrollArea className="h-[180px]">
+                      <div className="p-2 space-y-2">
+                        {ownedHotels.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">No owned hotels saved yet.</div>
+                        ) : (
+                          ownedHotels.map((hotel) => {
+                            const checked = selectedSet.has(hotel.id);
+                            return (
+                              <div
+                                key={hotel.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => toggleHotelSelection(hotel.id)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    toggleHotelSelection(hotel.id);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
+                                  checked
+                                    ? "border-[#0F4C5C]/40 bg-[#F1FAFB] shadow-[0_1px_6px_rgba(15,76,92,0.08)]"
+                                    : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
+                                )}
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
+                                </div>
+                                <div
+                                  onClick={(event) => event.stopPropagation()}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() => toggleHotelSelection(hotel.id)}
+                                    className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#0F4C5C] data-[state=checked]:text-white cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Label className="text-xs text-muted-foreground">Other Hotels</Label>
+                    <p className="text-[11px] text-muted-foreground truncate">Which other hotels trigger reminders.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">All</span>
+                    <Switch
+                      checked={pendingSettings.use_all_other_hotels}
+                      onCheckedChange={(checked) => {
+                        setUseAllOtherHotelsState(checked);
+                        updateSettings({ use_all_other_hotels: checked });
+                      }}
+                      aria-label="Use all other hotels"
+                    />
+                  </div>
+                </div>
+                {!pendingSettings.use_all_other_hotels && (
+                  <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
+                    <ScrollArea className="h-[180px]">
+                      <div className="p-2 space-y-2">
+                        {otherHotels.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">No other hotels saved yet.</div>
+                        ) : (
+                          otherHotels.map((hotel) => {
+                            const checked = selectedSet.has(hotel.id);
+                            return (
+                              <div
+                                key={hotel.id}
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => toggleHotelSelection(hotel.id)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    toggleHotelSelection(hotel.id);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B4F55]/25",
+                                  checked
+                                    ? "border-[#4B4F55]/40 bg-[#F2F3F5] shadow-[0_1px_6px_rgba(75,79,85,0.08)]"
+                                    : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
+                                )}
+                              >
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
+                                </div>
+                                <div
+                                  onClick={(event) => event.stopPropagation()}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() => toggleHotelSelection(hotel.id)}
+                                    className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#4B4F55] data-[state=checked]:text-white cursor-pointer"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end">
+                  <Button
+                    size="sm"
+                    className="h-9 px-4 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
+                    onClick={saveSettings}
+                    disabled={isSavingSettings}
+                  >
+                    {isSavingSettings ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
-      <div
-        className={cn(
-          "grid gap-6",
-          remindersOpen ? "lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]" : "lg:grid-cols-1"
-        )}
-      >
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
           <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -503,29 +742,6 @@ export default function CalendarPage() {
                     {canSeeSalaries && showSalaries ? " - salaries" : ""}
                   </p>
                 </div>
-              </div>
-              <div className={cn("flex items-center gap-2", isMobile && "justify-between")}>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
-                  aria-label="Previous month"
-                  onClick={() => setCurrentMonth(addDays(monthStart, -1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="px-3 py-1.5 rounded-full border border-[#0F4C5C]/10 bg-white text-xs text-muted-foreground">
-                  {monthLabel}
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
-                  aria-label="Next month"
-                  onClick={() => setCurrentMonth(addDays(monthEnd, 1))}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -553,7 +769,7 @@ export default function CalendarPage() {
                     key={dayKey}
                     onClick={() => setSelectedDate(day)}
                     className={cn(
-                      "min-h-[58px] sm:min-h-[92px] rounded-xl border px-2 py-2 text-left transition-colors hover:bg-[#EAF7F8]/40 hover:border-[#0F4C5C]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
+                      "min-h-[58px] sm:min-h-[84px] rounded-xl border px-2 py-2 text-left transition-colors hover:bg-[#EAF7F8]/40 hover:border-[#0F4C5C]/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/40 focus-visible:ring-offset-2",
                       inMonth ? "bg-white/90 border-[#0F4C5C]/10" : "bg-white/60 border-border/60",
                       hasStays
                         ? ownedCount > 0
@@ -644,237 +860,6 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
 
-        {remindersOpen && (
-          <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
-          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="h-9 w-9 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/10 flex items-center justify-center shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
-                  <Bell className="h-4 w-4 text-[#0F4C5C]" />
-                </div>
-                <div>
-                  <CardTitle className="text-sm font-semibold text-[#0F4C5C]">Arrival Reminders</CardTitle>
-                  <p className="text-xs text-muted-foreground">Email you the day before guests arrive.</p>
-                </div>
-              </div>
-                <Switch
-                  checked={pendingSettings.enabled}
-                  onCheckedChange={(checked) => {
-                    setRemindersEnabled(checked);
-                    updateSettings({ enabled: checked });
-                  }}
-                  aria-label="Enable arrival reminders"
-                />
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Before</Label>
-                <Select
-                  value={String(pendingSettings.remind_offset_days)}
-                  onValueChange={(value) => {
-                    const nextValue = Number(value);
-                    setRemindOffsetDays(nextValue);
-                    updateSettings({ remind_offset_days: nextValue });
-                  }}
-                >
-                <SelectTrigger className="h-9 rounded-lg border-border/70 bg-[#F7FAFB] text-xs font-medium text-[#0F4C5C]">
-                  <SelectValue placeholder="Choose" />
-                </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Same day</SelectItem>
-                    <SelectItem value="1">1 day before</SelectItem>
-                    <SelectItem value="2">2 days before</SelectItem>
-                    <SelectItem value="3">3 days before</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Time</Label>
-                <Select
-                  value={pendingSettings.time_local}
-                  onValueChange={(value) => {
-                    setTimeLocal(value);
-                    updateSettings({ time_local: value });
-                  }}
-                >
-                  <SelectTrigger className="h-9 rounded-lg border-border/70 bg-[#F7FAFB] text-xs font-medium text-[#0F4C5C]">
-                    <SelectValue placeholder="Choose" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 24 * 4 }).map((_, idx) => {
-                      const hour = Math.floor(idx / 4);
-                      const minute = (idx % 4) * 15;
-                      const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-                      return (
-                        <SelectItem key={value} value={value}>
-                          {value}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <Separator className="bg-border/70" />
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-xs text-muted-foreground">Owned Hotels</Label>
-                <p className="text-[11px] text-muted-foreground">Pick which owned hotels trigger reminders.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">All Owned</span>
-                <Switch
-                    checked={pendingSettings.use_all_hotels}
-                    onCheckedChange={(checked) => {
-                      setUseAllHotelsState(checked);
-                      updateSettings({ use_all_hotels: checked });
-                    }}
-                    aria-label="Use all owned hotels"
-                  />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-xs text-muted-foreground">Other Hotels</Label>
-                <p className="text-[11px] text-muted-foreground">Pick which other hotels trigger reminders.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">All Other</span>
-                <Switch
-                    checked={pendingSettings.use_all_other_hotels}
-                    onCheckedChange={(checked) => {
-                      setUseAllOtherHotelsState(checked);
-                      updateSettings({ use_all_other_hotels: checked });
-                    }}
-                    aria-label="Use all other hotels"
-                  />
-              </div>
-            </div>
-            {pendingSettings.use_all_hotels ? (
-              <div className="rounded-lg border border-dashed border-border/70 bg-[#F7FAFB] px-3 py-2 text-xs text-muted-foreground">
-                All owned hotels are included.
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
-                <ScrollArea className="h-[220px]">
-                  <div className="p-2 space-y-2">
-                    {ownedHotels.length === 0 ? (
-                      <div className="text-xs text-muted-foreground">No owned hotels saved yet.</div>
-                    ) : (
-                      ownedHotels.map((hotel) => {
-                        const checked = selectedSet.has(hotel.id);
-                        return (
-                          <div
-                            key={hotel.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => toggleHotelSelection(hotel.id)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                toggleHotelSelection(hotel.id);
-                              }
-                            }}
-                            className={cn(
-                              "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
-                              checked
-                                ? "border-[#0F4C5C]/40 bg-[#F1FAFB] shadow-[0_1px_6px_rgba(15,76,92,0.08)]"
-                                : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
-                            )}
-                          >
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
-                              <div className="text-[11px] text-muted-foreground truncate">Owned hotel</div>
-                            </div>
-                            <div
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={() => toggleHotelSelection(hotel.id)}
-                                className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#0F4C5C] data-[state=checked]:text-white cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
-            {pendingSettings.use_all_other_hotels ? (
-              <div className="rounded-lg border border-dashed border-border/70 bg-[#F7FAFB] px-3 py-2 text-xs text-muted-foreground">
-                All other hotels are included.
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
-                <ScrollArea className="h-[220px]">
-                  <div className="p-2 space-y-2">
-                    {otherHotels.length === 0 ? (
-                      <div className="text-xs text-muted-foreground">No other hotels saved yet.</div>
-                    ) : (
-                      otherHotels.map((hotel) => {
-                        const checked = selectedSet.has(hotel.id);
-                        return (
-                          <div
-                            key={hotel.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => toggleHotelSelection(hotel.id)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                toggleHotelSelection(hotel.id);
-                              }
-                            }}
-                            className={cn(
-                              "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B4F55]/25",
-                              checked
-                                ? "border-[#4B4F55]/40 bg-[#F2F3F5] shadow-[0_1px_6px_rgba(75,79,85,0.08)]"
-                                : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
-                            )}
-                          >
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
-                              <div className="text-[11px] text-muted-foreground truncate">Other hotel</div>
-                            </div>
-                            <div
-                              onClick={(event) => event.stopPropagation()}
-                              onKeyDown={(event) => event.stopPropagation()}
-                            >
-                              <Checkbox
-                                checked={checked}
-                                onCheckedChange={() => toggleHotelSelection(hotel.id)}
-                                className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#4B4F55] data-[state=checked]:text-white cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </ScrollArea>
-              </div>
-            )}
-            <div className="flex items-center justify-end">
-              <Button
-                size="sm"
-                className="h-9 px-4 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
-                onClick={saveSettings}
-                disabled={isSavingSettings}
-              >
-                {isSavingSettings ? "Saving..." : "Save Settings"}
-              </Button>
-            </div>
-          </CardContent>
-          </Card>
-        )}
-      </div>
-
         <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
         <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
           <CardTitle className="text-sm font-semibold text-[#0F4C5C]">{selectedDateLabel}</CardTitle>
@@ -941,6 +926,7 @@ export default function CalendarPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

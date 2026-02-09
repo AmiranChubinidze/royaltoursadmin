@@ -350,7 +350,7 @@ export function SalariesView() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4">
+        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)] p-4">
           <div className="text-xs text-muted-foreground">Due</div>
           <div className="mt-1 flex items-baseline gap-2">
             <div className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">
@@ -359,7 +359,7 @@ export function SalariesView() {
             <div className="text-xs text-muted-foreground">people</div>
           </div>
         </div>
-        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4">
+        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)] p-4">
           <div className="text-xs text-muted-foreground">Paid</div>
           <div className="mt-1 flex items-baseline gap-2">
             <div className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">
@@ -368,7 +368,7 @@ export function SalariesView() {
             <div className="text-xs text-muted-foreground">of {isLoading ? "…" : stats.totalCount}</div>
           </div>
         </div>
-        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)] p-4">
+        <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)] p-4">
           <div className="text-xs text-muted-foreground">Total (Expected)</div>
           {isLoading ? (
             <div className="mt-2 space-y-2">

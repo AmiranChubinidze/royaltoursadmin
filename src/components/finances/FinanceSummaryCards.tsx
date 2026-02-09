@@ -34,7 +34,8 @@ interface CardConfig {
 
 function formatValue(value: number, symbol: string): string {
   const formatted = Math.abs(Math.round(value)).toLocaleString();
-  return `${value < 0 ? "−" : ""}${symbol}${formatted}`;
+  // Avoid mojibake in currency symbols and keep formatting predictable.
+  return `${value < 0 ? "-" : ""}${symbol}${formatted}`;
 }
 
 function ValueDisplay({ 
@@ -49,7 +50,7 @@ function ValueDisplay({
 
   if (!hasUSD && !hasGEL) {
     return (
-      <span className="text-lg font-bold tracking-tight text-muted-foreground/40">
+      <span className="text-xl font-semibold tracking-tight text-muted-foreground/40">
         $0
       </span>
     );
@@ -57,17 +58,16 @@ function ValueDisplay({
 
   const usdAbs = Math.abs(value.USD);
   const gelAbs = Math.abs(value.GEL);
-  const showUSDPrimary = usdAbs >= gelAbs || !hasGEL;
 
   if (hasUSD && hasGEL) {
     const usdText = formatValue(value.USD, "$");
-    const gelText = formatValue(value.GEL, "₾");
+    const gelText = formatValue(value.GEL, "\u20BE");
     return (
       <div className="flex items-baseline gap-2">
-        <span className={cn("text-lg font-bold tracking-tight", valueColor)}>
+        <span className={cn("text-xl font-semibold tracking-tight", valueColor)}>
           {usdText}
         </span>
-        <span className={cn("text-lg font-bold tracking-tight", valueColor)}>
+        <span className={cn("text-xl font-semibold tracking-tight", valueColor)}>
           / {gelText}
         </span>
       </div>
@@ -75,8 +75,8 @@ function ValueDisplay({
   }
 
   return (
-    <span className={cn("text-lg font-bold tracking-tight", valueColor)}>
-      {hasUSD ? formatValue(value.USD, "$") : formatValue(value.GEL, "₾")}
+    <span className={cn("text-xl font-semibold tracking-tight", valueColor)}>
+      {hasUSD ? formatValue(value.USD, "$") : formatValue(value.GEL, "\u20BE")}
     </span>
   );
 }
@@ -124,14 +124,13 @@ export function FinanceSummaryCards({
   return (
     <div className="grid grid-cols-4 gap-3">
       {cards.map((card) => {
-        const IconComponent = card.icon;
         
         return (
           <Card 
             key={card.label} 
-            className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)]"
+            className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]"
           >
-            <div className="p-4">
+            <div className="px-4 py-3">
               <div className="flex items-center gap-3">
                 {/* Colored dot indicator */}
                 <div className={cn(
@@ -141,7 +140,7 @@ export function FinanceSummaryCards({
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[#0F4C5C]/60 mb-0.5">
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60 mb-0.5">
                     {card.label}
                   </p>
                   {isLoading ? (
@@ -156,22 +155,22 @@ export function FinanceSummaryCards({
         );
       })}
 
-      <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
-        <div className="p-4">
+      <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
+        <div className="px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="flex-shrink-0 h-3 w-3 rounded-full bg-emerald-500" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-[#0F4C5C]/60 mb-0.5">
+              <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60 mb-0.5">
                 Profit
               </p>
               {isLoading ? (
                 <Skeleton className="h-5 w-20" />
               ) : (
                 <div className="flex items-baseline gap-2">
-                  <span className="text-lg font-bold tracking-tight text-emerald-600">
+                  <span className="text-xl font-semibold tracking-tight text-emerald-600">
                     {formatValue(adjusted.USD, "$")}
                   </span>
-                  <span className="text-lg font-bold tracking-tight text-emerald-600">
+                  <span className="text-xl font-semibold tracking-tight text-emerald-600">
                     / {formatValue(adjusted.GEL, "\u20BE")}
                   </span>
                 </div>

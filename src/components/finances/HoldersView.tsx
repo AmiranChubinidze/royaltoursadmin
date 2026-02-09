@@ -88,7 +88,7 @@ export function HoldersView() {
       )}
 
       {/* Summary Header - Compact Design */}
-      <div className="relative overflow-hidden rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+      <div className="relative overflow-hidden rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
         <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-[#0F4C5C]/5 blur-2xl -translate-y-1/2 translate-x-1/2" />
 
         <div className="relative p-4">

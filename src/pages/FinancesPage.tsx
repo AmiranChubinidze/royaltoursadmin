@@ -393,7 +393,7 @@ export default function FinancesPage() {
 
             {/* Custom date picker */}
             {showMobileFilters && (
-              <div className="bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 border border-[#0F4C5C]/10 rounded-2xl p-4 space-y-3 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+              <div className="bg-gradient-to-br from-white via-white to-[#EAF7F8] border border-[#0F4C5C]/10 rounded-2xl p-4 space-y-3 shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
                 <div className="flex gap-2">
                   <Popover>
                     <PopoverTrigger asChild>

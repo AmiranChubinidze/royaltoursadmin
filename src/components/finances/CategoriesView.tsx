@@ -304,8 +304,8 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
     return (
       <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="h-80 w-full rounded-xl" />
-          <Skeleton className="h-80 w-full rounded-xl" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
+          <Skeleton className="h-80 w-full rounded-2xl" />
         </div>
       </div>
     );
@@ -316,14 +316,14 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expense Donut Chart */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-muted-foreground" />
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-[#0F4C5C]">
+              <Wallet className="h-4 w-4 text-[#0F4C5C]/60" />
               Expense Distribution
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             {chartData.length === 0 ? (
               <div className="flex items-center justify-center h-[260px] text-muted-foreground text-sm">
                 No expenses recorded
@@ -351,7 +351,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="bg-popover border rounded-lg shadow-lg px-3 py-2">
+                              <div className="bg-white border border-[#0F4C5C]/10 rounded-xl shadow-[0_10px_24px_rgba(15,76,92,0.10)] px-3 py-2">
                                 <p className="text-sm font-medium">{payload[0].name}</p>
                                 {data.totalUSD > 0 && (
                                   <p className="text-sm text-muted-foreground">${data.totalUSD.toLocaleString()}</p>
@@ -400,14 +400,14 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
         </Card>
 
         {/* Expense Breakdown List */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Receipt className="h-4 w-4 text-muted-foreground" />
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-[#0F4C5C]">
+              <Receipt className="h-4 w-4 text-[#0F4C5C]/60" />
               Category Breakdown
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="p-4 space-y-3">
             {expenseCategories.length === 0 ? (
               <p className="text-muted-foreground text-sm py-8 text-center">No expenses recorded</p>
             ) : (
@@ -439,7 +439,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                       )}
                     </div>
                   </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-[#EAF7F8] border border-[#0F4C5C]/10 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
@@ -467,21 +467,21 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
       {/* Bottom Row */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Pending Confirmations */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-[#0F4C5C]">
                 <Clock className="h-4 w-4 text-amber-500" />
                 Pending Payments
               </CardTitle>
               {pendingConfirmations.length > 0 && (
-                <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-0">
+                <Badge className="bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border border-amber-500/10">
                   {pendingConfirmations.length} pending
                 </Badge>
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             {pendingConfirmations.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center mb-3">
@@ -495,7 +495,7 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                 {pendingConfirmations.map((c, index) => (
                   <div
                     key={c.code}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted/80 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-xl border border-[#0F4C5C]/10 bg-[#EAF7F8]/35 hover:bg-[#EAF7F8]/55 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-xs font-bold text-amber-700 dark:text-amber-400">
@@ -517,15 +517,15 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
         </Card>
 
         {/* Quick Stats */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Transaction Overview</CardTitle>
+        <Card className="rounded-2xl border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden">
+          <CardHeader className="px-4 py-3 border-b border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/50">
+            <CardTitle className="text-sm font-semibold text-[#0F4C5C]">Transaction Overview</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-4 rounded-xl bg-muted/50">
+              <div className="p-4 rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.06)]">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs text-muted-foreground">Total Transactions</p>
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60">Total Transactions</p>
                   <ChangeIndicator 
                     current={transactions?.length || 0} 
                     previous={prevTransactions?.length || 0} 
@@ -533,25 +533,25 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
                 </div>
                 <p className="text-3xl font-bold">{transactions?.length || 0}</p>
               </div>
-              <div className="p-4 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">Categories Active</p>
+              <div className="p-4 rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] shadow-[0_8px_20px_rgba(15,76,92,0.06)]">
+                <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60 mb-1">Categories Active</p>
                 <p className="text-3xl font-bold">
                   {categoryStats.filter((c) => c.count > 0).length}
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
+              <div className="p-4 rounded-2xl border border-emerald-500/10 bg-emerald-500/5 shadow-[0_8px_20px_rgba(15,76,92,0.04)]">
                 <div className="flex items-center gap-2 mb-1">
                   <ArrowDownRight className="h-3 w-3 text-emerald-600" />
-                  <p className="text-xs text-muted-foreground">Income</p>
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60">Income</p>
                 </div>
                 <p className="text-2xl font-bold text-emerald-600">
                   {transactions?.filter((t) => t.type === "income").length || 0}
                 </p>
               </div>
-              <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-900/20">
+              <div className="p-4 rounded-2xl border border-rose-500/10 bg-rose-500/5 shadow-[0_8px_20px_rgba(15,76,92,0.04)]">
                 <div className="flex items-center gap-2 mb-1">
                   <ArrowUpRight className="h-3 w-3 text-rose-600" />
-                  <p className="text-xs text-muted-foreground">Expenses</p>
+                  <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60">Expenses</p>
                 </div>
                 <p className="text-2xl font-bold text-rose-600">
                   {transactions?.filter((t) => t.type === "expense").length || 0}
@@ -564,3 +564,4 @@ export function CategoriesView({ dateFrom, dateTo }: CategoriesViewProps) {
     </div>
   );
 }
+

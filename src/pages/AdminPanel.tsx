@@ -1,3 +1,4 @@
+import { useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Check, X, Users, Clock, CheckCircle, Ban, Shield, Eye, FileText, DollarSign, Upload, Database } from "lucide-react";
+import { Check, X, Users, Clock, CheckCircle, Ban, Shield, Eye, FileText, DollarSign, Upload, Database, ChevronDown, ChevronRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 
@@ -39,6 +40,36 @@ interface UserRole {
   user_id: string;
   role: AppRole;
 }
+
+interface ActivityLogEntry {
+  id: string;
+  table_name: string;
+  record_id: string;
+  action: string;
+  changes: Record<string, { old?: unknown; new?: unknown }> | Record<string, unknown>;
+  performed_by: string | null;
+  performed_at: string;
+  label: string;
+}
+
+const ACTIVITY_PAGE_SIZE = 50;
+
+const TABLE_DISPLAY_NAMES: Record<string, string> = {
+  confirmations: "Confirmation",
+  transactions: "Transaction",
+  expenses: "Expense",
+  confirmation_attachments: "Attachment",
+};
+
+const formatFieldName = (field: string) =>
+  field.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+const formatValue = (value: unknown): string => {
+  if (value === null || value === undefined) return "(empty)";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -78,49 +109,66 @@ const AdminPanel = () => {
     enabled: isAdmin === true,
   });
 
-  const { data: activity } = useQuery({
-    queryKey: ["admin-activity"],
+  // Activity log state
+  const [activityPage, setActivityPage] = useState(0);
+  const [activityActionFilter, setActivityActionFilter] = useState("all");
+  const [activityTableFilter, setActivityTableFilter] = useState("all");
+  const [activityUserFilter, setActivityUserFilter] = useState("all");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const { data: activityData, isLoading: activityLoading } = useQuery({
+    queryKey: ["admin-activity-log", activityPage, activityActionFilter, activityTableFilter, activityUserFilter],
     queryFn: async () => {
-      const [txRes, confRes] = await Promise.all([
-        supabase
-          .from("transactions")
-          .select("id, type, category, description, amount, currency, created_at, updated_at, created_by, updated_by")
-          .order("updated_at", { ascending: false })
-          .limit(50),
-        supabase
-          .from("confirmations")
-          .select("id, confirmation_code, main_client_name, created_at, updated_at, updated_by")
-          .order("updated_at", { ascending: false })
-          .limit(50),
-      ]);
+      let query = supabase
+        .from("activity_log")
+        .select("*")
+        .order("performed_at", { ascending: false })
+        .range(0, (activityPage + 1) * ACTIVITY_PAGE_SIZE - 1);
 
-      if (txRes.error) throw txRes.error;
-      if (confRes.error) throw confRes.error;
+      if (activityActionFilter !== "all") {
+        query = query.eq("action", activityActionFilter);
+      }
+      if (activityTableFilter !== "all") {
+        query = query.eq("table_name", activityTableFilter);
+      }
+      if (activityUserFilter !== "all") {
+        query = query.eq("performed_by", activityUserFilter);
+      }
 
-      const txItems = (txRes.data || []).map((t) => ({
-        id: `tx-${t.id}`,
-        when: t.updated_at || t.created_at,
-        kind: "Transaction",
-        action: t.updated_at && t.updated_at !== t.created_at ? "Updated" : "Created",
-        by: t.updated_by || t.created_by || null,
-        label: `${t.type} • ${t.category}${t.amount ? ` • ${t.currency} ${t.amount}` : ""}`,
-      }));
-
-      const confItems = (confRes.data || []).map((c) => ({
-        id: `conf-${c.id}`,
-        when: c.updated_at || c.created_at,
-        kind: "Confirmation",
-        action: c.updated_at && c.updated_at !== c.created_at ? "Updated" : "Created",
-        by: c.updated_by || null,
-        label: `${c.confirmation_code}${c.main_client_name ? ` • ${c.main_client_name}` : ""}`,
-      }));
-
-      return [...txItems, ...confItems].sort((a, b) => {
-        return new Date(b.when).getTime() - new Date(a.when).getTime();
-      }).slice(0, 50);
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as ActivityLogEntry[];
     },
     enabled: isAdmin === true,
   });
+
+  const setFilterAndReset = (setter: (v: string) => void) => (value: string) => {
+    setter(value);
+    setActivityPage(0);
+    setExpandedRows(new Set());
+  };
+
+  const toggleRowExpanded = (id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case "INSERT":
+        return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Created</Badge>;
+      case "UPDATE":
+        return <Badge className="bg-blue-100 text-blue-700 border-blue-200">Updated</Badge>;
+      case "DELETE":
+        return <Badge className="bg-red-100 text-red-700 border-red-200">Deleted</Badge>;
+      default:
+        return <Badge variant="outline">{action}</Badge>;
+    }
+  };
 
   // Fetch all user roles
   const { data: userRoles } = useQuery({
@@ -586,44 +634,170 @@ const AdminPanel = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-4">
-            {!activity ? (
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <Select value={activityActionFilter} onValueChange={setFilterAndReset(setActivityActionFilter)}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Action" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="INSERT">Created</SelectItem>
+                  <SelectItem value="UPDATE">Updated</SelectItem>
+                  <SelectItem value="DELETE">Deleted</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={activityTableFilter} onValueChange={setFilterAndReset(setActivityTableFilter)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Table" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tables</SelectItem>
+                  <SelectItem value="confirmations">Confirmations</SelectItem>
+                  <SelectItem value="transactions">Transactions</SelectItem>
+                  <SelectItem value="expenses">Expenses</SelectItem>
+                  <SelectItem value="confirmation_attachments">Attachments</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={activityUserFilter} onValueChange={setFilterAndReset(setActivityUserFilter)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="User" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Users</SelectItem>
+                  {(profiles || [])
+                    .filter((p) => p.approved)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.display_name?.trim() || p.email}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Table */}
+            {activityLoading ? (
               <div className="space-y-3">
                 {[...Array(4)].map((_, i) => (
                   <Skeleton key={i} className="h-10 w-full" />
                 ))}
               </div>
-            ) : activity.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No recent activity</p>
+            ) : !activityData || activityData.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No activity found</p>
             ) : (
-              <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">When</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Item</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Action</TableHead>
-                      <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">By</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activity.map((item) => (
-                      <TableRow key={item.id} className="hover:bg-[#EAF7F8]/40">
-                        <TableCell className="text-muted-foreground">
-                          {format(new Date(item.when), "MMM d, yyyy HH:mm")}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {item.kind}
-                          <span className="text-muted-foreground"> • {item.label}</span>
-                        </TableCell>
-                        <TableCell>{item.action}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.by ? (profileMap.get(item.by) || item.by) : "—"}
-                        </TableCell>
+              <>
+                <div className="rounded-xl border border-[#0F4C5C]/10 overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-8"></TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">When</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Item</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Action</TableHead>
+                        <TableHead className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">By</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {activityData.map((item) => {
+                        const isExpanded = expandedRows.has(item.id);
+                        const hasChanges = item.changes && Object.keys(item.changes).length > 0;
+                        const labelSuffix = item.label.replace(/^(Created|Updated|Deleted)\s+/, "");
+
+                        return (
+                          <Fragment key={item.id}>
+                            <TableRow
+                              className="hover:bg-[#EAF7F8]/40 cursor-pointer"
+                              onClick={() => hasChanges && toggleRowExpanded(item.id)}
+                            >
+                              <TableCell className="w-8 px-2">
+                                {hasChanges ? (
+                                  isExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground whitespace-nowrap">
+                                {format(new Date(item.performed_at), "MMM d, yyyy HH:mm")}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                <span className="text-[#0F4C5C]">
+                                  {TABLE_DISPLAY_NAMES[item.table_name] || item.table_name}
+                                </span>
+                                <span className="text-muted-foreground"> &middot; {labelSuffix}</span>
+                              </TableCell>
+                              <TableCell>{getActionBadge(item.action)}</TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {item.performed_by ? (profileMap.get(item.performed_by) || item.performed_by) : "\u2014"}
+                              </TableCell>
+                            </TableRow>
+
+                            {isExpanded && hasChanges && (
+                              <TableRow className="bg-[#EAF7F8]/20 hover:bg-[#EAF7F8]/20">
+                                <TableCell colSpan={5} className="p-0">
+                                  <div className="px-6 py-3">
+                                    {item.action === "UPDATE" ? (
+                                      <div className="space-y-1.5">
+                                        {Object.entries(
+                                          item.changes as Record<string, { old?: unknown; new?: unknown }>
+                                        ).map(([field, diff]) => (
+                                          <div key={field} className="flex items-start gap-2 text-sm">
+                                            <span className="font-medium text-[#0F4C5C] min-w-[140px] shrink-0">
+                                              {formatFieldName(field)}:
+                                            </span>
+                                            <span className="text-red-600 line-through break-all">
+                                              {formatValue(diff.old)}
+                                            </span>
+                                            <span className="text-muted-foreground shrink-0">&rarr;</span>
+                                            <span className="text-emerald-700 break-all">
+                                              {formatValue(diff.new)}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        {Object.entries(item.changes as Record<string, unknown>)
+                                          .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                                          .map(([field, value]) => (
+                                            <div key={field} className="flex items-start gap-2 text-sm">
+                                              <span className="font-medium text-[#0F4C5C] min-w-[140px] shrink-0">
+                                                {formatFieldName(field)}:
+                                              </span>
+                                              <span className="text-foreground break-all">
+                                                {formatValue(value)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {activityData.length === (activityPage + 1) * ACTIVITY_PAGE_SIZE && (
+                  <div className="flex justify-center mt-4">
+                    <Button
+                      variant="outline"
+                      className="rounded-xl border-[#0F4C5C]/15 text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                      onClick={() => setActivityPage((p) => p + 1)}
+                    >
+                      Load more
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

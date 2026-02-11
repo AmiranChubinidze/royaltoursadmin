@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          id: string
+          table_name: string
+          record_id: string
+          action: string
+          changes: Json
+          performed_by: string | null
+          performed_at: string
+          label: string
+        }
+        Insert: {
+          id?: string
+          table_name: string
+          record_id: string
+          action: string
+          changes?: Json
+          performed_by?: string | null
+          performed_at?: string
+          label?: string
+        }
+        Update: {
+          id?: string
+          table_name?: string
+          record_id?: string
+          action?: string
+          changes?: Json
+          performed_by?: string | null
+          performed_at?: string
+          label?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: string

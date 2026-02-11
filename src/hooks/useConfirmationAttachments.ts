@@ -192,10 +192,10 @@ export const useUploadAttachment = () => {
         }
       }
 
-      // Create or update ledger expense when payment order is uploaded
-      if (isPaymentOrder && hasAmount && data) {
+      // Create or update ledger expense for both invoices and payment orders
+      if (hasAmount && data) {
         const today = new Date().toISOString().split("T")[0];
-        const description = `Payment: ${displayName}`;
+        const description = isPaymentOrder ? `Payment: ${displayName}` : `Invoice: ${displayName}`;
         let existingExpense: { id: string; description: string | null } | null = null;
 
         if (stayPathKey) {
@@ -330,8 +330,8 @@ export const useUploadAttachment = () => {
           ? variables.amount
             ? "Payment order uploaded and expense recorded."
             : "The payment order has been attached successfully."
-          : variables.amount 
-            ? "Invoice uploaded (amount saved for reference only)."
+          : variables.amount
+            ? "Invoice uploaded and expense recorded."
             : "The invoice has been attached successfully.",
       });
     },
@@ -368,27 +368,23 @@ export const useDeleteAttachment = () => {
         .eq("id", attachmentId)
         .maybeSingle();
 
-      if (attachmentType === "payment") {
-        // Delete associated expense
-        await supabase
-          .from("expenses")
-          .delete()
-          .eq("attachment_id", attachmentId);
+      // Delete associated expense and transaction for both invoice and payment types
+      await supabase
+        .from("expenses")
+        .delete()
+        .eq("attachment_id", attachmentId);
 
-        // Delete the matching ledger transaction created during upload.
-        // Transactions don't store attachment_id, so match by description + confirmation.
-        if (attachment?.file_name) {
-          const descriptions = [
-            `Payment: ${attachment.file_name}`,
-            `Invoice: ${attachment.file_name}`,
-          ];
-          await supabase
-            .from("transactions")
-            .delete()
-            .eq("confirmation_id", confirmationId)
-            .eq("type", "expense")
-            .in("description", descriptions);
-        }
+      if (attachment?.file_name) {
+        const descriptions = [
+          `Payment: ${attachment.file_name}`,
+          `Invoice: ${attachment.file_name}`,
+        ];
+        await supabase
+          .from("transactions")
+          .delete()
+          .eq("confirmation_id", confirmationId)
+          .eq("type", "expense")
+          .in("description", descriptions);
       }
 
       if (attachmentType === "invoice") {
@@ -418,20 +414,22 @@ export const useDeleteAttachment = () => {
         }
       }
 
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from("confirmation-attachments")
-        .remove([filePath]);
-
-      if (storageError) throw storageError;
-
-      // Delete database record
+      // Delete database record first (primary goal)
       const { error } = await supabase
         .from("confirmation_attachments")
         .delete()
         .eq("id", attachmentId);
 
       if (error) throw error;
+
+      // Delete from storage (best-effort, don't block on failure)
+      try {
+        await supabase.storage
+          .from("confirmation-attachments")
+          .remove([filePath]);
+      } catch (storageErr) {
+        console.error("Failed to remove file from storage:", storageErr);
+      }
       return { confirmationId, attachmentType };
     },
     onSuccess: (data) => {
@@ -445,9 +443,7 @@ export const useDeleteAttachment = () => {
       queryClient.invalidateQueries({ queryKey: ["confirmation", data.confirmationId] });
       toast({
         title: "File deleted",
-        description: data.attachmentType === "payment"
-          ? "The payment order and its ledger entry have been removed."
-          : "The attachment has been removed.",
+        description: "The attachment and its ledger entry have been removed.",
       });
     },
     onError: (error: Error) => {

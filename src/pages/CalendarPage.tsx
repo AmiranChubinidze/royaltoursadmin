@@ -57,6 +57,10 @@ type SalaryMarker = {
   frequency: "monthly" | "weekly";
 };
 
+type CalendarContentMode = "stays" | "payments" | "both";
+
+const CALENDAR_VIEW_PREFS_KEY = "calendar-view-preferences-v1";
+
 const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
   if (dateStr.includes("/")) {
@@ -82,7 +86,7 @@ export default function CalendarPage() {
   const upsertSettings = useUpsertCalendarNotificationSettings();
   const setNotificationHotels = useSetCalendarNotificationHotels();
   const { toast } = useToast();
-  const { role } = useUserRole();
+  const { role, isLoading: isRoleLoading } = useUserRole();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
   const canSeeSalaries = ["admin", "worker", "accountant"].includes(effectiveRole || "");
@@ -93,7 +97,8 @@ export default function CalendarPage() {
   const [viewOpen, setViewOpen] = useState(false);
   const [hotelView, setHotelView] = useState<"owned" | "other" | "all">("all");
   const [checkInsOnly, setCheckInsOnly] = useState(false);
-  const [showSalaries, setShowSalaries] = useState(false);
+  const [calendarContentMode, setCalendarContentMode] = useState<CalendarContentMode>("stays");
+  const [hasLoadedViewPrefs, setHasLoadedViewPrefs] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [useAllHotelsState, setUseAllHotelsState] = useState(true);
   const [useAllOtherHotelsState, setUseAllOtherHotelsState] = useState(true);
@@ -150,6 +155,52 @@ export default function CalendarPage() {
       setHasSyncedHotels(true);
     }
   }, [selectedHotelIds, hasSyncedHotels]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(CALENDAR_VIEW_PREFS_KEY);
+    if (!raw) {
+      setHasLoadedViewPrefs(true);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw) as Partial<{
+        hotelView: "owned" | "other" | "all";
+        checkInsOnly: boolean;
+        calendarContentMode: CalendarContentMode;
+      }>;
+      if (parsed.hotelView && ["owned", "other", "all"].includes(parsed.hotelView)) {
+        setHotelView(parsed.hotelView);
+      }
+      if (typeof parsed.checkInsOnly === "boolean") {
+        setCheckInsOnly(parsed.checkInsOnly);
+      }
+      if (parsed.calendarContentMode && ["stays", "payments", "both"].includes(parsed.calendarContentMode)) {
+        setCalendarContentMode(parsed.calendarContentMode);
+      }
+    } catch {
+      // Ignore malformed local preference payload.
+    } finally {
+      setHasLoadedViewPrefs(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasLoadedViewPrefs) return;
+    const prefs = {
+      hotelView,
+      checkInsOnly,
+      calendarContentMode,
+    };
+    window.localStorage.setItem(CALENDAR_VIEW_PREFS_KEY, JSON.stringify(prefs));
+  }, [hotelView, checkInsOnly, calendarContentMode, hasLoadedViewPrefs]);
+
+  useEffect(() => {
+    if (isRoleLoading && !viewAsRole) return;
+    if (!canSeeSalaries && calendarContentMode !== "stays") {
+      setCalendarContentMode("stays");
+    }
+  }, [canSeeSalaries, calendarContentMode, isRoleLoading, viewAsRole]);
 
   const ownedHotelSet = useMemo(() => {
     return new Set(
@@ -257,7 +308,9 @@ export default function CalendarPage() {
     days.push(day);
   }
 
-  const baseStaysByDate = checkInsOnly ? checkInsByDate : staysByDate;
+  const showHotelStays = calendarContentMode !== "payments";
+  const showSalaryPayments = canSeeSalaries && calendarContentMode !== "stays";
+  const baseStaysByDate = showHotelStays ? (checkInsOnly ? checkInsByDate : staysByDate) : new Map<string, OwnedStay[]>();
   const visibleStaysByDate = useMemo(() => {
     const map = new Map<string, OwnedStay[]>();
     for (const [key, list] of baseStaysByDate.entries()) {
@@ -282,12 +335,12 @@ export default function CalendarPage() {
   const tzOffset = tzOffsetState;
 
   const { data: salaryProfiles } = useSalaryProfiles({
-    enabled: canSeeSalaries && showSalaries,
+    enabled: showSalaryPayments,
   });
 
   const salaryByDate = useMemo(() => {
     const map = new Map<string, SalaryMarker[]>();
-    if (!canSeeSalaries || !showSalaries || !salaryProfiles?.length) return map;
+    if (!showSalaryPayments || !salaryProfiles?.length) return map;
 
     const monthStartLocal = startOfMonth(currentMonth);
     const lastDay = endOfMonth(monthStartLocal).getDate();
@@ -331,7 +384,7 @@ export default function CalendarPage() {
     }
 
     return map;
-  }, [canSeeSalaries, showSalaries, salaryProfiles, currentMonth, days]);
+  }, [showSalaryPayments, salaryProfiles, currentMonth, days]);
 
   const selectedSalaries = selectedKey ? salaryByDate.get(selectedKey) || [] : [];
 
@@ -458,33 +511,63 @@ export default function CalendarPage() {
                   </p>
                 </div>
 
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground">Days</div>
-                    <p className="text-[11px] text-muted-foreground">
-                      {checkInsOnly ? "Only check-in days" : "All stay days"}
-                    </p>
+                <div className="space-y-1.5">
+                  <div className="text-xs font-medium text-muted-foreground">Days</div>
+                  <div className="grid grid-cols-2 gap-1 rounded-xl border border-border/70 bg-[#F7FAFB] p-1">
+                    {[
+                      { key: "all" as const, label: "All stay days" },
+                      { key: "checkins" as const, label: "Check-ins only" },
+                    ].map((opt) => {
+                      const active = opt.key === "checkins" ? checkInsOnly : !checkInsOnly;
+                      return (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setCheckInsOnly(opt.key === "checkins")}
+                          className={cn(
+                            "h-9 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
+                            active ? "bg-white text-[#0F4C5C] shadow-sm" : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <Switch
-                    checked={checkInsOnly}
-                    onCheckedChange={setCheckInsOnly}
-                    aria-label="Show only check-in days"
-                  />
                 </div>
 
-                {canSeeSalaries && (
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground">Salaries</div>
-                      <p className="text-[11px] text-muted-foreground">Show salary due days on the calendar.</p>
-                    </div>
-                    <Switch
-                      checked={showSalaries}
-                      onCheckedChange={setShowSalaries}
-                      aria-label="Show salaries on calendar"
-                    />
+                <div className="space-y-1.5">
+                  <div className="text-xs font-medium text-muted-foreground">Show</div>
+                  <div
+                    className={cn(
+                      "grid gap-1 rounded-xl border border-border/70 bg-[#F7FAFB] p-1",
+                      canSeeSalaries ? "grid-cols-3" : "grid-cols-1"
+                    )}
+                  >
+                    {[
+                      { key: "stays" as const, label: "Stays", disabled: false },
+                      { key: "payments" as const, label: "Payments", disabled: !canSeeSalaries },
+                      { key: "both" as const, label: "Both", disabled: !canSeeSalaries },
+                    ]
+                      .filter((opt) => !opt.disabled || canSeeSalaries)
+                      .map((opt) => (
+                        <button
+                          key={opt.key}
+                          type="button"
+                          onClick={() => setCalendarContentMode(opt.key)}
+                          className={cn(
+                            "h-9 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
+                            calendarContentMode === opt.key
+                              ? "bg-white text-[#0F4C5C] shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
                   </div>
-                )}
+                  <p className="text-[11px] text-muted-foreground">Choose whether to see stays, salary payments, or both.</p>
+                </div>
               </div>
             </PopoverContent>
           </Popover>
@@ -738,8 +821,8 @@ export default function CalendarPage() {
                   <CardTitle className="text-sm font-semibold text-[#0F4C5C]">Hotel Stays Calendar</CardTitle>
                   <p className="text-xs text-muted-foreground">
                     {hotelView === "owned" ? "Owned hotels" : hotelView === "other" ? "Other hotels" : "All hotels"}
-                    {checkInsOnly ? " - check-ins only" : " - all stay days"}
-                    {canSeeSalaries && showSalaries ? " - salaries" : ""}
+                    {showHotelStays ? (checkInsOnly ? " - check-ins only" : " - all stay days") : " - stays hidden"}
+                    {showSalaryPayments ? " - salary payments" : ""}
                   </p>
                 </div>
               </div>
@@ -760,7 +843,7 @@ export default function CalendarPage() {
                 const stays = visibleStaysByDate.get(dayKey) || [];
                 const salaryList = salaryByDate.get(dayKey) || [];
                 const hasStays = stays.length > 0;
-                const hasSalaries = canSeeSalaries && showSalaries && salaryList.length > 0;
+                const hasSalaries = showSalaryPayments && salaryList.length > 0;
                 const ownedCount = stays.filter((s) => s.isOwned).length;
                 const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
 
@@ -867,7 +950,7 @@ export default function CalendarPage() {
         <CardContent className="p-4 pt-4">
           {isLoading ? (
             <div className="text-sm text-muted-foreground">Loading...</div>
-          ) : selectedStays.length === 0 && (!canSeeSalaries || !showSalaries || selectedSalaries.length === 0) ? (
+          ) : selectedStays.length === 0 && (!showSalaryPayments || selectedSalaries.length === 0) ? (
             <div className="text-sm text-muted-foreground">Nothing scheduled on this day.</div>
           ) : (
             <div className="space-y-4">
@@ -900,7 +983,7 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {canSeeSalaries && showSalaries && selectedSalaries.length > 0 && (
+              {showSalaryPayments && selectedSalaries.length > 0 && (
                 <div className="space-y-3">
                   <div className="text-xs font-medium text-muted-foreground">Salaries</div>
                   {selectedSalaries.map((s, idx) => (

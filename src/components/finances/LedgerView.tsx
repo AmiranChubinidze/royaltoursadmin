@@ -935,7 +935,16 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                 </TableRow>
               ) : (
                 filteredTransactions.map((t) => (
-                  <TableRow key={t.id} className="hover:bg-[#EAF7F8]/40 transition-colors">
+                  <TableRow key={t.id} className={cn(
+                      "hover:bg-[#EAF7F8]/40 transition-colors border-l-[3px]",
+                      t.kind === "in"
+                        ? "border-l-emerald-500 bg-emerald-500/[0.03]"
+                        : t.kind === "transfer"
+                        ? "border-l-blue-500 bg-blue-500/[0.03]"
+                        : t.kind === "exchange"
+                        ? "border-l-purple-500 bg-purple-500/[0.03]"
+                        : "border-l-red-500 bg-red-500/[0.03]"
+                    )}>
                     <TableCell className="font-medium whitespace-nowrap">
                       {format(new Date(t.date), "MMM d")}
                     </TableCell>

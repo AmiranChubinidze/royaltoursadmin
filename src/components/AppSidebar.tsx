@@ -35,6 +35,7 @@ import {
   Eye,
   ChevronUp,
   ChevronDown,
+  UserCircle2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import rtgLogoFull from "@/assets/rtg-logo-full.png";
@@ -111,18 +112,81 @@ export function AppSidebar() {
     }`;
 
   const formatBalance = (value: number, symbol: string) => {
-    const sign = value < 0 ? "−" : "";
+    const sign = value < 0 ? "-" : "";
     const formatted = Math.abs(Math.round(value)).toLocaleString();
     return `${sign}${symbol}${formatted}`;
   };
+
+  const renderUserPanelContent = () => (
+    <div className="rounded-xl border border-[#ECEBF4] bg-white/95 p-2.5 shadow-[0_10px_20px_rgba(17,24,39,0.10)]">
+      <div className="text-[10px] text-[#8A92A6] truncate">{user?.email || "-"}</div>
+      <div className="mt-2 flex items-center justify-between rounded-lg border border-[#ECEBF4] bg-white px-2.5 py-2">
+        <span className="text-[10px] uppercase tracking-[0.22em] text-[#8A92A6]">
+          Balance
+        </span>
+        <span className="text-[11px] font-semibold text-[#0F172A]">
+          {myBalance
+            ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "\u20BE")}`
+            : "No linked holder"}
+        </span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-2 w-full rounded-lg border-[#ECEBF4] text-[#111827] hover:bg-[#0F766E]/10"
+        onClick={signOut}
+      >
+        <LogOut className="h-3.5 w-3.5 mr-2" />
+        Sign Out
+      </Button>
+      {isAdmin && (
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 w-full rounded-lg border-[#ECEBF4] text-[#111827] hover:bg-[#0F766E]/10"
+              title={viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
+            >
+              <Eye className="h-3.5 w-3.5 mr-2" />
+              View As
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-40 p-1" side="top" align="start">
+            <div className="space-y-0.5">
+              <Button
+                variant={viewAsRole === null ? "secondary" : "ghost"}
+                size="sm"
+                className="w-full justify-start text-sm"
+                onClick={() => setViewAsRole(null)}
+              >
+                My Role ({roleLabel(role || "")})
+              </Button>
+              {(["worker", "coworker", "accountant", "visitor"] as const).map((r) => (
+                <Button
+                  key={r}
+                  variant={viewAsRole === r ? "secondary" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start text-sm"
+                  onClick={() => setViewAsRole(r)}
+                >
+                  {roleLabel(r)}
+                </Button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
 
   return (
     <Sidebar
       collapsible="icon"
       style={{ "--sidebar-width-icon": "4.25rem" } as any}
-      className="border-r border-[#E6E5EE] bg-[linear-gradient(180deg,#F8F7FB_0%,#F3F2F8_100%)]"
+      className="border-r border-[#E6E5EE] bg-[linear-gradient(180deg,#F8F7FB_0%,#F3F2F8_100%)] group-data-[collapsible=icon]:bg-[linear-gradient(180deg,#FCFDFF_0%,#F7FAFF_100%)]"
     >
-      {/* Header — logo + brand */}
+      {/* Header - logo + brand */}
       <SidebarHeader className="relative h-[84px] px-3 py-3 bg-transparent group-data-[collapsible=icon]:h-[96px] group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-2">
         <div className="flex h-full w-full items-center gap-1.5 pr-7 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-1.5 group-data-[collapsible=icon]:pr-0">
           <button
@@ -306,7 +370,7 @@ export function AppSidebar() {
               </div>
               <div className="text-[10px] text-[#8A92A6] truncate">
                 {myBalance
-                  ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "₾")}`
+                  ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "\u20BE")}`
                   : "No linked holder"}
               </div>
             </div>
@@ -324,66 +388,7 @@ export function AppSidebar() {
               isUserPanelOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
             }`}
           >
-            <div className="rounded-xl border border-[#ECEBF4] bg-white/95 p-2.5 shadow-[0_10px_20px_rgba(17,24,39,0.10)]">
-              <div className="text-[10px] text-[#8A92A6] truncate">{user?.email || "—"}</div>
-              <div className="mt-2 flex items-center justify-between rounded-lg border border-[#ECEBF4] bg-white px-2.5 py-2">
-                <span className="text-[10px] uppercase tracking-[0.22em] text-[#8A92A6]">
-                  Balance
-                </span>
-                <span className="text-[11px] font-semibold text-[#0F172A]">
-                  {myBalance
-                    ? `${formatBalance(myBalance.balanceUSD, "$")} / ${formatBalance(myBalance.balanceGEL, "₾")}`
-                    : "No linked holder"}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full rounded-lg border-[#ECEBF4] text-[#111827] hover:bg-[#0F766E]/10"
-                onClick={signOut}
-              >
-                <LogOut className="h-3.5 w-3.5 mr-2" />
-                Sign Out
-              </Button>
-              {isAdmin && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 w-full rounded-lg border-[#ECEBF4] text-[#111827] hover:bg-[#0F766E]/10"
-                      title={viewAsRole ? `Viewing as ${viewAsRole}` : "View as..."}
-                    >
-                      <Eye className="h-3.5 w-3.5 mr-2" />
-                      View As
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-40 p-1" side="top" align="start">
-                    <div className="space-y-0.5">
-                      <Button
-                        variant={viewAsRole === null ? "secondary" : "ghost"}
-                        size="sm"
-                        className="w-full justify-start text-sm"
-                        onClick={() => setViewAsRole(null)}
-                      >
-                        My Role ({roleLabel(role || "")})
-                      </Button>
-                      {(["worker", "coworker", "accountant", "visitor"] as const).map((r) => (
-                        <Button
-                          key={r}
-                          variant={viewAsRole === r ? "secondary" : "ghost"}
-                          size="sm"
-                          className="w-full justify-start text-sm"
-                          onClick={() => setViewAsRole(r)}
-                        >
-                          {roleLabel(r)}
-                        </Button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
+            {renderUserPanelContent()}
           </div>
         </div>
 
@@ -394,6 +399,26 @@ export function AppSidebar() {
         )}
 
         <div className="flex items-center gap-1"></div>
+      </SidebarFooter>
+
+      <SidebarFooter className="hidden px-2 pb-2 pt-1 border-t border-[#E6E5EE] bg-transparent group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-full border border-[#DDE5EA] bg-white text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#0F766E]"
+              aria-label="Open user menu"
+              title="User menu"
+            >
+              <UserCircle2 className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent side="right" align="end" className="w-64 p-0 border-none bg-transparent shadow-none">
+            {renderUserPanelContent()}
+          </PopoverContent>
+        </Popover>
       </SidebarFooter>
     </Sidebar>
   );

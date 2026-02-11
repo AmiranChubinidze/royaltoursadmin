@@ -42,11 +42,13 @@ import {
 } from "@/hooks/useCalendarNotifications";
 
 type OwnedStay = {
+  confirmationId: string;
   dateKey: string;
   hotel: string;
   code: string;
   client: string | null;
   isOwned: boolean;
+  stayKey: string | null;
 };
 
 type SalaryMarker = {
@@ -60,6 +62,11 @@ type SalaryMarker = {
 type CalendarContentMode = "stays" | "payments" | "both";
 
 const CALENDAR_VIEW_PREFS_KEY = "calendar-view-preferences-v1";
+
+const getStayKey = (hotelName: string, stayIndex: number) =>
+  `${hotelName.trim().toLowerCase()}::${stayIndex}`;
+
+const currencySymbol = (currency?: string) => (currency === "GEL" ? "₾" : "$");
 
 const parseDateFlexible = (dateStr: string | null | undefined): Date | null => {
   if (!dateStr) return null;
@@ -222,21 +229,55 @@ export default function CalendarPage() {
     if (!confirmations) return map;
 
     for (const c of confirmations) {
+      const confirmationId = c.id;
       const code = c.confirmation_code;
       const client = c.main_client_name || null;
       const payload = c.raw_payload as unknown;
       const itineraryValue =
         payload && typeof payload === "object" ? (payload as Record<string, unknown>)["itinerary"] : undefined;
-      const itinerary = Array.isArray(itineraryValue) ? itineraryValue : [];
+      const itineraryRaw = Array.isArray(itineraryValue) ? itineraryValue : [];
+      const itinerary = itineraryRaw
+        .map((day) => {
+          const hotelName = String((day as any)?.hotel || "").trim();
+          const date = parseDateFlexible((day as any)?.date);
+          return { hotelName, date };
+        })
+        .filter((d) => !!d.hotelName && !!d.date)
+        .sort((a, b) => (a.date as Date).getTime() - (b.date as Date).getTime());
+
+      let prevHotel = "";
+      let currentStayKey: string | null = null;
+      const nonOwnedStayCounts = new Map<string, number>();
+
       for (const day of itinerary) {
-        const hotelName = String(day?.hotel || "").trim();
+        const hotelName = day.hotelName;
         if (!hotelName) continue;
-        const date = parseDateFlexible(day?.date);
-        if (!date) continue;
+        const date = day.date as Date;
         const isOwned = ownedHotelSet.has(hotelName.toLowerCase());
+
+        if (!prevHotel || prevHotel.toLowerCase() !== hotelName.toLowerCase()) {
+          if (isOwned) {
+            currentStayKey = null;
+          } else {
+            const hotelLower = hotelName.toLowerCase();
+            const stayIndex = nonOwnedStayCounts.get(hotelLower) || 0;
+            currentStayKey = getStayKey(hotelName, stayIndex);
+            nonOwnedStayCounts.set(hotelLower, stayIndex + 1);
+          }
+          prevHotel = hotelName;
+        }
+
         const key = format(date, "yyyy-MM-dd");
         const list = map.get(key) || [];
-        list.push({ dateKey: key, hotel: hotelName, code, client, isOwned });
+        list.push({
+          confirmationId,
+          dateKey: key,
+          hotel: hotelName,
+          code,
+          client,
+          isOwned,
+          stayKey: currentStayKey,
+        });
         map.set(key, list);
       }
     }
@@ -249,6 +290,7 @@ export default function CalendarPage() {
     if (!confirmations) return map;
 
     for (const c of confirmations) {
+      const confirmationId = c.id;
       const code = c.confirmation_code;
       const client = c.main_client_name || null;
       const payload = c.raw_payload as unknown;
@@ -268,6 +310,7 @@ export default function CalendarPage() {
         .sort((a, b) => (a.date as Date).getTime() - (b.date as Date).getTime());
 
       let prevHotel = "";
+      const nonOwnedStayCounts = new Map<string, number>();
       for (const day of itinerary) {
         const hotelName = day.hotelName;
         if (!hotelName) continue;
@@ -280,9 +323,25 @@ export default function CalendarPage() {
 
         const date = day.date as Date;
         const isOwned = ownedHotelSet.has(hotelName.toLowerCase());
+        const stayKey = isOwned
+          ? null
+          : getStayKey(hotelName, (() => {
+              const hotelLower = hotelName.toLowerCase();
+              const stayIndex = nonOwnedStayCounts.get(hotelLower) || 0;
+              nonOwnedStayCounts.set(hotelLower, stayIndex + 1);
+              return stayIndex;
+            })());
         const key = format(date, "yyyy-MM-dd");
         const list = map.get(key) || [];
-        list.push({ dateKey: key, hotel: hotelName, code, client, isOwned });
+        list.push({
+          confirmationId,
+          dateKey: key,
+          hotel: hotelName,
+          code,
+          client,
+          isOwned,
+          stayKey,
+        });
         map.set(key, list);
       }
     }
@@ -298,6 +357,16 @@ export default function CalendarPage() {
     () => new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(monthStart),
     [monthStart]
   );
+  const hotelViewLabel = hotelView === "owned" ? "Owned hotels" : hotelView === "other" ? "Other hotels" : "All hotels";
+  const contentViewLabel = useMemo(() => {
+    if (calendarContentMode === "payments") return "Payments only";
+    if (calendarContentMode === "both") return checkInsOnly ? "Check-ins + payments" : "All stay days + payments";
+    return checkInsOnly ? "Check-ins only" : "All stay days";
+  }, [calendarContentMode, checkInsOnly]);
+  const viewingSummary =
+    calendarContentMode === "payments"
+      ? "Payments only"
+      : `${hotelViewLabel} · ${contentViewLabel}`;
   const dayNumberFormatter = useMemo(
     () => new Intl.DateTimeFormat(undefined, { day: "numeric" }),
     []
@@ -388,6 +457,44 @@ export default function CalendarPage() {
 
   const selectedSalaries = selectedKey ? salaryByDate.get(selectedKey) || [] : [];
 
+  const invoiceAmountByConfirmationStay = useMemo(() => {
+    const result = new Map<string, { amount: number; currency: "USD" | "GEL" }>();
+    if (!confirmations?.length) return result;
+
+    for (const c of confirmations) {
+      const payload = (c.raw_payload && typeof c.raw_payload === "object")
+        ? (c.raw_payload as Record<string, unknown>)
+        : {};
+      const invoiceAmounts = payload.invoice_amounts && typeof payload.invoice_amounts === "object"
+        ? (payload.invoice_amounts as Record<string, unknown>)
+        : {};
+      const attachmentStayMap = payload.attachment_stay_map && typeof payload.attachment_stay_map === "object"
+        ? (payload.attachment_stay_map as Record<string, string>)
+        : {};
+
+      for (const [attachmentId, value] of Object.entries(invoiceAmounts)) {
+        const stayKey = attachmentStayMap[attachmentId];
+        if (!stayKey) continue;
+
+        let amount = 0;
+        let currency: "USD" | "GEL" = "USD";
+
+        if (typeof value === "number") {
+          amount = value;
+        } else if (value && typeof value === "object") {
+          const valueRecord = value as Record<string, unknown>;
+          amount = Number(valueRecord.amount || 0);
+          currency = valueRecord.currency === "GEL" ? "GEL" : "USD";
+        }
+
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+        result.set(`${c.id}::${stayKey}`, { amount, currency });
+      }
+    }
+
+    return result;
+  }, [confirmations]);
+
   const updateSettings = (
     next: Partial<{
       enabled: boolean;
@@ -436,7 +543,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="animate-fade-in max-w-7xl mx-auto space-y-5">
+    <div className="animate-fade-in max-w-7xl mx-auto space-y-4">
       <div className="mb-1 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="page-title text-foreground">Calendar</h1>
@@ -820,11 +927,15 @@ export default function CalendarPage() {
                 <div>
                   <CardTitle className="text-sm font-semibold text-[#0F4C5C]">Hotel Stays Calendar</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    {hotelView === "owned" ? "Owned hotels" : hotelView === "other" ? "Other hotels" : "All hotels"}
+                    {hotelViewLabel}
                     {showHotelStays ? (checkInsOnly ? " - check-ins only" : " - all stay days") : " - stays hidden"}
                     {showSalaryPayments ? " - salary payments" : ""}
                   </p>
                 </div>
+              </div>
+              <div className="inline-flex items-center rounded-xl border border-[#0F4C5C]/15 bg-white px-3 py-1.5 text-xs text-[#0F4C5C] shadow-[0_6px_18px_rgba(15,76,92,0.06)]">
+                <span className="font-semibold">Viewing:</span>
+                <span className="ml-1.5">{viewingSummary}</span>
               </div>
             </div>
           </CardHeader>
@@ -957,29 +1068,42 @@ export default function CalendarPage() {
               {selectedStays.length > 0 && (
                 <div className="space-y-3">
                   <div className="text-xs font-medium text-muted-foreground">Hotel Stays</div>
-                  {selectedStays.map((s, idx) => (
-                    <div
-                      key={`${s.dateKey}-${idx}`}
-                      className="flex items-center justify-between rounded-xl border border-[#0F4C5C]/10 bg-white/90 px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">{s.hotel}</div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {s.code} {s.client ? ` - ${s.client}` : ""}
+                  {selectedStays.map((s, idx) => {
+                    const invoiceInfo = s.stayKey
+                      ? invoiceAmountByConfirmationStay.get(`${s.confirmationId}::${s.stayKey}`)
+                      : null;
+                    return (
+                      <div
+                        key={`${s.dateKey}-${s.confirmationId}-${idx}`}
+                        className="flex items-center justify-between rounded-xl border border-[#0F4C5C]/10 bg-white/90 px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-foreground truncate">{s.hotel}</div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {s.code} {s.client ? ` - ${s.client}` : ""}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {invoiceInfo && (
+                            <Badge className="border-0 bg-amber-100 text-amber-800">
+                              {currencySymbol(invoiceInfo.currency)}
+                              {Math.round(invoiceInfo.amount).toLocaleString()}
+                            </Badge>
+                          )}
+                          <Badge
+                            className={cn(
+                              "border-0",
+                              s.isOwned
+                                ? "bg-[#0F4C5C]/10 text-[#0F4C5C]"
+                                : "bg-slate-100 text-slate-700"
+                            )}
+                          >
+                            {s.isOwned ? "Owned" : "Other"}
+                          </Badge>
                         </div>
                       </div>
-                      <Badge
-                        className={cn(
-                          "border-0",
-                          s.isOwned
-                            ? "bg-[#0F4C5C]/10 text-[#0F4C5C]"
-                            : "bg-slate-100 text-slate-700"
-                        )}
-                      >
-                        {s.isOwned ? "Owned" : "Other"}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 

@@ -171,7 +171,6 @@ export const ensureCurrentMonthSalaryTransactions = async (args: {
     .select("id,owner_id,status,amount,date,currency")
     .eq("category", "salary")
     .eq("kind", "out")
-    .neq("status", "void")
     .gte("date", fromIso)
     .lte("date", toIso)
     .in("owner_id", ownerIds);
@@ -180,7 +179,21 @@ export const ensureCurrentMonthSalaryTransactions = async (args: {
 
   const byOwner = new Map<string, (typeof existing)[number]>();
   for (const t of existing || []) {
-    if (t.owner_id) byOwner.set(t.owner_id as string, t);
+    if (!t.owner_id) continue;
+    const ownerId = t.owner_id as string;
+    const prev = byOwner.get(ownerId);
+    if (!prev) {
+      byOwner.set(ownerId, t);
+      continue;
+    }
+    // Prefer a non-void record over a void one, and confirmed over non-confirmed.
+    if (prev.status === "void" && t.status !== "void") {
+      byOwner.set(ownerId, t);
+      continue;
+    }
+    if (prev.status !== "confirmed" && t.status === "confirmed") {
+      byOwner.set(ownerId, t);
+    }
   }
 
   const inserts: Database["public"]["Tables"]["transactions"]["Insert"][] = [];
@@ -207,6 +220,11 @@ export const ensureCurrentMonthSalaryTransactions = async (args: {
         notes,
         owner_id: p.id,
       });
+      continue;
+    }
+
+    // A voided auto-generated salary means this period was intentionally skipped.
+    if (existingTx.status === "void") {
       continue;
     }
 
@@ -295,7 +313,6 @@ export const ensureCurrentWeekSalaryTransactions = async (args: {
     .select("id,owner_id,status,amount,date,currency")
     .eq("category", "salary")
     .eq("kind", "out")
-    .neq("status", "void")
     .gte("date", fromIso)
     .lte("date", toIso)
     .in("owner_id", ownerIds);
@@ -304,7 +321,21 @@ export const ensureCurrentWeekSalaryTransactions = async (args: {
 
   const byOwner = new Map<string, (typeof existing)[number]>();
   for (const t of existing || []) {
-    if (t.owner_id) byOwner.set(t.owner_id as string, t);
+    if (!t.owner_id) continue;
+    const ownerId = t.owner_id as string;
+    const prev = byOwner.get(ownerId);
+    if (!prev) {
+      byOwner.set(ownerId, t);
+      continue;
+    }
+    // Prefer a non-void record over a void one, and confirmed over non-confirmed.
+    if (prev.status === "void" && t.status !== "void") {
+      byOwner.set(ownerId, t);
+      continue;
+    }
+    if (prev.status !== "confirmed" && t.status === "confirmed") {
+      byOwner.set(ownerId, t);
+    }
   }
 
   const inserts: Database["public"]["Tables"]["transactions"]["Insert"][] = [];
@@ -331,6 +362,11 @@ export const ensureCurrentWeekSalaryTransactions = async (args: {
         notes,
         owner_id: p.id,
       });
+      continue;
+    }
+
+    // A voided auto-generated salary means this period was intentionally skipped.
+    if (existingTx.status === "void") {
       continue;
     }
 

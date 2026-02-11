@@ -58,7 +58,7 @@ export default function FinancesPage() {
   const [dateTo, setDateTo] = useState<Date | undefined>(endOfMonth(new Date()));
   const [activeTab, setActiveTab] = useState("holders");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [mobileView, setMobileView] = useState<"summary" | "transactions">("summary");
+  const [mobileView, setMobileView] = useState<"summary" | "transactions" | "holdings">("summary");
   const [transactionModalOpen, setTransactionModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
@@ -79,6 +79,12 @@ export default function FinancesPage() {
       setActiveTab("ledger");
     }
   }, [canSeeHoldings, canSeeSalaries, activeTab]);
+
+  useEffect(() => {
+    if (!canSeeHoldings && mobileView === "holdings") {
+      setMobileView("summary");
+    }
+  }, [canSeeHoldings, mobileView]);
 
   useEffect(() => {
     if (!canSeeSalaries) return;
@@ -151,6 +157,9 @@ export default function FinancesPage() {
 
     // Filter confirmations by date range
     const filteredConfirmations = confirmations.filter((c) => {
+      const status = String(c.status || "confirmed").toLowerCase();
+      // Exclude non-final confirmations from finance KPIs.
+      if (status === "draft" || status === "cancelled" || status === "canceled") return false;
       if (!c.price || Number(c.price) <= 0) return false;
 
       if (dateFrom || dateTo) {
@@ -333,62 +342,73 @@ export default function FinancesPage() {
   // Mobile Layout
   if (isMobile) {
     return (
-      <div className="flex flex-col">
+      <div className="flex flex-col bg-[linear-gradient(180deg,#F8FCFF_0%,#F1F7FB_100%)]">
         <div className="flex-1 overflow-y-auto">
           <div className="px-4 pt-4">
-            <h1 className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">Finances</h1>
-            <p className="text-xs text-muted-foreground">Track balances, exchanges, and cashflow.</p>
+            <div className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/80 p-4 shadow-[0_10px_24px_rgba(15,76,92,0.08)]">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h1 className="text-[23px] font-semibold leading-none tracking-tight text-[#0F4C5C]">Finances</h1>
+                  <p className="mt-1.5 text-xs text-[#0F4C5C]/65">Track balances, exchanges, and cashflow.</p>
+                </div>
+                <div className="rounded-full border border-[#0F4C5C]/15 bg-white/90 px-3 py-1.5 text-[11px] font-medium text-[#0F4C5C]/80">
+                  {isThisMonth ? "This month" : isAllTime ? "All time" : "Custom range"}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="px-4 py-4 space-y-4 pb-24">
-            {/* Date filter chips */}
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              <Button
-                variant={isThisMonth ? "secondary" : "outline"}
-                size="sm"
-                className={cn(
-                  "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15",
-                  isThisMonth
-                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
-                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
-                )}
-                onClick={() => {
-                  setDateFrom(startOfMonth(new Date()));
-                  setDateTo(endOfMonth(new Date()));
-                }}
-              >
-                This Month
-              </Button>
-              <Button
-                variant={isAllTime ? "secondary" : "outline"}
-                size="sm"
-                className={cn(
-                  "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15",
-                  isAllTime
-                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
-                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
-                )}
-                onClick={() => {
-                  setDateFrom(undefined);
-                  setDateTo(undefined);
-                }}
-              >
-                All Time
-              </Button>
-              <Button
-                variant={showMobileFilters ? "secondary" : "outline"}
-                size="sm"
-                className={cn(
-                  "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15",
-                  showMobileFilters
-                    ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
-                    : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
-                )}
-                onClick={() => setShowMobileFilters(!showMobileFilters)}
-              >
-                <Filter className="h-3.5 w-3.5 mr-1" />
-                Custom
-              </Button>
+            <div className="sticky top-0 z-10 -mx-4 px-4 py-3 bg-[linear-gradient(180deg,rgba(248,252,255,0.96)_0%,rgba(248,252,255,0.8)_100%)] backdrop-blur supports-[backdrop-filter]:bg-[rgba(248,252,255,0.8)] border-y border-[#0F4C5C]/8">
+              {/* Date filter chips */}
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <Button
+                  variant={isThisMonth ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15 bg-white/90",
+                    isThisMonth
+                      ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                      : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                  )}
+                  onClick={() => {
+                    setDateFrom(startOfMonth(new Date()));
+                    setDateTo(endOfMonth(new Date()));
+                  }}
+                >
+                  This Month
+                </Button>
+                <Button
+                  variant={isAllTime ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15 bg-white/90",
+                    isAllTime
+                      ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                      : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                  )}
+                  onClick={() => {
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
+                  }}
+                >
+                  All Time
+                </Button>
+                <Button
+                  variant={showMobileFilters ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "flex-shrink-0 h-9 rounded-full px-4 border border-[#0F4C5C]/15 bg-white/90",
+                    showMobileFilters
+                      ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                      : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                  )}
+                  onClick={() => setShowMobileFilters(!showMobileFilters)}
+                >
+                  <Filter className="h-3.5 w-3.5 mr-1" />
+                  Custom
+                </Button>
+              </div>
             </div>
 
             {/* Custom date picker */}
@@ -434,21 +454,23 @@ export default function FinancesPage() {
             )}
 
             {/* Summary Cards */}
-            <MobileSummaryCards
-              received={summaryData.received}
-              expenses={summaryData.expenses}
-              profit={summaryData.profit}
-              pending={summaryData.pending}
-              isLoading={isLoading}
-            />
+            <div className="rounded-2xl border border-[#0F4C5C]/10 bg-white/90 p-2 shadow-[0_8px_18px_rgba(15,76,92,0.06)]">
+              <MobileSummaryCards
+                received={summaryData.received}
+                expenses={summaryData.expenses}
+                profit={summaryData.profit}
+                pending={summaryData.pending}
+                isLoading={isLoading}
+              />
+            </div>
 
             {/* View Toggle */}
-            <div className="flex gap-2">
+            <div className={cn("grid gap-2 rounded-2xl border border-[#0F4C5C]/10 bg-white/85 p-2 shadow-[0_8px_18px_rgba(15,76,92,0.06)]", canSeeHoldings ? "grid-cols-3" : "grid-cols-2")}>
               <Button
                 variant={mobileView === "summary" ? "secondary" : "outline"}
                 size="sm"
                 className={cn(
-                  "flex-1 border border-[#0F4C5C]/15",
+                  "h-9 rounded-xl border border-[#0F4C5C]/15",
                   mobileView === "summary"
                     ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
                     : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
@@ -461,7 +483,7 @@ export default function FinancesPage() {
                 variant={mobileView === "transactions" ? "secondary" : "outline"}
                 size="sm"
                 className={cn(
-                  "flex-1 border border-[#0F4C5C]/15",
+                  "h-9 rounded-xl border border-[#0F4C5C]/15",
                   mobileView === "transactions"
                     ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
                     : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
@@ -470,16 +492,31 @@ export default function FinancesPage() {
               >
                 Transactions
               </Button>
+              {canSeeHoldings && (
+                <Button
+                  variant={mobileView === "holdings" ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "h-9 rounded-xl border border-[#0F4C5C]/15",
+                    mobileView === "holdings"
+                      ? "bg-[#EAF7F8] text-[#0F4C5C] hover:bg-[#EAF7F8]"
+                      : "text-[#0F4C5C]/70 hover:text-[#0F4C5C]"
+                  )}
+                  onClick={() => setMobileView("holdings")}
+                >
+                  Holdings
+                </Button>
+              )}
             </div>
 
             {/* Content based on view */}
             {mobileView === "summary" ? (
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-muted-foreground">
+              <div className="space-y-3 rounded-2xl border border-[#0F4C5C]/10 bg-white/90 p-3 shadow-[0_8px_18px_rgba(15,76,92,0.06)]">
+                <h3 className="text-sm font-semibold text-[#0F4C5C]/70">
                   Recent Activity
                 </h3>
                 {isLoading ? (
-                  <div className="flex justify-center py-8">
+                  <div className="flex justify-center py-10">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : transactions && transactions.length > 0 ? (
@@ -494,15 +531,15 @@ export default function FinancesPage() {
                     />
                   ))
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
+                  <div className="rounded-xl border border-dashed border-[#0F4C5C]/20 bg-[#F7FBFE] py-10 text-center text-sm text-muted-foreground">
                     No transactions yet
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="space-y-3">
+            ) : mobileView === "transactions" ? (
+              <div className="space-y-3 rounded-2xl border border-[#0F4C5C]/10 bg-white/90 p-3 shadow-[0_8px_18px_rgba(15,76,92,0.06)]">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-muted-foreground">
+                  <h3 className="text-sm font-semibold text-[#0F4C5C]/70">
                     All Transactions
                   </h3>
                   <span className="text-xs text-muted-foreground">
@@ -510,7 +547,7 @@ export default function FinancesPage() {
                   </span>
                 </div>
                 {isLoading ? (
-                  <div className="flex justify-center py-8">
+                  <div className="flex justify-center py-10">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
                 ) : transactions && transactions.length > 0 ? (
@@ -525,10 +562,19 @@ export default function FinancesPage() {
                     />
                   ))
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
+                  <div className="rounded-xl border border-dashed border-[#0F4C5C]/20 bg-[#F7FBFE] py-10 text-center text-sm text-muted-foreground">
                     No transactions yet
                   </div>
                 )}
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-2xl border border-[#0F4C5C]/10 bg-white/90 p-3 shadow-[0_8px_18px_rgba(15,76,92,0.06)]">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-[#0F4C5C]/70">
+                    Holdings
+                  </h3>
+                </div>
+                <HoldersView />
               </div>
             )}
           </div>

@@ -737,42 +737,60 @@ const AdminPanel = () => {
                             </TableRow>
 
                             {isExpanded && hasChanges && (
-                              <TableRow className="bg-[#EAF7F8]/20 hover:bg-[#EAF7F8]/20">
+                              <TableRow className="bg-[#EAF7F8]/25 hover:bg-[#EAF7F8]/25">
                                 <TableCell colSpan={5} className="p-0">
-                                  <div className="px-6 py-3">
+                                  <div className="px-5 py-4 border-t border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8]/35">
                                     {item.action === "UPDATE" ? (
-                                      <div className="space-y-1.5">
-                                        {Object.entries(
-                                          item.changes as Record<string, { old?: unknown; new?: unknown }>
-                                        ).map(([field, diff]) => (
-                                          <div key={field} className="flex items-start gap-2 text-sm">
-                                            <span className="font-medium text-[#0F4C5C] min-w-[140px] shrink-0">
-                                              {formatFieldName(field)}:
-                                            </span>
-                                            <span className="text-red-600 line-through break-all">
-                                              {formatValue(diff.old)}
-                                            </span>
-                                            <span className="text-muted-foreground shrink-0">&rarr;</span>
-                                            <span className="text-emerald-700 break-all">
-                                              {formatValue(diff.new)}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <div className="space-y-1">
-                                        {Object.entries(item.changes as Record<string, unknown>)
-                                          .filter(([, v]) => v !== null && v !== undefined && v !== "")
-                                          .map(([field, value]) => (
-                                            <div key={field} className="flex items-start gap-2 text-sm">
-                                              <span className="font-medium text-[#0F4C5C] min-w-[140px] shrink-0">
-                                                {formatFieldName(field)}:
-                                              </span>
-                                              <span className="text-foreground break-all">
-                                                {formatValue(value)}
-                                              </span>
+                                      <div className="space-y-3">
+                                        <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                          Changed fields
+                                        </div>
+                                        <div className="grid gap-2.5 sm:grid-cols-2">
+                                          {Object.entries(
+                                            item.changes as Record<string, { old?: unknown; new?: unknown }>
+                                          ).map(([field, diff]) => (
+                                            <div
+                                              key={field}
+                                              className="rounded-xl border border-[#0F4C5C]/10 bg-white/95 px-3 py-2.5 shadow-[0_6px_16px_rgba(15,76,92,0.06)]"
+                                            >
+                                              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F4C5C]/80">
+                                                {formatFieldName(field)}
+                                              </div>
+                                              <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                                                <span className="rounded-md bg-rose-50 px-2 py-0.5 text-rose-700 line-through break-all">
+                                                  {formatValue(diff.old)}
+                                                </span>
+                                                <span className="text-muted-foreground">&rarr;</span>
+                                                <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-700 break-all">
+                                                  {formatValue(diff.new)}
+                                                </span>
+                                              </div>
                                             </div>
                                           ))}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                          Details
+                                        </div>
+                                        <div className="grid gap-2.5 sm:grid-cols-2">
+                                          {Object.entries(item.changes as Record<string, unknown>)
+                                            .filter(([, v]) => v !== null && v !== undefined && v !== "")
+                                            .map(([field, value]) => (
+                                              <div
+                                                key={field}
+                                                className="rounded-xl border border-[#0F4C5C]/10 bg-white/95 px-3 py-2.5 shadow-[0_6px_16px_rgba(15,76,92,0.06)]"
+                                              >
+                                                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[#0F4C5C]/80">
+                                                  {formatFieldName(field)}
+                                                </div>
+                                                <div className="text-sm text-foreground break-all">
+                                                  {formatValue(value)}
+                                                </div>
+                                              </div>
+                                            ))}
+                                        </div>
                                       </div>
                                     )}
                                   </div>

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ArrowDownLeft, ArrowUpRight, CheckCircle, Clock, Pencil } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CheckCircle, Clock, Pencil } from "lucide-react";
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
   USD: "$",
@@ -10,6 +10,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 interface Transaction {
   id: string;
   type: string;
+  kind?: string;
   category: string;
   amount: number;
   currency?: string;
@@ -55,7 +56,8 @@ export function MobileTransactionCard({
   canEdit = true,
 }: MobileTransactionCardProps) {
   const isIncome = transaction.type === "income";
-  const isExchange = transaction.category === "currency_exchange";
+  const isTransfer = transaction.kind === "transfer" || transaction.category === "transfer_internal";
+  const isExchange = transaction.kind === "exchange" || transaction.category === "currency_exchange";
   const currencySymbol = CURRENCY_SYMBOLS[transaction.currency || "USD"] || "$";
   const formattedAmount = `${currencySymbol}${Math.round(transaction.amount).toLocaleString()}`;
   const formattedDate = (() => {
@@ -89,15 +91,21 @@ export function MobileTransactionCard({
               "p-2 rounded-lg flex-shrink-0",
               isExchange
                 ? "bg-purple-500/10"
-                : isIncome
-                  ? "bg-emerald-500/10"
-                  : "bg-red-500/10"
+                : isTransfer
+                  ? "bg-blue-500/10"
+                  : isIncome
+                    ? "bg-emerald-500/10"
+                    : "bg-red-500/10"
             )}
           >
-            {isIncome ? (
-              <ArrowDownLeft className={cn("h-4 w-4", isExchange ? "text-purple-600" : "text-emerald-600")} />
+            {isExchange ? (
+              <ArrowLeftRight className="h-4 w-4 text-purple-600" />
+            ) : isTransfer ? (
+              <ArrowLeftRight className="h-4 w-4 text-blue-600" />
+            ) : isIncome ? (
+              <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
             ) : (
-              <ArrowUpRight className={cn("h-4 w-4", isExchange ? "text-purple-600" : "text-red-600")} />
+              <ArrowUpRight className="h-4 w-4 text-red-600" />
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -120,12 +128,14 @@ export function MobileTransactionCard({
               "font-bold text-lg",
               isExchange
                 ? "text-purple-600"
-                : isIncome
-                  ? "text-emerald-600"
-                  : "text-red-600"
+                : isTransfer
+                  ? "text-blue-600"
+                  : isIncome
+                    ? "text-emerald-600"
+                    : "text-red-600"
             )}
           >
-            {isIncome ? "+" : "-"}{formattedAmount}
+            {isIncome ? "+" : isTransfer ? "" : "-"}{formattedAmount}
           </p>
           {isExchange && gelAmount && (
             <p className="text-sm text-purple-500 font-medium">

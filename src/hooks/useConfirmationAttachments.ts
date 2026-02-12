@@ -161,6 +161,26 @@ export const useUploadAttachment = () => {
 
       const storageCurrency = originalCurrency || "USD";
       const storageAmount = originalAmount || amount || 0;
+      let uploaderResponsibleHolderId: string | null = null;
+
+      // For payment uploads, attribute ledger responsibility to the uploader
+      // when they have an active linked holder.
+      if (isPaymentOrder) {
+        try {
+          const { data: linkedHolder } = await supabase
+            .from("holders")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("is_active", true)
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          uploaderResponsibleHolderId = linkedHolder?.id ?? null;
+        } catch (holderLookupError) {
+          console.error("Failed to resolve uploader holder:", holderLookupError);
+        }
+      }
 
       // Invoice amount is for reference only (not ledger)
       if (!isPaymentOrder && hasAmount && data) {
@@ -234,23 +254,62 @@ export const useUploadAttachment = () => {
 
           if (updateExpenseError) {
             console.error("Failed to update expense:", updateExpenseError);
+            const { error: insertExpenseError } = await supabase
+              .from("expenses")
+              .insert({
+                confirmation_id: confirmationId,
+                expense_type: "hotel",
+                description,
+                amount: storageAmount,
+                expense_date: today,
+                created_by: user.id,
+                attachment_id: data.id,
+              });
+            if (insertExpenseError) {
+              console.error("Failed to insert fallback expense:", insertExpenseError);
+            }
           }
 
           if (existingExpense.description) {
+            const updatePayload: Record<string, any> = {
+              amount: storageAmount,
+              currency: storageCurrency,
+              description,
+              date: today,
+            };
+            if (isPaymentOrder && uploaderResponsibleHolderId) {
+              updatePayload.responsible_holder_id = uploaderResponsibleHolderId;
+            }
+
             const { error: updateTxError } = await supabase
               .from("transactions")
-              .update({
-                amount: storageAmount,
-                currency: storageCurrency,
-                description,
-                date: today,
-              })
+              .update(updatePayload)
               .eq("confirmation_id", confirmationId)
               .eq("type", "expense")
               .eq("description", existingExpense.description);
 
             if (updateTxError) {
               console.error("Failed to update transaction:", updateTxError);
+              const { error: insertTxError } = await supabase
+                .from("transactions")
+                .insert({
+                  date: today,
+                  kind: "out",
+                  type: "expense",
+                  category: "hotel",
+                  description,
+                  amount: storageAmount,
+                  currency: storageCurrency,
+                  status: "confirmed",
+                  confirmation_id: confirmationId,
+                  is_auto_generated: false,
+                  is_paid: true,
+                  created_by: user.id,
+                  responsible_holder_id: isPaymentOrder ? uploaderResponsibleHolderId : null,
+                });
+              if (insertTxError) {
+                console.error("Failed to insert fallback transaction:", insertTxError);
+              }
             }
           } else {
             const { error: transactionError } = await supabase
@@ -267,6 +326,8 @@ export const useUploadAttachment = () => {
                 confirmation_id: confirmationId,
                 is_auto_generated: false,
                 is_paid: true,
+                created_by: user.id,
+                responsible_holder_id: isPaymentOrder ? uploaderResponsibleHolderId : null,
               });
 
             if (transactionError) {
@@ -288,6 +349,8 @@ export const useUploadAttachment = () => {
               confirmation_id: confirmationId,
               is_auto_generated: false,
               is_paid: true,
+              created_by: user.id,
+              responsible_holder_id: isPaymentOrder ? uploaderResponsibleHolderId : null,
             });
 
           if (transactionError) {

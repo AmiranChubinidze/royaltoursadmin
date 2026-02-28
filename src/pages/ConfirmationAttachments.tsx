@@ -328,11 +328,11 @@ export default function ConfirmationAttachments() {
     expenseLookup?: Record<string, AttachmentExpense>,
     invoiceLookup?: Record<string, { amount: number; currency?: string }>
   ): "invoice" | "payment" => {
-    const lower = attachment.file_name.toLowerCase();
-    if (lower.includes("payment") || lower.includes("paid") || lower.includes("po")) return "payment";
-    if (lower.includes("invoice")) return "invoice";
     if (invoiceLookup && invoiceLookup[attachment.id]) return "invoice";
     if (expenseLookup && expenseLookup[attachment.id]) return "payment";
+    const lower = attachment.file_name.toLowerCase();
+    if (lower.includes("payment") || lower.includes("paid")) return "payment";
+    if (lower.includes("invoice")) return "invoice";
     return "invoice";
   };
 
@@ -341,7 +341,7 @@ export default function ConfirmationAttachments() {
     invoiceLookup?: Record<string, { amount: number; currency?: string }>
   ): "invoice" | "payment" | "unknown" => {
     const lower = attachment.file_name.toLowerCase();
-    if (lower.includes("payment") || lower.includes("paid") || lower.includes("po")) return "payment";
+    if (lower.includes("payment") || lower.includes("paid")) return "payment";
     if (lower.includes("invoice")) return "invoice";
     if (invoiceLookup && invoiceLookup[attachment.id]) return "invoice";
     return "unknown";
@@ -399,6 +399,16 @@ export default function ConfirmationAttachments() {
         stayPathToKey.set(getStayPathKey(stayKey), stayKey);
       });
     });
+    const validStayKeys = new Set(Array.from(stayPathToKey.values()));
+
+    // Remove stale mappings that reference old/deleted stays after itinerary edits.
+    for (const attachmentId of Object.keys(map)) {
+      const mappedStayKey = map[attachmentId];
+      if (mappedStayKey && !validStayKeys.has(mappedStayKey)) {
+        delete map[attachmentId];
+        changed = true;
+      }
+    }
 
     const unmatchedByHotel = new Map<string, ConfirmationAttachment[]>();
     const stayRegex = /\(\s*stay\s*(\d+)\s*\)/i;
@@ -975,13 +985,22 @@ export default function ConfirmationAttachments() {
                 const attachmentMatches = attachmentsByStay.get(stayKey);
                 const invoiceMatch = attachmentMatches?.invoice ?? null;
                 const paymentMatch = attachmentMatches?.payment ?? null;
+                const stayAttachmentsRaw = attachmentsByStayRaw.get(stayKey) || [];
                 const hasInvoiceUpload = !!invoiceMatch;
                 const hasPayment = !!paymentMatch;
                 const manualChecked = manualPaymentChecks.includes(stayKey);
                 const paymentChecked = hasPayment || manualChecked;
                 const isSavingCheck = paymentCheckSaving === stayKey;
-                const paymentExpense = paymentMatch ? expenseMap?.[paymentMatch.id] : undefined;
-                const rawInvoiceAmount = invoiceMatch ? invoiceAmountMap[invoiceMatch.id] : undefined;
+                const paymentExpense =
+                  (paymentMatch ? expenseMap?.[paymentMatch.id] : undefined) ||
+                  stayAttachmentsRaw
+                    .map((attachment) => expenseMap?.[attachment.id])
+                    .find((value) => value?.amount != null);
+                const rawInvoiceAmount =
+                  (invoiceMatch ? invoiceAmountMap[invoiceMatch.id] : undefined) ||
+                  stayAttachmentsRaw
+                    .map((attachment) => invoiceAmountMap[attachment.id])
+                    .find((value) => value != null);
                 const invoiceAmount =
                   typeof rawInvoiceAmount === "number"
                     ? { amount: rawInvoiceAmount, currency: "USD" }

@@ -122,11 +122,7 @@ export const useUploadAttachment = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const isPaymentOrder =
-        attachmentType === "payment" ||
-        customName?.toLowerCase().includes("payment") ||
-        customName?.toLowerCase().includes("paid") ||
-        customName?.toLowerCase().includes("po");
+      const isPaymentOrder = attachmentType === "payment";
       const hasAmount = typeof amount === "number" && !Number.isNaN(amount) && amount > 0;
 
       // Upload to storage
@@ -212,10 +208,10 @@ export const useUploadAttachment = () => {
         }
       }
 
-      // Create or update ledger expense for both invoices and payment orders
-      if (hasAmount && data) {
+      // Only payment uploads should affect ledger rows.
+      if (isPaymentOrder && hasAmount && data) {
         const today = new Date().toISOString().split("T")[0];
-        const description = isPaymentOrder ? `Payment: ${displayName}` : `Invoice: ${displayName}`;
+        const description = `Payment: ${displayName}`;
         let existingExpense: { id: string; description: string | null } | null = null;
 
         if (stayPathKey) {
@@ -277,7 +273,7 @@ export const useUploadAttachment = () => {
               description,
               date: today,
             };
-            if (isPaymentOrder && uploaderResponsibleHolderId) {
+            if (uploaderResponsibleHolderId) {
               updatePayload.responsible_holder_id = uploaderResponsibleHolderId;
             }
 
@@ -305,7 +301,7 @@ export const useUploadAttachment = () => {
                   is_auto_generated: false,
                   is_paid: true,
                   created_by: user.id,
-                  responsible_holder_id: isPaymentOrder ? uploaderResponsibleHolderId : null,
+                  responsible_holder_id: uploaderResponsibleHolderId,
                 });
               if (insertTxError) {
                 console.error("Failed to insert fallback transaction:", insertTxError);
@@ -327,7 +323,7 @@ export const useUploadAttachment = () => {
                 is_auto_generated: false,
                 is_paid: true,
                 created_by: user.id,
-                responsible_holder_id: isPaymentOrder ? uploaderResponsibleHolderId : null,
+                responsible_holder_id: uploaderResponsibleHolderId,
               });
 
             if (transactionError) {
@@ -350,7 +346,7 @@ export const useUploadAttachment = () => {
               is_auto_generated: false,
               is_paid: true,
               created_by: user.id,
-              responsible_holder_id: isPaymentOrder ? uploaderResponsibleHolderId : null,
+              responsible_holder_id: uploaderResponsibleHolderId,
             });
 
           if (transactionError) {

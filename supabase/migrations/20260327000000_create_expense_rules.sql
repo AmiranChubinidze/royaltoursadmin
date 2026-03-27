@@ -16,6 +16,5 @@ CREATE POLICY "read" ON public.expense_rules
 
 CREATE POLICY "write" ON public.expense_rules
   FOR ALL TO authenticated
-  USING (EXISTS (
-    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin','accountant','worker')
-  ));
+  USING (public.has_role(auth.uid(), 'admin'))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));

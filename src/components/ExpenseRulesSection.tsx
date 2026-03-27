@@ -100,12 +100,16 @@ export function ExpenseRulesSection() {
       active: editingRule ? editingRule.active : true,
     };
 
-    if (editingRule) {
-      await updateRule.mutateAsync({ id: editingRule.id, ...payload });
-    } else {
-      await createRule.mutateAsync(payload);
+    try {
+      if (editingRule) {
+        await updateRule.mutateAsync({ id: editingRule.id, ...payload });
+      } else {
+        await createRule.mutateAsync(payload);
+      }
+      closeDialog();
+    } catch (err) {
+      console.error("Failed to save expense rule:", err);
     }
-    closeDialog();
   }
 
   function handleToggleActive(rule: ExpenseRule) {

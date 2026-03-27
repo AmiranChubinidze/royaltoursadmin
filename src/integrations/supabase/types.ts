@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      expense_rules: {
+        Row: {
+          id: string
+          name: string
+          rate: number
+          currency: string
+          per_person: boolean
+          per_day: boolean
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          rate: number
+          currency?: string
+          per_person?: boolean
+          per_day?: boolean
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          rate?: number
+          currency?: string
+          per_person?: boolean
+          per_day?: boolean
+          active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
       activity_log: {
         Row: {
           id: string

@@ -189,11 +189,21 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     category: categoryFilter === "all" ? undefined : categoryFilter,
     status: statusFilter === "all" ? undefined : statusFilter,
   });
+  const ledgerTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return isCoworker ? transactions.filter((t) => t.category !== "salary") : transactions;
+  }, [transactions, isCoworker]);
 
   const isLoading = confirmationsLoading || transactionsLoading;
 
   const deleteTransaction = useDeleteTransaction();
   const confirmTransaction = useConfirmTransaction();
+
+  useEffect(() => {
+    if (isCoworker && categoryFilter === "salary") {
+      setCategoryFilter("all");
+    }
+  }, [isCoworker, categoryFilter]);
 
   // Parse date from DD/MM/YYYY format
   const parseConfirmationDate = (dateStr: string | null): Date | null => {
@@ -388,10 +398,11 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         return {
           date: isoDateFromDdMmYyyy(c.arrival_date),
           kind: "out" as const,
-          status: "confirmed" as const,
+          status: "pending" as const,
           category: "breakfast" as const,
           description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
           amount: mealsExpense,
+          currency: "GEL" as const,
           is_auto_generated: true,
           confirmation_id: c.id,
           payment_method: null,
@@ -434,7 +445,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     isCurrentlyConfirmed: boolean,
     responsibleHolderId: string | null,
   ) => {
-    const tx = transactions?.find((t) => t.id === id);
+    const tx = ledgerTransactions.find((t) => t.id === id);
     if (tx && !canEditTransaction(tx)) return;
 
     const willConfirm = !isCurrentlyConfirmed;
@@ -495,7 +506,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   };
 
   const handleExportExcel = () => {
-    if (!transactions?.length) return;
+    if (!ledgerTransactions.length) return;
 
     // Styles
     const headerStyle = {
@@ -549,7 +560,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     const totals = { incomeUSD: 0, incomeGEL: 0, expenseUSD: 0, expenseGEL: 0 };
     const categoryTotals: Record<string, { usd: number; gel: number }> = {};
 
-    transactions.forEach((t) => {
+    ledgerTransactions.forEach((t) => {
       const currency = t.currency || "USD";
       if (t.kind === "in") {
         if (currency === "USD") totals.incomeUSD += t.amount;
@@ -585,7 +596,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
     const transactionRows: any[][] = [headers.map(h => ({ v: h, s: headerStyle }))];
 
-    transactions.forEach((t) => {
+    ledgerTransactions.forEach((t) => {
       const rowStyle = t.status === "pending" ? pendingStyle :
         t.kind === "in" ? incomeRowStyle :
         t.kind === "out" ? expenseRowStyle :
@@ -618,7 +629,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     allTransactionsSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 
     // ===== SHEET 2: Income Only =====
-    const incomeTransactions = transactions.filter(t => t.kind === "in");
+    const incomeTransactions = ledgerTransactions.filter(t => t.kind === "in");
     const incomeRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
     
     incomeTransactions.forEach((t) => {
@@ -647,7 +658,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     incomeSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
 
     // ===== SHEET 3: Expenses Only =====
-    const expenseTransactions = transactions.filter(t => t.kind === "out");
+    const expenseTransactions = ledgerTransactions.filter(t => t.kind === "out");
     const expenseRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status", "Responsible"].map(h => ({ v: h, s: headerStyle }))];
     
     expenseTransactions.forEach((t) => {
@@ -692,7 +703,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   };
 
   // Filter all transactions by search and responsible holder
-  const filteredTransactions = (transactions || []).filter(t => {
+  const filteredTransactions = ledgerTransactions.filter(t => {
     // Holder filter - check all holder fields (from, to, responsible)
     if (responsibleFilter !== "all") {
       const matchesHolder = 
@@ -746,7 +757,11 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             <SelectContent side="bottom" sideOffset={6} avoidCollisions={false} className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Categories</SelectItem>
               {Object.entries(CATEGORY_LABELS)
-                .filter(([value]) => !HIDDEN_CATEGORY_FILTERS.has(value))
+                .filter(([value]) => {
+                  if (HIDDEN_CATEGORY_FILTERS.has(value)) return false;
+                  if (isCoworker && value === "salary") return false;
+                  return true;
+                })
                 .map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
@@ -789,7 +804,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             size="sm"
             className="h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]"
             onClick={handleExportExcel}
-            disabled={!transactions?.length}
+            disabled={!ledgerTransactions.length}
           >
             <Download className="h-4 w-4 mr-2" />
             Export Excel

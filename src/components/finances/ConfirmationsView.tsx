@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useBulkCreateTransactions, useTransactions, Transaction } from "@/hooks/useTransactions";
+import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useHolders } from "@/hooks/useHolders";
 import { TransactionModal } from "./TransactionModal";
@@ -123,6 +124,8 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
 
   const bulkCreateTransactions = useBulkCreateTransactions();
   const createdMealsRef = useRef<Set<string>>(new Set());
+  const { data: expenseRules } = useExpenseRules();
+  const createdRulesRef = useRef<Set<string>>(new Set());
 
   const isLoading = confirmationsLoading || transactionsLoading || expensesLoading;
 
@@ -273,6 +276,50 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       bulkCreateTransactions.mutate(missingMealsTransactions);
     }
   }, [confirmations, transactions, isLoading, bulkCreateTransactions, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (!confirmations || !transactions || !expenseRules || isLoading) return;
+    const activeRules = expenseRules.filter((r) => r.active);
+    const missing: Parameters<typeof bulkCreateTransactions.mutate>[0] = [];
+
+    for (const c of confirmations) {
+      const selectedRuleIds: string[] = (c.raw_payload as any)?.selectedRuleIds || [];
+      if (!selectedRuleIds.length) continue;
+      const numAdults = Number((c.raw_payload as any)?.guestInfo?.numAdults) || 1;
+      const numDays = ((c.raw_payload as any)?.itinerary as any[])?.length || 1;
+
+      for (const rule of activeRules) {
+        if (!selectedRuleIds.includes(rule.id)) continue;
+        const key = `${c.id}:${rule.id}`;
+        if (createdRulesRef.current.has(key)) continue;
+        const already = transactions.some(
+          (t) => t.confirmation_id === c.id && t.notes?.includes(`[rule:${rule.id}]`)
+        );
+        if (already) continue;
+
+        const amount = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? numDays : 1);
+        const parts = [
+          ...(rule.per_person ? [`${numAdults} adults`] : []),
+          ...(rule.per_day ? [`${numDays} days`] : []),
+        ];
+        createdRulesRef.current.add(key);
+        missing.push({
+          date: c.arrival_date ? isoDateFromDdMmYyyy(c.arrival_date) : format(new Date(), "yyyy-MM-dd"),
+          kind: "out",
+          status: "pending",
+          category: rule.name.toLowerCase().replace(/\s+/g, "_"),
+          description: parts.length ? `${rule.name} - ${parts.join(" x ")}` : rule.name,
+          amount,
+          currency: rule.currency as "GEL" | "USD",
+          is_auto_generated: true,
+          confirmation_id: c.id,
+          payment_method: null,
+          notes: `[rule:${rule.id}] Auto-generated`,
+        });
+      }
+    }
+    if (missing.length) bulkCreateTransactions.mutate(missing);
+  }, [confirmations, transactions, expenseRules, isLoading, bulkCreateTransactions]);
 
   const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
     try {

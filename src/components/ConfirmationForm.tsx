@@ -25,7 +25,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2 } from "lucide-react";
+import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ConfirmationFormData,
@@ -36,6 +36,7 @@ import {
 } from "@/types/confirmation";
 import { useCreateConfirmation } from "@/hooks/useConfirmations";
 import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSavedData";
+import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -338,6 +339,8 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   const createMutation = useCreateConfirmation();
   const { data: savedHotels = [] } = useSavedHotels();
   const createHotelMutation = useCreateSavedHotel();
+  const { data: expenseRules = [] } = useExpenseRules();
+  const activeRules = expenseRules.filter((r) => r.active);
 
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
@@ -354,6 +357,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     services: initialData?.services || "",
     notes: initialData?.notes || "",
     price: initialData?.price ?? null,
+    selectedRuleIds: initialData?.selectedRuleIds || [],
   });
 
   const showTrackingNumber = formData.tourSource === "partner-agency";
@@ -568,6 +572,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         services: filteredData.services,
         notes: filteredData.notes,
         price: filteredData.price,
+        selectedRuleIds: filteredData.selectedRuleIds,
       });
 
       // Save custom hotels with activities
@@ -1045,6 +1050,103 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 Add day
               </Button>
             </section>
+
+            {/* Additional Expenses */}
+            {activeRules.length > 0 && (
+              <section>
+                <h2 className="text-lg font-semibold text-foreground">Additional Expenses</h2>
+                <p className="text-sm text-muted-foreground mt-0.5 mb-4">
+                  Select which charges apply to this tour
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {activeRules.map((rule) => {
+                    const isSelected = formData.selectedRuleIds.includes(rule.id);
+                    const numAdults = formData.guestInfo.numAdults || 1;
+                    const numDays = formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()).length || 1;
+                    const total = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? numDays : 1);
+                    const sym = rule.currency === "GEL" ? "₾" : "$";
+                    const formulaParts = [
+                      rule.per_person ? `${numAdults} adults` : null,
+                      rule.per_day ? `${numDays} days` : null,
+                      `${rule.rate} ${sym}`,
+                    ].filter(Boolean);
+
+                    function toggle() {
+                      setFormData(prev => ({
+                        ...prev,
+                        selectedRuleIds: isSelected
+                          ? prev.selectedRuleIds.filter(id => id !== rule.id)
+                          : [...prev.selectedRuleIds, rule.id],
+                      }));
+                    }
+
+                    return (
+                      <div
+                        key={rule.id}
+                        onClick={toggle}
+                        className={cn(
+                          "rounded-xl border p-4 cursor-pointer transition-all duration-150",
+                          isSelected
+                            ? "border-[#0F4C5C]/35 bg-gradient-to-br from-[#EAF7F8] via-white to-white shadow-[0_0_0_1px_rgba(15,76,92,0.12),0_4px_12px_rgba(15,76,92,0.08)]"
+                            : "border-border/60 bg-white hover:border-[#0F4C5C]/25 hover:bg-[#F7FBFC]"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={toggle}
+                              onClick={e => e.stopPropagation()}
+                              className={isSelected ? "border-[#0F4C5C] data-[state=checked]:bg-[#0F4C5C]" : ""}
+                            />
+                            <span className="text-sm font-semibold text-foreground">{rule.name}</span>
+                          </div>
+                          <span className="text-xl font-bold font-mono text-[#0F4C5C]">
+                            {total} {sym}
+                          </span>
+                        </div>
+                        <div className="mt-1 pl-7">
+                          {rule.per_person || rule.per_day ? (
+                            <span className="text-xs text-muted-foreground">
+                              {formulaParts.join(" · ")}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">flat fee</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Totals bar */}
+                {formData.selectedRuleIds.length > 0 && (() => {
+                  const numAdults = formData.guestInfo.numAdults || 1;
+                  const numDays = formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()).length || 1;
+                  const selectedRules = activeRules.filter(r => formData.selectedRuleIds.includes(r.id));
+                  const gelTotal = selectedRules
+                    .filter(r => r.currency === "GEL")
+                    .reduce((sum, r) => sum + r.rate * (r.per_person ? numAdults : 1) * (r.per_day ? numDays : 1), 0);
+                  const usdTotal = selectedRules
+                    .filter(r => r.currency === "USD")
+                    .reduce((sum, r) => sum + r.rate * (r.per_person ? numAdults : 1) * (r.per_day ? numDays : 1), 0);
+                  return (
+                    <div className="mt-3 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/15 px-4 py-2.5 flex items-center gap-2">
+                      <Receipt className="h-4 w-4 text-[#0F4C5C]/60" />
+                      <span className="text-xs uppercase tracking-[0.12em] text-[#0F4C5C]/60">
+                        Additional total:
+                      </span>
+                      <span className="text-sm font-bold font-mono text-[#0F4C5C] ml-auto">
+                        {[
+                          gelTotal > 0 ? `${gelTotal} ₾` : null,
+                          usdTotal > 0 ? `${usdTotal} $` : null,
+                        ].filter(Boolean).join(" + ")}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </section>
+            )}
 
             {/* Submit */}
             <div className={cn("pt-6 border-t border-border/70", isMobile ? "space-y-2" : "flex items-center justify-between")}>

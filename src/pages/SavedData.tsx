@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ExpenseRulesSection } from "@/components/ExpenseRulesSection";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -597,6 +598,7 @@ export default function SavedData() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <ExpenseRulesSection />
       </div>
     </div>
   );

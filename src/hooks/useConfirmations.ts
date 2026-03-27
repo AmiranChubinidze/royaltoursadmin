@@ -148,19 +148,24 @@ export function useUpdateConfirmation() {
       const { days, nights } = calculateDaysAndNights(arrivalDate, departureDate);
       const mainClientName = getMainClientName(payload.clients);
 
-      // For draft completion, generate a new proper confirmation code
-      // For normal edits, fetch and keep the existing code to avoid conflicts
+      // Fetch existing record to preserve confirmation_code and raw_payload fields
+      // that the form doesn't manage (invoice_amounts, attachment_stay_map, invoice_checks, etc.)
+      const { data: existingRecord } = await supabase
+        .from("confirmations")
+        .select("confirmation_code, raw_payload")
+        .eq("id", id)
+        .single();
+
       let confirmationCode: string;
       if (status === "confirmed") {
         confirmationCode = await generateConfirmationCode(arrivalDate);
       } else {
-        const { data: existing } = await supabase
-          .from("confirmations")
-          .select("confirmation_code")
-          .eq("id", id)
-          .single();
-        confirmationCode = existing?.confirmation_code || await generateConfirmationCode(arrivalDate, id);
+        confirmationCode = existingRecord?.confirmation_code || await generateConfirmationCode(arrivalDate, id);
       }
+
+      const existingRawPayload = (existingRecord?.raw_payload && typeof existingRecord.raw_payload === "object")
+        ? existingRecord.raw_payload as Record<string, any>
+        : {};
 
       const updateData: any = {
         confirmation_code: confirmationCode,
@@ -171,7 +176,7 @@ export function useUpdateConfirmation() {
         departure_date: departureDate,
         total_days: days,
         total_nights: nights,
-        raw_payload: toJson(payload),
+        raw_payload: toJson({ ...existingRawPayload, ...payload }),
         price: payload.price ?? null,
       };
 

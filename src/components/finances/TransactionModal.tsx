@@ -241,9 +241,6 @@ export function TransactionModal({
       notes: finalNotes,
     };
 
-    if (isCoworker && (formData.kind === "in" || formData.kind === "out")) {
-      submitData.responsible_holder_id = coworkerHolderId;
-    }
     if (isCoworker && formData.kind === "exchange") {
       submitData.from_holder_id = coworkerHolderId;
     }
@@ -576,7 +573,7 @@ export function TransactionModal({
           )}
 
           {/* Responsible (for in/out only) - who holds the money */}
-          {(formData.kind === "in" || formData.kind === "out") && !isCoworker && (
+          {(formData.kind === "in" || formData.kind === "out") && (
             <div className="space-y-1">
               <Label className="text-xs">Responsible</Label>
               <Select

@@ -24,6 +24,7 @@ const CATEGORY_CONFIG: Record<TransactionCategory, { label: string; color: strin
   breakfast: { label: "Breakfast", color: "text-yellow-600", bgColor: "bg-yellow-500", chartColor: "#eab308" },
   fuel: { label: "Fuel", color: "text-rose-600", bgColor: "bg-rose-500", chartColor: "#f43f5e" },
   guide: { label: "Guide Fees", color: "text-cyan-600", bgColor: "bg-cyan-500", chartColor: "#06b6d4" },
+  insurance: { label: "Insurance", color: "text-violet-600", bgColor: "bg-violet-500", chartColor: "#7c3aed" },
   other: { label: "Other", color: "text-gray-600", bgColor: "bg-gray-500", chartColor: "#6b7280" },
 };
 

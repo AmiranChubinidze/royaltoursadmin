@@ -254,10 +254,11 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         return {
           date: isoDateFromDdMmYyyy(c.arrival_date),
           kind: "out" as const,
-          status: "confirmed" as const,
+          status: "pending" as const,
           category: "breakfast" as const,
           description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
           amount: mealsExpense,
+          currency: "GEL" as const,
           is_auto_generated: true,
           confirmation_id: c.id,
           payment_method: null,

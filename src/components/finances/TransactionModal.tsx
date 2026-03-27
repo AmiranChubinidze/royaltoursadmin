@@ -58,6 +58,7 @@ const CATEGORIES: { value: string; label: string; kind: TransactionKind | "both"
   { value: "breakfast", label: "Breakfast", kind: "out" },
   { value: "fuel", label: "Fuel", kind: "out" },
   { value: "guide", label: "Guide", kind: "out" },
+  { value: "insurance", label: "Insurance", kind: "out" },
   { value: "salary", label: "Salary", kind: "out" },
   { value: "transfer_internal", label: "Transfer", kind: "transfer" },
   { value: "reimbursement", label: "Reimbursement", kind: "transfer" },
@@ -96,7 +97,7 @@ export function TransactionModal({
   const coworkerHolderId =
     holders?.find((h) => h.user_id && h.user_id === user?.id)?.id || null;
 
-  const [inputCurrency, setInputCurrency] = useState<Currency>("USD");
+  const [inputCurrency, setInputCurrency] = useState<Currency>("GEL");
 
   const [formData, setFormData] = useState<CreateTransactionData>({
     date: format(new Date(), "yyyy-MM-dd"),
@@ -147,7 +148,7 @@ export function TransactionModal({
       });
       setIsCustomCategory(!isKnown);
       setCustomCategory(isKnown ? "" : transaction.category);
-      setInputCurrency((transaction.currency as Currency) || "USD");
+      setInputCurrency((transaction.currency as Currency) || "GEL");
     } else {
       setFormData({
         date: format(new Date(), "yyyy-MM-dd"),
@@ -170,7 +171,7 @@ export function TransactionModal({
       });
       setIsCustomCategory(false);
       setCustomCategory("");
-      setInputCurrency("USD");
+      setInputCurrency("GEL");
     }
   }, [transaction, defaultKind, defaultCategory, defaultConfirmationId, open, isCoworker, coworkerHolderId]);
 

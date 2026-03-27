@@ -710,7 +710,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                         arrival: { ...prev.arrival, from: value }
                       }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="[&>svg]:hidden">
                         <SelectValue placeholder="Select city..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -778,7 +778,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                         departure: { ...prev.departure, to: value }
                       }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="[&>svg]:hidden">
                         <SelectValue placeholder="Select city..." />
                       </SelectTrigger>
                       <SelectContent>

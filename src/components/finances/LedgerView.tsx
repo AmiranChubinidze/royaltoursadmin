@@ -803,17 +803,20 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
             </SelectTrigger>
             <SelectContent side="bottom" sideOffset={6} avoidCollisions={false} className="max-h-72 overflow-y-auto">
               <SelectItem value="all">All Categories</SelectItem>
-              {Object.entries(CATEGORY_LABELS)
-                .filter(([value]) => {
+              {[
+                ...Object.entries(CATEGORY_LABELS).filter(([value]) => {
                   if (HIDDEN_CATEGORY_FILTERS.has(value)) return false;
                   if (isCoworker && value === "salary") return false;
                   return true;
-                })
-                .map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
+                }),
+                ...Array.from(new Set(ledgerTransactions.map((t) => t.category)))
+                  .filter((c) => c && !CATEGORY_LABELS[c] && !HIDDEN_CATEGORY_FILTERS.has(c))
+                  .map((c) => [c, getCategoryLabel(c)] as [string, string]),
+              ].map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

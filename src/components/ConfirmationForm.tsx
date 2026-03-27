@@ -703,15 +703,22 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">City</Label>
-                    <Input
-                      type="text"
-                      placeholder="e.g. Tbilisi"
+                    <Select
                       value={formData.arrival.from}
-                      onChange={(e) => setFormData(prev => ({
+                      onValueChange={(value) => setFormData(prev => ({
                         ...prev,
-                        arrival: { ...prev.arrival, from: e.target.value }
+                        arrival: { ...prev.arrival, from: value }
                       }))}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select city..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Tbilisi">Tbilisi</SelectItem>
+                        <SelectItem value="Batumi">Batumi</SelectItem>
+                        <SelectItem value="Kutaisi">Kutaisi</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">Flight / Ticket number</Label>
@@ -764,15 +771,22 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">City</Label>
-                    <Input
-                      type="text"
-                      placeholder="e.g. Batumi"
+                    <Select
                       value={formData.departure.to}
-                      onChange={(e) => setFormData(prev => ({
+                      onValueChange={(value) => setFormData(prev => ({
                         ...prev,
-                        departure: { ...prev.departure, to: e.target.value }
+                        departure: { ...prev.departure, to: value }
                       }))}
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select city..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Tbilisi">Tbilisi</SelectItem>
+                        <SelectItem value="Batumi">Batumi</SelectItem>
+                        <SelectItem value="Kutaisi">Kutaisi</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-sm font-medium mb-1.5 block">Flight / Ticket number</Label>

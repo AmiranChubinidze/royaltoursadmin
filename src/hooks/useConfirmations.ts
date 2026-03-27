@@ -144,22 +144,23 @@ export function useUpdateConfirmation() {
     }) => {
       const arrivalDate = payload.arrival.date;
       const departureDate = payload.departure.date;
-
-      // Regenerate code if arrival date changed or if completing a draft
-      // For draft completion, generate a proper confirmation code (not DRAFT-xxx)
-      let confirmationCode: string;
-      
-      if (status === "confirmed") {
-        // When completing a draft, always generate a new proper confirmation code
-        confirmationCode = await generateConfirmationCode(arrivalDate);
-      } else {
-        // Normal update - regenerate if needed
-        confirmationCode = await generateConfirmationCode(arrivalDate, id);
-      }
-      
       const dateCode = getDateCode(arrivalDate);
       const { days, nights } = calculateDaysAndNights(arrivalDate, departureDate);
       const mainClientName = getMainClientName(payload.clients);
+
+      // For draft completion, generate a new proper confirmation code
+      // For normal edits, fetch and keep the existing code to avoid conflicts
+      let confirmationCode: string;
+      if (status === "confirmed") {
+        confirmationCode = await generateConfirmationCode(arrivalDate);
+      } else {
+        const { data: existing } = await supabase
+          .from("confirmations")
+          .select("confirmation_code")
+          .eq("id", id)
+          .single();
+        confirmationCode = existing?.confirmation_code || await generateConfirmationCode(arrivalDate, id);
+      }
 
       const updateData: any = {
         confirmation_code: confirmationCode,

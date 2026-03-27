@@ -714,9 +714,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                         <SelectValue placeholder="Select city..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Tbilisi">Tbilisi</SelectItem>
-                        <SelectItem value="Batumi">Batumi</SelectItem>
-                        <SelectItem value="Kutaisi">Kutaisi</SelectItem>
+                        <SelectItem value="TBILISI">TBILISI</SelectItem>
+                        <SelectItem value="BATUMI">BATUMI</SelectItem>
+                        <SelectItem value="KUTAISI">KUTAISI</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -782,9 +782,9 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                         <SelectValue placeholder="Select city..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Tbilisi">Tbilisi</SelectItem>
-                        <SelectItem value="Batumi">Batumi</SelectItem>
-                        <SelectItem value="Kutaisi">Kutaisi</SelectItem>
+                        <SelectItem value="TBILISI">TBILISI</SelectItem>
+                        <SelectItem value="BATUMI">BATUMI</SelectItem>
+                        <SelectItem value="KUTAISI">KUTAISI</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

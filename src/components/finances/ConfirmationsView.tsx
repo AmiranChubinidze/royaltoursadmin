@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ConfirmationPayload } from "@/types/confirmation";
 import { format, isWithinInterval, isPast, parseISO } from "date-fns";
 import {
   Table,
@@ -30,6 +29,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useBulkCreateTransactions, useTransactions, Transaction } from "@/hooks/useTransactions";
 import { useExpenseRules } from "@/hooks/useExpenseRules";
+import { useSavedHotels } from "@/hooks/useSavedData";
+import { countHotelNights } from "@/lib/confirmationUtils";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useHolders } from "@/hooks/useHolders";
 import { TransactionModal } from "./TransactionModal";
@@ -54,9 +55,6 @@ interface ConfirmationsViewProps {
   dateTo?: Date;
 }
 
-const MEALS_RATE_PER_2_ADULTS = 15;
-const MEALS_HOTELS = ["INN MARTVILI", "ORBI"];
-
 const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
   if (!dateStr) return new Date().toISOString().split("T")[0];
   const parts = dateStr.split("/");
@@ -64,20 +62,6 @@ const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
     return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
   }
   return new Date().toISOString().split("T")[0];
-};
-
-const calculateMealsFromPayload = (rawPayload: ConfirmationPayload | null | undefined) => {
-  const itinerary = rawPayload?.itinerary || [];
-  const numAdults = Number(rawPayload?.guestInfo?.numAdults) || 2;
-
-  const mealsNights = itinerary.filter((day) => {
-    const hotelName = String(day?.hotel || "").toUpperCase().trim();
-    return MEALS_HOTELS.some((h) => hotelName.includes(h));
-  }).length;
-
-  const mealsExpense = Math.ceil(numAdults / 2) * MEALS_RATE_PER_2_ADULTS * mealsNights;
-
-  return { mealsNights, mealsExpense, numAdults };
 };
 
 interface ConfirmationRow {
@@ -94,8 +78,6 @@ interface ConfirmationRow {
   profit: number;
   clientPaid: boolean;
   hotelsPaid: boolean;
-  mealsExpense: number;
-  mealsNights: number;
   invoiceExpenses: { name: string; amount: number }[];
   transactions: Transaction[];
 }
@@ -124,8 +106,8 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const [searchQuery, setSearchQuery] = useState("");
 
   const bulkCreateTransactions = useBulkCreateTransactions();
-  const createdMealsRef = useRef<Set<string>>(new Set());
   const { data: expenseRules } = useExpenseRules();
+  const { data: savedHotels = [] } = useSavedHotels();
   const createdRulesRef = useRef<Set<string>>(new Set());
 
   const isLoading = confirmationsLoading || transactionsLoading || expensesLoading;
@@ -162,9 +144,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const revenueExpected = Number(c.price) || 0;
         const days = c.total_days || 1;
 
-        // Calculate meals expense for INN MARTVILI and ORBI hotels
-        const { mealsNights, mealsExpense } = calculateMealsFromPayload(c.raw_payload);
-
         // Calculate received (confirmed "in" transactions only) - convert to USD
         const received = confirmationTransactions
           .filter((t) => t.kind === "in" && t.status === "confirmed")
@@ -190,18 +169,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         });
         const invoiceExpensesTotal = invoiceExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-        // Get meals expense from transaction or calculate
-        const mealsTransaction = confirmationTransactions.find((t) => t.category === "breakfast");
-        const actualMealsExpense = mealsTransaction ? mealsTransaction.amount : mealsExpense;
-
-        // Total expenses = all expense transactions + invoice expenses
-        // If meals transactions exist, they're already in allExpenseTransactions
-        // If not, add the calculated amounts
-        const hasMealsInTransactions = !!mealsTransaction;
-        
-        const totalExpenses = allExpenseTransactions + 
-          invoiceExpensesTotal + 
-          (hasMealsInTransactions ? 0 : actualMealsExpense);
+        const totalExpenses = allExpenseTransactions + invoiceExpensesTotal;
 
         // Get responsible holder from income transaction
         const incomeTransaction = confirmationTransactions.find((t) => t.kind === "in");
@@ -221,8 +189,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
           profit: revenueExpected - totalExpenses,
           clientPaid: c.client_paid || false,
           hotelsPaid: c.is_paid || false,
-          mealsExpense: actualMealsExpense,
-          mealsNights,
           invoiceExpenses,
           transactions: confirmationTransactions,
         };
@@ -230,56 +196,8 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       .filter((c) => c.revenueExpected > 0); // Only show confirmations with a price
   }, [confirmations, transactions, expenses, dateFrom, dateTo]);
 
-  // Auto-create meals transactions so they appear in the Ledger
   useEffect(() => {
-    if (!confirmations || !allTransactionsForAutogen || isLoading) return;
-
-    const missingMealsTransactions = confirmations
-      .filter((c) => {
-        if (createdMealsRef.current.has(c.id)) return false;
-
-        if (dateFrom || dateTo) {
-          const arrivalDate = parseConfirmationDate(c.arrival_date);
-          if (!arrivalDate) return false;
-          if (dateFrom && arrivalDate < dateFrom) return false;
-          if (dateTo && arrivalDate > dateTo) return false;
-        }
-
-        const { mealsExpense, mealsNights } = calculateMealsFromPayload(c.raw_payload);
-        if (mealsNights <= 0 || mealsExpense <= 0) return false;
-
-        const hasMeals = allTransactionsForAutogen.some(
-          (t) => t.confirmation_id === c.id && t.category === "breakfast"
-        );
-        return !hasMeals;
-      })
-      .map((c) => {
-        const { mealsExpense, mealsNights, numAdults } = calculateMealsFromPayload(c.raw_payload);
-        return {
-          date: isoDateFromDdMmYyyy(c.arrival_date),
-          kind: "out" as const,
-          status: "pending" as const,
-          category: "breakfast" as const,
-          description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
-          amount: mealsExpense,
-          currency: "GEL" as const,
-          is_auto_generated: true,
-          confirmation_id: c.id,
-          payment_method: null,
-          notes: "Auto-generated meals expense (GEL)",
-        };
-      });
-
-    if (missingMealsTransactions.length > 0) {
-      missingMealsTransactions.forEach((t) => {
-        if (t.confirmation_id) createdMealsRef.current.add(t.confirmation_id);
-      });
-      bulkCreateTransactions.mutate(missingMealsTransactions);
-    }
-  }, [confirmations, allTransactionsForAutogen, isLoading, bulkCreateTransactions, dateFrom, dateTo]);
-
-  useEffect(() => {
-    if (!confirmations || !allTransactionsForAutogen || !expenseRules || isLoading) return;
+    if (!confirmations || !allTransactionsForAutogen || !expenseRules || !savedHotels || isLoading) return;
     const activeRules = expenseRules.filter((r) => r.active);
     const missing: Parameters<typeof bulkCreateTransactions.mutate>[0] = [];
 
@@ -288,6 +206,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       if (!selectedRuleIds.length) continue;
       const numAdults = Number(c.raw_payload?.guestInfo?.numAdults) || 1;
       const numDays = c.raw_payload?.itinerary?.length || 1;
+      const itinerary = c.raw_payload?.itinerary || [];
 
       for (const rule of activeRules) {
         if (!selectedRuleIds.includes(rule.id)) continue;
@@ -298,10 +217,18 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         );
         if (already) continue;
 
-        const amount = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? numDays : 1);
+        const isHotelRule = (rule.hotel_ids ?? []).length > 0;
+        const nights = isHotelRule
+          ? countHotelNights(itinerary, rule.hotel_ids ?? [], savedHotels)
+          : null;
+        if (isHotelRule && nights === 0) continue;
+        const multiplierDay = nights !== null ? nights : numDays;
+
+        const amount = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? multiplierDay : 1);
+        const dayLabel = isHotelRule ? "nights" : "days";
         const parts = [
           ...(rule.per_person ? [`${numAdults} adults`] : []),
-          ...(rule.per_day ? [`${numDays} days`] : []),
+          ...(rule.per_day ? [`${multiplierDay} ${dayLabel}`] : []),
         ];
         createdRulesRef.current.add(key);
         missing.push({
@@ -320,7 +247,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       }
     }
     if (missing.length) bulkCreateTransactions.mutate(missing);
-  }, [confirmations, allTransactionsForAutogen, expenseRules, isLoading, bulkCreateTransactions]);
+  }, [confirmations, allTransactionsForAutogen, expenseRules, savedHotels, isLoading, bulkCreateTransactions]);
 
   const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
     try {
@@ -536,14 +463,6 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
 
                             {/* Expense Breakdown */}
                             <div className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-                              {/* Meals */}
-                              {row.mealsNights > 0 && (
-                                <div className="flex items-center gap-2">
-                                  <Sparkles className="h-4 w-4 shrink-0" />
-                                  <span>Meals: {row.mealsExpense} GEL ({row.mealsNights} nights × 15 GEL)</span>
-                                </div>
-                              )}
-
                               {/* Hotels */}
                               {row.invoiceExpenses.map((inv, idx) => (
                                 <div key={idx} className="flex items-center gap-2">

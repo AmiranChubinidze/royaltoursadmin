@@ -200,7 +200,7 @@ describe("useUploadAttachment", () => {
     deleteError = null;
   });
 
-  it("creates a transaction + expense when invoice is uploaded with amount", async () => {
+  it("does not create transaction/expense when invoice is uploaded with amount", async () => {
     const wrapper = createWrapper();
     const { result } = renderHook(() => useUploadAttachment(), { wrapper });
 
@@ -220,34 +220,23 @@ describe("useUploadAttachment", () => {
 
     await waitFor(() => expect(result.current.isSuccess || result.current.isError).toBe(true));
 
-    // Should have inserted into transactions table
+    // Invoice uploads are reference-only and must not create ledger rows.
     const transactionInserts = findCalls("insert").filter(
       (c) => {
         const arg = c.args[0];
         return arg && typeof arg === "object" && arg.type === "expense" && arg.kind === "out";
       }
     );
-    expect(transactionInserts.length).toBeGreaterThanOrEqual(1);
+    expect(transactionInserts.length).toBe(0);
 
-    // The description should be "Invoice: ..." not "Payment: ..."
-    const txArg = transactionInserts[0].args[0];
-    expect(txArg.description).toMatch(/^Invoice:/);
-    expect(txArg.amount).toBe(500);
-    expect(txArg.currency).toBe("GEL");
-    expect(txArg.category).toBe("hotel");
-
-    // Should have inserted into expenses table
+    // Expenses table should also remain untouched for invoice uploads.
     const expenseInserts = findCalls("insert").filter(
       (c) => {
         const arg = c.args[0];
         return arg && typeof arg === "object" && arg.expense_type === "hotel";
       }
     );
-    expect(expenseInserts.length).toBeGreaterThanOrEqual(1);
-
-    const expArg = expenseInserts[0].args[0];
-    expect(expArg.attachment_id).toBe("att-1");
-    expect(expArg.amount).toBe(500);
+    expect(expenseInserts.length).toBe(0);
   });
 
   it("uses 'Payment:' prefix for payment order uploads", async () => {

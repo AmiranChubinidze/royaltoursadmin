@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
+import type { SavedHotel } from "@/hooks/useSavedData";
 
 export function formatDateToDDMMYYYY(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
@@ -152,6 +153,20 @@ export function generateItineraryFromBookings(hotelBookings: HotelBooking[]): It
   }
 
   return itinerary;
+}
+
+export function countHotelNights(
+  itinerary: Array<{ hotel?: string }>,
+  hotelIds: string[],
+  savedHotels: SavedHotel[]
+): number {
+  if (!hotelIds.length) return 0;
+  const targets = savedHotels.filter((sh) => hotelIds.includes(sh.id));
+  if (!targets.length) return 0;
+  return itinerary.filter((day) => {
+    const h = String(day?.hotel || "").toUpperCase().trim();
+    return h.length > 0 && targets.some((sh) => h.includes(sh.name.toUpperCase().trim()));
+  }).length;
 }
 
 export function getMainClientName(clients: { name: string; passport: string }[]): string {

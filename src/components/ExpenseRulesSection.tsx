@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Zap, Plus, Pencil, Trash2, Receipt } from "lucide-react";
+import { Zap, Plus, Pencil, Trash2, Hotel } from "lucide-react";
 import {
   useExpenseRules,
   useCreateExpenseRule,
@@ -31,6 +31,7 @@ import {
   useDeleteExpenseRule,
   ExpenseRule,
 } from "@/hooks/useExpenseRules";
+import { useSavedHotels } from "@/hooks/useSavedData";
 
 interface RuleFormData {
   name: string;
@@ -38,6 +39,7 @@ interface RuleFormData {
   currency: "GEL" | "USD";
   per_person: boolean;
   per_day: boolean;
+  hotel_ids: string[];
 }
 
 const EMPTY_FORM: RuleFormData = {
@@ -46,13 +48,16 @@ const EMPTY_FORM: RuleFormData = {
   currency: "GEL",
   per_person: false,
   per_day: false,
+  hotel_ids: [],
 };
 
 const PREVIEW_ADULTS = 2;
 const PREVIEW_DAYS = 3;
+const PREVIEW_NIGHTS = 2;
 
 export function ExpenseRulesSection() {
   const { data: rules = [], isLoading } = useExpenseRules();
+  const { data: savedHotels = [] } = useSavedHotels();
   const createRule = useCreateExpenseRule();
   const updateRule = useUpdateExpenseRule();
   const deleteRule = useDeleteExpenseRule();
@@ -77,6 +82,7 @@ export function ExpenseRulesSection() {
       currency: rule.currency,
       per_person: rule.per_person,
       per_day: rule.per_day,
+      hotel_ids: rule.hotel_ids ?? [],
     });
     setDialogOpen(true);
   }
@@ -97,6 +103,7 @@ export function ExpenseRulesSection() {
       currency: form.currency,
       per_person: form.per_person,
       per_day: form.per_day,
+      hotel_ids: form.hotel_ids,
       active: editingRule ? editingRule.active : true,
     };
 
@@ -118,8 +125,11 @@ export function ExpenseRulesSection() {
 
   const rate = parseFloat(form.rate);
   const previewValid = !isNaN(rate) && rate > 0;
+  const isHotelRestricted = form.hotel_ids.length > 0;
+  const previewDayMultiplier = isHotelRestricted ? PREVIEW_NIGHTS : PREVIEW_DAYS;
+  const previewDayLabel = isHotelRestricted ? "nights" : "days";
   const previewTotal =
-    rate * (form.per_person ? PREVIEW_ADULTS : 1) * (form.per_day ? PREVIEW_DAYS : 1);
+    rate * (form.per_person ? PREVIEW_ADULTS : 1) * (form.per_day ? previewDayMultiplier : 1);
   const currencySymbol = form.currency === "GEL" ? "₾" : "$";
 
   const isSaving = createRule.isPending || updateRule.isPending;
@@ -192,10 +202,14 @@ export function ExpenseRulesSection() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {rules.map((rule) => {
                 const sym = rule.currency === "GEL" ? "₾" : "$";
+                const ruleHotelRestricted = (rule.hotel_ids ?? []).length > 0;
                 const pills = [
                   rule.per_person ? "per person" : "flat fee",
-                  ...(rule.per_day ? ["per day"] : []),
+                  ...(rule.per_day ? [ruleHotelRestricted ? "per hotel night" : "per day"] : []),
                 ];
+                const ruleHotelNames = (rule.hotel_ids ?? [])
+                  .map((id) => savedHotels.find((h) => h.id === id)?.name)
+                  .filter(Boolean) as string[];
                 return (
                   <div
                     key={rule.id}
@@ -223,15 +237,30 @@ export function ExpenseRulesSection() {
 
                     {/* Pills + actions row */}
                     <div className="flex items-end justify-between mt-2">
-                      <div className="inline-flex flex-wrap gap-1.5">
-                        {pills.map((pill) => (
-                          <span
-                            key={pill}
-                            className="text-[10px] font-medium bg-[#EAF7F8] text-[#0F4C5C] border border-[#0F4C5C]/10 rounded-full px-2 py-0.5"
-                          >
-                            {pill}
-                          </span>
-                        ))}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="inline-flex flex-wrap gap-1.5">
+                          {pills.map((pill) => (
+                            <span
+                              key={pill}
+                              className="text-[10px] font-medium bg-[#EAF7F8] text-[#0F4C5C] border border-[#0F4C5C]/10 rounded-full px-2 py-0.5"
+                            >
+                              {pill}
+                            </span>
+                          ))}
+                        </div>
+                        {ruleHotelNames.length > 0 && (
+                          <div className="inline-flex flex-wrap gap-1">
+                            {ruleHotelNames.map((name) => (
+                              <span
+                                key={name}
+                                className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 flex items-center gap-1"
+                              >
+                                <Hotel className="h-2.5 w-2.5" />
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
@@ -345,20 +374,61 @@ export function ExpenseRulesSection() {
                   checked={form.per_day}
                   onCheckedChange={(v) => setForm((f) => ({ ...f, per_day: !!v }))}
                 />
-                <span className="text-sm">Per day</span>
+                <span className="text-sm">{isHotelRestricted ? "Per hotel night" : "Per day"}</span>
               </label>
             </div>
+
+            {/* Hotel restriction */}
+            {savedHotels.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm">Apply only to these hotels <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <div className="flex flex-wrap gap-2">
+                  {savedHotels.map((hotel) => {
+                    const checked = form.hotel_ids.includes(hotel.id);
+                    return (
+                      <label
+                        key={hotel.id}
+                        className={`flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 border cursor-pointer transition-colors ${
+                          checked
+                            ? "bg-amber-50 border-amber-300 text-amber-800"
+                            : "bg-background border-border text-muted-foreground hover:border-amber-200 hover:text-amber-700"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) =>
+                            setForm((f) => ({
+                              ...f,
+                              hotel_ids: v
+                                ? [...f.hotel_ids, hotel.id]
+                                : f.hotel_ids.filter((id) => id !== hotel.id),
+                            }))
+                          }
+                          className="h-3 w-3"
+                        />
+                        {hotel.name}
+                      </label>
+                    );
+                  })}
+                </div>
+                {isHotelRestricted && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Rule only fires for confirmations with these hotels in the itinerary.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Live preview */}
             {previewValid && (
               <div className="bg-[#EAF7F8] border border-[#0F4C5C]/15 rounded-xl p-3 mt-1">
                 <p className="text-[10px] uppercase tracking-[0.15em] text-[#0F4C5C]/50 mb-1.5">
-                  Sample calculation ({PREVIEW_ADULTS} adults · {PREVIEW_DAYS} days)
+                  Sample calculation ({PREVIEW_ADULTS} adults · {previewDayMultiplier} {previewDayLabel}{isHotelRestricted ? ", hotel-dependent" : ""})
                 </p>
                 <p className="text-base font-bold font-mono text-[#0F4C5C]">
                   {[
                     form.per_person ? `${PREVIEW_ADULTS} adults` : null,
-                    form.per_day ? `${PREVIEW_DAYS} days` : null,
+                    form.per_day ? `${previewDayMultiplier} ${previewDayLabel}` : null,
                     `${rate} ${currencySymbol}`,
                   ]
                     .filter(Boolean)

@@ -9,6 +9,7 @@ export interface ExpenseRule {
   per_person: boolean;
   per_day: boolean;
   active: boolean;
+  hotel_ids: string[];
   created_at: string;
 }
 
@@ -29,7 +30,7 @@ export function useExpenseRules() {
 export function useCreateExpenseRule() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (rule: Omit<ExpenseRule, "id" | "created_at">) => {
+    mutationFn: async (rule: Omit<ExpenseRule, "id" | "created_at" | "hotel_ids"> & { hotel_ids?: string[] }) => {
       const { data, error } = await supabase
         .from("expense_rules")
         .insert(rule)

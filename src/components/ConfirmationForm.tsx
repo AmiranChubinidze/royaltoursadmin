@@ -39,7 +39,7 @@ import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSave
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays } from "@/lib/confirmationUtils";
+import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, countHotelNights } from "@/lib/confirmationUtils";
 
 interface ConfirmationFormProps {
   initialData?: Partial<ConfirmationFormData>;
@@ -372,6 +372,30 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       }
     }
   }, [formData.arrival.date, formData.departure.date, isEdit]);
+
+  // Auto-check/uncheck hotel-restricted expense rules based on itinerary
+  useEffect(() => {
+    if (!activeRules.length || !savedHotels.length) return;
+    const hotelRules = activeRules.filter((r) => (r.hotel_ids ?? []).length > 0);
+    if (!hotelRules.length) return;
+
+    setFormData((prev) => {
+      let ids = [...prev.selectedRuleIds];
+      let changed = false;
+      for (const rule of hotelRules) {
+        const nights = countHotelNights(prev.itinerary, rule.hotel_ids ?? [], savedHotels);
+        const isSelected = ids.includes(rule.id);
+        if (nights > 0 && !isSelected) {
+          ids = [...ids, rule.id];
+          changed = true;
+        } else if (nights === 0 && isSelected) {
+          ids = ids.filter((id) => id !== rule.id);
+          changed = true;
+        }
+      }
+      return changed ? { ...prev, selectedRuleIds: ids } : prev;
+    });
+  }, [formData.itinerary, activeRules, savedHotels]);
 
   // Sync adults count with client count
   useEffect(() => {
@@ -1043,15 +1067,28 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                     const isSelected = formData.selectedRuleIds.includes(rule.id);
                     const numAdults = formData.guestInfo.numAdults || 1;
                     const numDays = formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()).length || 1;
-                    const total = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? numDays : 1);
+                    const isHotelRule = (rule.hotel_ids ?? []).length > 0;
+                    const matchingNights = isHotelRule
+                      ? countHotelNights(formData.itinerary, rule.hotel_ids ?? [], savedHotels)
+                      : null;
+                    const isDisabled = isHotelRule && matchingNights === 0;
+                    const dayMultiplier = matchingNights !== null ? matchingNights : numDays;
+                    const total = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? dayMultiplier : 1);
                     const sym = rule.currency === "GEL" ? "₾" : "$";
+                    const dayLabel = isHotelRule ? "nights" : "days";
                     const formulaParts = [
                       rule.per_person ? `${numAdults} adults` : null,
-                      rule.per_day ? `${numDays} days` : null,
+                      rule.per_day ? `${dayMultiplier} ${dayLabel}` : null,
                       `${rule.rate} ${sym}`,
                     ].filter(Boolean);
+                    const matchedHotelNames = isHotelRule
+                      ? (rule.hotel_ids ?? [])
+                          .map((id) => savedHotels.find((h) => h.id === id)?.name)
+                          .filter(Boolean) as string[]
+                      : [];
 
                     function toggle() {
+                      if (isDisabled) return;
                       setFormData(prev => ({
                         ...prev,
                         selectedRuleIds: isSelected
@@ -1065,33 +1102,46 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                         key={rule.id}
                         onClick={toggle}
                         className={cn(
-                          "rounded-xl border p-4 cursor-pointer transition-all duration-150",
-                          isSelected
-                            ? "border-[#0F4C5C]/35 bg-gradient-to-br from-[#EAF7F8] via-white to-white shadow-[0_0_0_1px_rgba(15,76,92,0.12),0_4px_12px_rgba(15,76,92,0.08)]"
-                            : "border-border/60 bg-white hover:border-[#0F4C5C]/25 hover:bg-[#F7FBFC]"
+                          "rounded-xl border p-4 transition-all duration-150",
+                          isDisabled
+                            ? "opacity-50 cursor-not-allowed border-border/40 bg-white"
+                            : isSelected
+                            ? "cursor-pointer border-[#0F4C5C]/35 bg-gradient-to-br from-[#EAF7F8] via-white to-white shadow-[0_0_0_1px_rgba(15,76,92,0.12),0_4px_12px_rgba(15,76,92,0.08)]"
+                            : "cursor-pointer border-border/60 bg-white hover:border-[#0F4C5C]/25 hover:bg-[#F7FBFC]"
                         )}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
                             <Checkbox
-                              checked={isSelected}
+                              checked={isSelected && !isDisabled}
                               onCheckedChange={toggle}
                               onClick={e => e.stopPropagation()}
-                              className={isSelected ? "border-[#0F4C5C] data-[state=checked]:bg-[#0F4C5C]" : ""}
+                              disabled={isDisabled}
+                              className={isSelected && !isDisabled ? "border-[#0F4C5C] data-[state=checked]:bg-[#0F4C5C]" : ""}
                             />
                             <span className="text-sm font-semibold text-foreground">{rule.name}</span>
                           </div>
                           <span className="text-xl font-bold font-mono text-[#0F4C5C]">
-                            {total} {sym}
+                            {isDisabled ? "—" : `${total} ${sym}`}
                           </span>
                         </div>
-                        <div className="mt-1 pl-7">
+                        <div className="mt-1 pl-7 space-y-0.5">
                           {rule.per_person || rule.per_day ? (
                             <span className="text-xs text-muted-foreground">
-                              {formulaParts.join(" · ")}
+                              {isDisabled ? "No matching hotels in itinerary" : formulaParts.join(" · ")}
                             </span>
                           ) : (
                             <span className="text-xs text-muted-foreground italic">flat fee</span>
+                          )}
+                          {isHotelRule && !isDisabled && matchedHotelNames.length > 0 && (
+                            <p className="text-[11px] text-amber-600">
+                              {matchingNights} {matchingNights === 1 ? "night" : "nights"} at {matchedHotelNames.join(", ")}
+                            </p>
+                          )}
+                          {isHotelRule && isDisabled && matchedHotelNames.length > 0 && (
+                            <p className="text-[11px] text-muted-foreground/70">
+                              Applies at: {matchedHotelNames.join(", ")}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -1104,12 +1154,16 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   const numAdults = formData.guestInfo.numAdults || 1;
                   const numDays = formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()).length || 1;
                   const selectedRules = activeRules.filter(r => formData.selectedRuleIds.includes(r.id));
+                  const getRuleMultiplierDay = (r: typeof activeRules[0]) => {
+                    const isHotel = (r.hotel_ids ?? []).length > 0;
+                    return isHotel ? countHotelNights(formData.itinerary, r.hotel_ids ?? [], savedHotels) : numDays;
+                  };
                   const gelTotal = selectedRules
                     .filter(r => r.currency === "GEL")
-                    .reduce((sum, r) => sum + r.rate * (r.per_person ? numAdults : 1) * (r.per_day ? numDays : 1), 0);
+                    .reduce((sum, r) => sum + r.rate * (r.per_person ? numAdults : 1) * (r.per_day ? getRuleMultiplierDay(r) : 1), 0);
                   const usdTotal = selectedRules
                     .filter(r => r.currency === "USD")
-                    .reduce((sum, r) => sum + r.rate * (r.per_person ? numAdults : 1) * (r.per_day ? numDays : 1), 0);
+                    .reduce((sum, r) => sum + r.rate * (r.per_person ? numAdults : 1) * (r.per_day ? getRuleMultiplierDay(r) : 1), 0);
                   return (
                     <div className="mt-3 rounded-xl bg-[#EAF7F8] border border-[#0F4C5C]/15 px-4 py-2.5 flex items-center gap-2">
                       <Receipt className="h-4 w-4 text-[#0F4C5C]/60" />

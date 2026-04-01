@@ -23,6 +23,7 @@ export type Database = {
           per_person: boolean
           per_day: boolean
           active: boolean
+          hotel_ids: string[]
           created_at: string
         }
         Insert: {
@@ -33,6 +34,7 @@ export type Database = {
           per_person?: boolean
           per_day?: boolean
           active?: boolean
+          hotel_ids?: string[]
           created_at?: string
         }
         Update: {
@@ -43,6 +45,7 @@ export type Database = {
           per_person?: boolean
           per_day?: boolean
           active?: boolean
+          hotel_ids?: string[]
           created_at?: string
         }
         Relationships: []

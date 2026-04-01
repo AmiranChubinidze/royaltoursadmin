@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ConfirmationPayload } from "@/types/confirmation";
 import { format, isWithinInterval, isPast } from "date-fns";
 import * as XLSX from "xlsx-js-style";
 import {
@@ -59,6 +58,8 @@ import {
 import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useExpenseRules } from "@/hooks/useExpenseRules";
+import { useSavedHotels } from "@/hooks/useSavedData";
+import { countHotelNights } from "@/lib/confirmationUtils";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useHolders } from "@/hooks/useHolders";
 import { useToast } from "@/hooks/use-toast";
@@ -127,9 +128,6 @@ const getCategoryColor = (category: string) => {
   return CATEGORY_COLORS[category] || "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400";
 };
 
-const MEALS_RATE_PER_2_ADULTS = 15;
-const MEALS_HOTELS = ["INN MARTVILI", "ORBI"];
-
 const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
   if (!dateStr) return new Date().toISOString().split("T")[0];
   const parts = dateStr.split("/");
@@ -137,20 +135,6 @@ const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
     return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
   }
   return new Date().toISOString().split("T")[0];
-};
-
-const calculateMealsFromPayload = (rawPayload: ConfirmationPayload | null | undefined) => {
-  const itinerary = rawPayload?.itinerary || [];
-  const numAdults = Number(rawPayload?.guestInfo?.numAdults) || 2;
-
-  const mealsNights = itinerary.filter((day) => {
-    const hotelName = String(day?.hotel || "").toUpperCase().trim();
-    return MEALS_HOTELS.some((h) => hotelName.includes(h));
-  }).length;
-
-  const mealsExpense = Math.ceil(numAdults / 2) * MEALS_RATE_PER_2_ADULTS * mealsNights;
-
-  return { mealsNights, mealsExpense, numAdults };
 };
 
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
@@ -181,8 +165,8 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { data: transactionsForAutogen } = useTransactions();
 
   const bulkCreateTransactions = useBulkCreateTransactions();
-  const createdMealsRef = useRef<Set<string>>(new Set());
   const { data: expenseRules } = useExpenseRules();
+  const { data: savedHotels = [] } = useSavedHotels();
   const createdRulesRef = useRef<Set<string>>(new Set());
 
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({
@@ -368,61 +352,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
   // Auto-create meals transactions so they show up in the Ledger
   useEffect(() => {
-    if (!confirmations || !transactionsForAutogen) return;
-
-    const parseConfirmationDate = (dateStr: string | null): Date | null => {
-      if (!dateStr) return null;
-      const parts = dateStr.split("/");
-      if (parts.length !== 3) return null;
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    };
-
-    const missingMealsTransactions = confirmations
-      .filter((c: any) => {
-        if (createdMealsRef.current.has(c.id)) return false;
-
-        if (dateFrom || dateTo) {
-          const arrivalDate = parseConfirmationDate(c.arrival_date);
-          if (!arrivalDate) return false;
-          if (dateFrom && arrivalDate < dateFrom) return false;
-          if (dateTo && arrivalDate > dateTo) return false;
-        }
-
-        const { mealsExpense, mealsNights } = calculateMealsFromPayload(c.raw_payload);
-        if (mealsNights <= 0 || mealsExpense <= 0) return false;
-
-        const hasMeals = transactionsForAutogen.some(
-          (t) => t.confirmation_id === c.id && t.category === "breakfast"
-        );
-        return !hasMeals;
-      })
-      .map((c: any) => {
-        const { mealsExpense, mealsNights, numAdults } = calculateMealsFromPayload(c.raw_payload);
-        return {
-          date: isoDateFromDdMmYyyy(c.arrival_date),
-          kind: "out" as const,
-          status: "pending" as const,
-          category: "breakfast" as const,
-          description: `Meals - ${mealsNights} nights (${numAdults} adults)`,
-          amount: mealsExpense,
-          currency: "GEL" as const,
-          is_auto_generated: true,
-          confirmation_id: c.id,
-          payment_method: null,
-          notes: "Auto-generated meals expense (GEL)",
-        };
-      });
-
-    if (missingMealsTransactions.length > 0) {
-      missingMealsTransactions.forEach((t) => {
-        if (t.confirmation_id) createdMealsRef.current.add(t.confirmation_id);
-      });
-      bulkCreateTransactions.mutate(missingMealsTransactions);
-    }
-  }, [confirmations, transactionsForAutogen, bulkCreateTransactions, dateFrom, dateTo]);
-
-  useEffect(() => {
-    if (!confirmations || !transactionsForAutogen || !expenseRules) return;
+    if (!confirmations || !transactionsForAutogen || !expenseRules || !savedHotels) return;
     const activeRules = expenseRules.filter((r) => r.active);
     const missing: Parameters<typeof bulkCreateTransactions.mutate>[0] = [];
 
@@ -431,6 +361,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       if (!selectedRuleIds.length) continue;
       const numAdults = Number(c.raw_payload?.guestInfo?.numAdults) || 1;
       const numDays = c.raw_payload?.itinerary?.length || 1;
+      const itinerary = c.raw_payload?.itinerary || [];
 
       for (const rule of activeRules) {
         if (!selectedRuleIds.includes(rule.id)) continue;
@@ -441,10 +372,18 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
         );
         if (already) continue;
 
-        const amount = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? numDays : 1);
+        const isHotelRule = (rule.hotel_ids ?? []).length > 0;
+        const nights = isHotelRule
+          ? countHotelNights(itinerary, rule.hotel_ids ?? [], savedHotels)
+          : null;
+        if (isHotelRule && nights === 0) continue;
+        const multiplierDay = nights !== null ? nights : numDays;
+
+        const amount = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? multiplierDay : 1);
+        const dayLabel = isHotelRule ? "nights" : "days";
         const parts = [
           ...(rule.per_person ? [`${numAdults} adults`] : []),
-          ...(rule.per_day ? [`${numDays} days`] : []),
+          ...(rule.per_day ? [`${multiplierDay} ${dayLabel}`] : []),
         ];
         createdRulesRef.current.add(key);
         missing.push({
@@ -463,7 +402,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       }
     }
     if (missing.length) bulkCreateTransactions.mutate(missing);
-  }, [confirmations, transactionsForAutogen, expenseRules, bulkCreateTransactions]);
+  }, [confirmations, transactionsForAutogen, expenseRules, savedHotels, bulkCreateTransactions]);
 
   const handleEdit = (transaction: Transaction) => {
     if (!canEditTransaction(transaction)) return;

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, isWithinInterval, isPast } from "date-fns";
-import * as XLSX from "xlsx-js-style";
 import {
   Table,
   TableBody,
@@ -491,8 +490,9 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     return !t.responsible_holder_id;
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!ledgerTransactions.length) return;
+    const XLSX = await import("xlsx-js-style");
 
     // Styles
     const headerStyle = {

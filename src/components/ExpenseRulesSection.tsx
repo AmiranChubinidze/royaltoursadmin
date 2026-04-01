@@ -134,6 +134,15 @@ export function ExpenseRulesSection() {
 
   const isSaving = createRule.isPending || updateRule.isPending;
 
+  function toggleHotel(hotelId: string) {
+    setForm((f) => ({
+      ...f,
+      hotel_ids: f.hotel_ids.includes(hotelId)
+        ? f.hotel_ids.filter((id) => id !== hotelId)
+        : [...f.hotel_ids, hotelId],
+    }));
+  }
+
   return (
     <div className="mt-6">
       <Card className="border-border/60 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] rounded-2xl overflow-hidden">
@@ -202,12 +211,13 @@ export function ExpenseRulesSection() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {rules.map((rule) => {
                 const sym = rule.currency === "GEL" ? "₾" : "$";
-                const ruleHotelRestricted = (rule.hotel_ids ?? []).length > 0;
+                const ruleHotelIds = rule.hotel_ids ?? [];
+                const ruleHotelRestricted = ruleHotelIds.length > 0;
                 const pills = [
                   rule.per_person ? "per person" : "flat fee",
                   ...(rule.per_day ? [ruleHotelRestricted ? "per hotel night" : "per day"] : []),
                 ];
-                const ruleHotelNames = (rule.hotel_ids ?? [])
+                const ruleHotelNames = ruleHotelIds
                   .map((id) => savedHotels.find((h) => h.id === id)?.name)
                   .filter(Boolean) as string[];
                 return (
@@ -396,14 +406,7 @@ export function ExpenseRulesSection() {
                       >
                         <Checkbox
                           checked={checked}
-                          onCheckedChange={(v) =>
-                            setForm((f) => ({
-                              ...f,
-                              hotel_ids: v
-                                ? [...f.hotel_ids, hotel.id]
-                                : f.hotel_ids.filter((id) => id !== hotel.id),
-                            }))
-                          }
+                          onCheckedChange={() => toggleHotel(hotel.id)}
                           className="h-3 w-3"
                         />
                         {hotel.name}

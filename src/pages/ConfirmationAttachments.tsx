@@ -74,8 +74,7 @@ export default function ConfirmationAttachments() {
   const expenseRecords: Record<string, AttachmentExpenseRecord> = expenseInfo?.records || {};
   
   const invoiceAmountMap = useMemo(() => {
-    const raw = (confirmation as any)?.raw_payload?.invoice_amounts;
-    return raw && typeof raw === "object" ? (raw as Record<string, { amount: number; currency?: string }>) : {};
+    return confirmation?.raw_payload?.invoice_amounts ?? {};
   }, [confirmation]);
   
   const [isDragging, setIsDragging] = useState(false);
@@ -112,14 +111,14 @@ export default function ConfirmationAttachments() {
   // Sync notes when confirmation loads
   useEffect(() => {
     if (confirmation) {
-      setNotes((confirmation as any).notes || "");
+      setNotes(confirmation.notes || "");
     }
   }, [confirmation]);
 
   useEffect(() => {
     if (confirmation) {
       // Legacy field name: invoice_checks now tracks manual payment checks.
-      const rawChecks = (confirmation as any).raw_payload?.invoice_checks;
+      const rawChecks = confirmation.raw_payload?.invoice_checks;
       setManualPaymentChecks(Array.isArray(rawChecks) ? rawChecks : []);
     }
   }, [confirmation]);
@@ -272,11 +271,11 @@ export default function ConfirmationAttachments() {
     }
   };
 
-  const isPaid = Boolean((confirmation as any)?.is_paid);
-  const paidAt = (confirmation as any)?.paid_at;
+  const isPaid = Boolean(confirmation?.is_paid);
+  const paidAt = confirmation?.paid_at;
   const hasAttachments = attachments && attachments.length > 0;
 
-  const rawPayload = (confirmation as any)?.raw_payload || {};
+  const rawPayload = confirmation?.raw_payload ?? {};
   const itinerary = rawPayload?.itinerary || [];
   // Extract hotel stays from itinerary — each consecutive run of the same hotel = one stay
   const hotelStays: { hotel: string; checkIn: string; checkOut: string }[] = [];
@@ -522,8 +521,7 @@ export default function ConfirmationAttachments() {
 
 
   const rawAttachmentStayMap = useMemo(() => {
-    const rawMap = (confirmation as any)?.raw_payload?.attachment_stay_map;
-    return rawMap && typeof rawMap === "object" ? (rawMap as Record<string, string>) : {};
+    return confirmation?.raw_payload?.attachment_stay_map ?? {};
   }, [confirmation]);
 
   const derivedStayMapInfo = useMemo(() => {
@@ -543,7 +541,7 @@ export default function ConfirmationAttachments() {
   useEffect(() => {
     if (!id || !confirmation || !derivedStayMapInfo.changed) return;
     const nextPayload = {
-      ...((confirmation as any)?.raw_payload || {}),
+      ...(confirmation?.raw_payload ?? {}),
       attachment_stay_map: derivedStayMapInfo.map,
     };
     supabase
@@ -705,7 +703,7 @@ export default function ConfirmationAttachments() {
   // Auto-mark as paid when all visible hotel stays have payment order uploaded or manually checked
   useEffect(() => {
     if (!confirmation || !id || attachmentsLoading) return;
-    const isPaidNow = Boolean((confirmation as any).is_paid);
+    const isPaidNow = Boolean(confirmation.is_paid);
 
     if (visibleHotelStays.length === 0) {
       if (isPaidNow) setPaidStatusSilently(false);
@@ -936,7 +934,7 @@ export default function ConfirmationAttachments() {
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setNotes((confirmation as any)?.notes || "");
+                      setNotes(confirmation?.notes || "");
                       setNotesEditing(false);
                     }}
                   >

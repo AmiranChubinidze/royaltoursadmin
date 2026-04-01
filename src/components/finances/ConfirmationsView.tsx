@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmationPayload } from "@/types/confirmation";
 import { format, isWithinInterval, isPast, parseISO } from "date-fns";
 import {
   Table,
@@ -65,10 +66,9 @@ const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
   return new Date().toISOString().split("T")[0];
 };
 
-const calculateMealsFromPayload = (rawPayload: unknown) => {
-  const payload = rawPayload as any;
-  const itinerary = (payload?.itinerary as any[]) || [];
-  const numAdults = Number(payload?.guestInfo?.numAdults) || 2;
+const calculateMealsFromPayload = (rawPayload: ConfirmationPayload | null | undefined) => {
+  const itinerary = rawPayload?.itinerary || [];
+  const numAdults = Number(rawPayload?.guestInfo?.numAdults) || 2;
 
   const mealsNights = itinerary.filter((day) => {
     const hotelName = String(day?.hotel || "").toUpperCase().trim();
@@ -105,6 +105,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
   const queryClient = useQueryClient();
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations();
   const { data: transactions, isLoading: transactionsLoading } = useTransactions({ dateFrom, dateTo });
+  const { data: allTransactionsForAutogen } = useTransactions();
   const { data: expenses, isLoading: expensesLoading } = useExpenses();
   const { data: holders } = useHolders();
   const { formatAmount, symbol, exchangeRate } = useCurrency();
@@ -231,7 +232,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
 
   // Auto-create meals transactions so they appear in the Ledger
   useEffect(() => {
-    if (!confirmations || !transactions || isLoading) return;
+    if (!confirmations || !allTransactionsForAutogen || isLoading) return;
 
     const missingMealsTransactions = confirmations
       .filter((c) => {
@@ -247,7 +248,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
         const { mealsExpense, mealsNights } = calculateMealsFromPayload(c.raw_payload);
         if (mealsNights <= 0 || mealsExpense <= 0) return false;
 
-        const hasMeals = transactions.some(
+        const hasMeals = allTransactionsForAutogen.some(
           (t) => t.confirmation_id === c.id && t.category === "breakfast"
         );
         return !hasMeals;
@@ -275,24 +276,24 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       });
       bulkCreateTransactions.mutate(missingMealsTransactions);
     }
-  }, [confirmations, transactions, isLoading, bulkCreateTransactions, dateFrom, dateTo]);
+  }, [confirmations, allTransactionsForAutogen, isLoading, bulkCreateTransactions, dateFrom, dateTo]);
 
   useEffect(() => {
-    if (!confirmations || !transactions || !expenseRules || isLoading) return;
+    if (!confirmations || !allTransactionsForAutogen || !expenseRules || isLoading) return;
     const activeRules = expenseRules.filter((r) => r.active);
     const missing: Parameters<typeof bulkCreateTransactions.mutate>[0] = [];
 
     for (const c of confirmations) {
-      const selectedRuleIds: string[] = (c.raw_payload as any)?.selectedRuleIds || [];
+      const selectedRuleIds: string[] = c.raw_payload?.selectedRuleIds || [];
       if (!selectedRuleIds.length) continue;
-      const numAdults = Number((c.raw_payload as any)?.guestInfo?.numAdults) || 1;
-      const numDays = ((c.raw_payload as any)?.itinerary as any[])?.length || 1;
+      const numAdults = Number(c.raw_payload?.guestInfo?.numAdults) || 1;
+      const numDays = c.raw_payload?.itinerary?.length || 1;
 
       for (const rule of activeRules) {
         if (!selectedRuleIds.includes(rule.id)) continue;
         const key = `${c.id}:${rule.id}`;
         if (createdRulesRef.current.has(key)) continue;
-        const already = transactions.some(
+        const already = allTransactionsForAutogen.some(
           (t) => t.confirmation_id === c.id && t.notes?.includes(`[rule:${rule.id}]`)
         );
         if (already) continue;
@@ -319,7 +320,7 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       }
     }
     if (missing.length) bulkCreateTransactions.mutate(missing);
-  }, [confirmations, transactions, expenseRules, isLoading, bulkCreateTransactions]);
+  }, [confirmations, allTransactionsForAutogen, expenseRules, isLoading, bulkCreateTransactions]);
 
   const handleToggleClientPaid = async (id: string, currentStatus: boolean) => {
     try {

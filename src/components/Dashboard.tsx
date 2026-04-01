@@ -38,6 +38,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConfirmationCard } from "@/components/MobileConfirmationCard";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { canAccessFinances, canManageFinances } from "@/lib/roles";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -50,9 +51,7 @@ export function Dashboard() {
   
   // Effective role (for "View as" feature - only affects UI display, not actual permissions)
   const effectiveRole = viewAsRole || role;
-  const effectiveCanEdit = viewAsRole
-    ? ["admin", "worker", "accountant", "coworker"].includes(viewAsRole)
-    : canEdit;
+  const effectiveCanEdit = viewAsRole ? canAccessFinances(viewAsRole) : canEdit;
   const effectiveIsVisitor = viewAsRole ? viewAsRole === "visitor" : role === "visitor";
   const effectiveIsBooking = viewAsRole ? viewAsRole === "accountant" : role === "accountant";
   const effectiveCanEditConfirmations = viewAsRole

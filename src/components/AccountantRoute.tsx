@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { canAccessFinances } from "@/lib/roles";
 
 interface AccountantRouteProps {
   children: ReactNode;
@@ -24,8 +25,7 @@ export function AccountantRoute({ children }: AccountantRouteProps) {
     );
   }
 
-  // Allow admin, accountant, coworker, and worker roles
-  if (!["admin", "accountant", "worker", "coworker"].includes(effectiveRole || "")) {
+  if (!canAccessFinances(effectiveRole)) {
     return <Navigate to="/" replace />;
   }
 

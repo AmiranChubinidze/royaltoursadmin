@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useConfirmTransaction } from "@/hooks/useTransactions";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { canManageFinances } from "@/lib/roles";
 import {
   Select,
   SelectContent,
@@ -75,7 +76,7 @@ export function SalariesView() {
   const { role } = useUserRole();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
-  const canManage = ["admin", "worker", "accountant"].includes(effectiveRole || "");
+  const canManage = canManageFinances(effectiveRole);
 
   const { data: profiles, isLoading: profilesLoading } = useSalaryProfiles();
   const { data: monthTx, isLoading: monthTxLoading } = useSalaryMonthTransactions(monthDate);

@@ -5,6 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { canManageFinances, canViewHoldings } from "@/lib/roles";
 import { CalendarIcon, Filter, X, Plus, Loader2 } from "lucide-react";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useTransactions, useUpdateTransaction } from "@/hooks/useTransactions";
@@ -37,15 +38,12 @@ export default function FinancesPage() {
   const { toast } = useToast();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
+  const isCoworker = effectiveRole === "coworker";
   const queryClient = useQueryClient();
-  const canSeeHoldings = effectiveRole
-    ? !["coworker", "visitor"].includes(effectiveRole)
-    : isAdmin || isWorker || isAccountant;
-  const canSeeSalaries = effectiveRole
-    ? ["admin", "worker", "accountant"].includes(effectiveRole)
-    : isAdmin || isWorker || isAccountant;
+  const canSeeHoldings = effectiveRole ? canViewHoldings(effectiveRole) : isAdmin || isWorker || isAccountant;
+  const canSeeSalaries = effectiveRole ? canManageFinances(effectiveRole) : isAdmin || isWorker || isAccountant;
   const canEditTransaction = (t: any) => {
-    if (["admin", "worker", "accountant"].includes(effectiveRole || "")) return true;
+    if (canManageFinances(effectiveRole)) return true;
     if (effectiveRole !== "coworker") return false;
     if (!user?.id) return false;
     if (t.created_by === user.id) return true;
@@ -66,6 +64,10 @@ export default function FinancesPage() {
     dateFrom,
     dateTo,
   });
+  const visibleTransactions = useMemo(() => {
+    if (!transactions) return [];
+    return isCoworker ? transactions.filter((t) => t.category !== "salary") : transactions;
+  }, [transactions, isCoworker]);
   const updateTransaction = useUpdateTransaction();
   const { data: salaryProfiles } = useSalaryProfiles({ enabled: canSeeSalaries });
 
@@ -176,7 +178,7 @@ export default function FinancesPage() {
     // Include any transaction that is actually tied to money movement in/out of a holder.
     // Many expenses use `from_holder_id` (payer) and do not set `responsible_holder_id`,
     // so filtering only by `responsible_holder_id` would incorrectly exclude them.
-    const moneyTx = transactions.filter(
+    const moneyTx = visibleTransactions.filter(
       (t) => t.holder_id || t.from_holder_id || t.to_holder_id || t.responsible_holder_id
     );
 
@@ -265,13 +267,13 @@ export default function FinancesPage() {
     };
 
     return { received, expenses, profit, pending };
-  }, [confirmations, transactions, dateFrom, dateTo]);
+  }, [confirmations, visibleTransactions, dateFrom, dateTo]);
 
   const exchangeSummary = useMemo(() => {
-    if (!transactions || transactions.length === 0) {
+    if (!visibleTransactions || visibleTransactions.length === 0) {
       return { rate: exchangeRate.gel_to_usd, usdOut: 0, usdIn: 0, gelOut: 0, gelIn: 0 };
     }
-    const exchangeTx = transactions.filter(
+    const exchangeTx = visibleTransactions.filter(
       (t) =>
         t.kind === "exchange" &&
         t.status === "confirmed" &&
@@ -308,7 +310,7 @@ export default function FinancesPage() {
       return { rate: usdTotal / gelTotal, usdOut, usdIn, gelOut, gelIn };
     }
     return { rate: exchangeRate.gel_to_usd, usdOut, usdIn, gelOut, gelIn };
-  }, [transactions, exchangeRate.gel_to_usd]);
+  }, [visibleTransactions, exchangeRate.gel_to_usd]);
 
   const adjustedProfit = useMemo(() => {
     const profitUSD = summaryData.profit.USD - exchangeSummary.usdOut + exchangeSummary.usdIn;
@@ -321,7 +323,7 @@ export default function FinancesPage() {
   };
 
   const handleEditTransaction = (id: string) => {
-    const transaction = transactions?.find((t) => t.id === id);
+    const transaction = visibleTransactions?.find((t) => t.id === id);
     if (transaction && canEditTransaction(transaction)) {
       setEditingTransaction(transaction);
       setTransactionModalOpen(true);
@@ -519,8 +521,8 @@ export default function FinancesPage() {
                   <div className="flex justify-center py-10">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                ) : transactions && transactions.length > 0 ? (
-                  transactions.slice(0, 10).map((transaction) => (
+                ) : visibleTransactions && visibleTransactions.length > 0 ? (
+                  visibleTransactions.slice(0, 10).map((transaction) => (
                     <MobileTransactionCard
                       key={transaction.id}
                       transaction={transaction}
@@ -543,15 +545,15 @@ export default function FinancesPage() {
                     All Transactions
                   </h3>
                   <span className="text-xs text-muted-foreground">
-                    {transactions?.length || 0} total
+                    {visibleTransactions?.length || 0} total
                   </span>
                 </div>
                 {isLoading ? (
                   <div className="flex justify-center py-10">
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                ) : transactions && transactions.length > 0 ? (
-                  transactions.map((transaction) => (
+                ) : visibleTransactions && visibleTransactions.length > 0 ? (
+                  visibleTransactions.map((transaction) => (
                     <MobileTransactionCard
                       key={transaction.id}
                       transaction={transaction}

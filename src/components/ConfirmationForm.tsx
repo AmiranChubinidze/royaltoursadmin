@@ -39,6 +39,7 @@ import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSave
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays } from "@/lib/confirmationUtils";
 
 interface ConfirmationFormProps {
   initialData?: Partial<ConfirmationFormData>;
@@ -46,27 +47,6 @@ interface ConfirmationFormProps {
   isEdit?: boolean;
 }
 
-function parseDateDDMMYYYY(value: string): Date | null {
-  if (!value) return null;
-  const parts = value.split(/[\/\-]/);
-  if (parts.length !== 3) return null;
-  const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
-  const d = new Date(yyyy, mm - 1, dd);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatDateDDMMYYYY(date: Date): string {
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-function datePlusDays(date: Date, days: number): Date {
-  const d = new Date(date.getTime());
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 // Date Picker Component
 function DatePicker({ 

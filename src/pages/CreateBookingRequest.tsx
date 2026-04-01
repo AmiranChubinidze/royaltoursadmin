@@ -116,10 +116,12 @@ export default function CreateBookingRequest() {
         .from("saved_hotels")
         .select("name, email, is_owned")
         .order("name");
-      
-      if (!error && data) {
-        setSavedHotels(data.map(h => ({ name: h.name, email: h.email || "", is_owned: !!h.is_owned })));
+
+      if (error) {
+        toast.error("Failed to load hotels");
+        return;
       }
+      setSavedHotels(data.map(h => ({ name: h.name, email: h.email || "", is_owned: !!h.is_owned })));
     };
     fetchHotels();
   }, []);

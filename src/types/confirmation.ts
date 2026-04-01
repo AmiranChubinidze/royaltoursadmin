@@ -64,6 +64,11 @@ export interface ConfirmationPayload {
   selectedRuleIds?: string[];
   // For draft confirmations from booking requests
   hotelBookings?: HotelBooking[];
+  // Invoice tracking
+  invoice_amounts?: Record<string, { amount: number; currency?: string }>;
+  invoice_checks?: string[];
+  // Attachment to hotel stay mapping
+  attachment_stay_map?: Record<string, string>;
 }
 
 export interface Confirmation {
@@ -83,6 +88,8 @@ export interface Confirmation {
   status: string;
   hotels_emailed: string[] | null;
   is_paid: boolean | null;  // We paid hotels
+  paid_at: string | null;
+  notes: string | null;
   price: number | null;
   client_paid: boolean | null;  // Client paid us
   client_paid_at: string | null;

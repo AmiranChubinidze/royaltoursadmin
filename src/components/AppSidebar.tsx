@@ -5,6 +5,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useMyHolderBalance } from "@/hooks/useHolders";
 import { useQuery } from "@tanstack/react-query";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { canAccessFinances } from "@/lib/roles";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,15 +76,11 @@ export function AppSidebar() {
   const { data: myBalance } = useMyHolderBalance(user?.id);
 
   const effectiveRole = viewAsRole || role;
-  const effectiveCanEdit = viewAsRole
-    ? ["admin", "worker", "accountant", "coworker"].includes(viewAsRole)
-    : canEdit;
-  const effectiveIsBooking = viewAsRole
-    ? viewAsRole === "accountant"
-    : role === "accountant";
+  const effectiveCanEdit = viewAsRole ? canAccessFinances(viewAsRole) : canEdit;
+  const effectiveIsBooking = viewAsRole ? viewAsRole === "accountant" : role === "accountant";
   const effectiveIsAdmin = effectiveRole === "admin";
   const effectiveCanSeeFinances = effectiveRole
-    ? ["admin", "worker", "accountant", "coworker"].includes(effectiveRole)
+    ? canAccessFinances(effectiveRole)
     : isAdmin || isAccountant || isWorker || isCoworker;
 
   const go = (path: string) => {

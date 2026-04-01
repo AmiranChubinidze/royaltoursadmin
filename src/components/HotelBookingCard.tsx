@@ -9,28 +9,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { X, CalendarIcon, Mail, Hotel } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HotelBooking } from "@/types/confirmation";
+import { parseDateDDMMYYYY, formatDateDDMMYYYY } from "@/lib/confirmationUtils";
 
 interface HotelBookingCardProps {
   booking: HotelBooking;
   onChange: (booking: HotelBooking) => void;
   onRemove: () => void;
   canRemove: boolean;
-}
-
-function parseDateDDMMYYYY(value: string): Date | null {
-  if (!value) return null;
-  const parts = value.split(/[\/\-]/);
-  if (parts.length !== 3) return null;
-  const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
-  const d = new Date(yyyy, mm - 1, dd);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatDateDDMMYYYY(date: Date): string {
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
 }
 
 function DatePicker({

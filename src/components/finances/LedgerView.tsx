@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmationPayload } from "@/types/confirmation";
 import { format, isWithinInterval, isPast } from "date-fns";
 import * as XLSX from "xlsx-js-style";
 import {
@@ -138,10 +139,9 @@ const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
   return new Date().toISOString().split("T")[0];
 };
 
-const calculateMealsFromPayload = (rawPayload: unknown) => {
-  const payload = rawPayload as any;
-  const itinerary = (payload?.itinerary as any[]) || [];
-  const numAdults = Number(payload?.guestInfo?.numAdults) || 2;
+const calculateMealsFromPayload = (rawPayload: ConfirmationPayload | null | undefined) => {
+  const itinerary = rawPayload?.itinerary || [];
+  const numAdults = Number(rawPayload?.guestInfo?.numAdults) || 2;
 
   const mealsNights = itinerary.filter((day) => {
     const hotelName = String(day?.hotel || "").toUpperCase().trim();
@@ -178,7 +178,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
   const { data: confirmations, isLoading: confirmationsLoading } = useConfirmations(500);
   const { data: expenses } = useExpenses();
   const { data: holders } = useHolders();
-  const { data: transactionsForAutogen } = useTransactions({ dateFrom, dateTo });
+  const { data: transactionsForAutogen } = useTransactions();
 
   const bulkCreateTransactions = useBulkCreateTransactions();
   const createdMealsRef = useRef<Set<string>>(new Set());
@@ -427,10 +427,10 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     const missing: Parameters<typeof bulkCreateTransactions.mutate>[0] = [];
 
     for (const c of confirmations) {
-      const selectedRuleIds: string[] = (c.raw_payload as any)?.selectedRuleIds || [];
+      const selectedRuleIds: string[] = c.raw_payload?.selectedRuleIds || [];
       if (!selectedRuleIds.length) continue;
-      const numAdults = Number((c.raw_payload as any)?.guestInfo?.numAdults) || 1;
-      const numDays = ((c.raw_payload as any)?.itinerary as any[])?.length || 1;
+      const numAdults = Number(c.raw_payload?.guestInfo?.numAdults) || 1;
+      const numDays = c.raw_payload?.itinerary?.length || 1;
 
       for (const rule of activeRules) {
         if (!selectedRuleIds.includes(rule.id)) continue;

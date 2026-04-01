@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { ConfirmationPayload } from "@/types/confirmation";
+import { ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
 
 export function formatDateToDDMMYYYY(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
@@ -8,12 +8,25 @@ export function formatDateToDDMMYYYY(date: Date): string {
   return `${day}/${month}/${year}`;
 }
 
+// Alias matching the name used across components
+export const formatDateDDMMYYYY = formatDateToDDMMYYYY;
+
 export function parseDDMMYYYY(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const parts = dateStr.split("/");
+  const parts = dateStr.split(/[\/\-]/);
   if (parts.length !== 3) return null;
   const [day, month, year] = parts.map(Number);
-  return new Date(year, month - 1, day);
+  const d = new Date(year, month - 1, day);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Alias matching the name used across components
+export const parseDateDDMMYYYY = parseDDMMYYYY;
+
+export function datePlusDays(date: Date, days: number): Date {
+  const d = new Date(date.getTime());
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 export function getDateCode(dateStr: string): string {
@@ -90,6 +103,55 @@ export function generateItineraryDays(
   }
 
   return days;
+}
+
+export function generateItineraryFromBookings(hotelBookings: HotelBooking[]): ItineraryDay[] {
+  if (!hotelBookings || hotelBookings.length === 0) return [];
+
+  const sortedBookings = [...hotelBookings].sort((a, b) => {
+    const dateA = parseDDMMYYYY(a.checkIn);
+    const dateB = parseDDMMYYYY(b.checkIn);
+    if (!dateA || !dateB) return 0;
+    return dateA.getTime() - dateB.getTime();
+  });
+
+  const allCheckIns = sortedBookings.map((b) => parseDDMMYYYY(b.checkIn)).filter((d): d is Date => d !== null);
+  const allCheckOuts = sortedBookings.map((b) => parseDDMMYYYY(b.checkOut)).filter((d): d is Date => d !== null);
+
+  if (allCheckIns.length === 0 || allCheckOuts.length === 0) return [];
+
+  const earliestCheckIn = new Date(Math.min(...allCheckIns.map((d) => d.getTime())));
+  const latestCheckOut = new Date(Math.max(...allCheckOuts.map((d) => d.getTime())));
+
+  const itinerary: ItineraryDay[] = [];
+  let currentDate = new Date(earliestCheckIn);
+
+  while (currentDate < latestCheckOut) {
+    const dateStr = formatDateToDDMMYYYY(currentDate);
+
+    let hotelForNight: HotelBooking | undefined;
+    for (const booking of sortedBookings) {
+      const checkIn = parseDDMMYYYY(booking.checkIn);
+      const checkOut = parseDDMMYYYY(booking.checkOut);
+      if (checkIn && checkOut && currentDate >= checkIn && currentDate < checkOut) {
+        hotelForNight = booking;
+        break;
+      }
+    }
+
+    itinerary.push({
+      date: dateStr,
+      day: "",
+      route: "",
+      hotel: hotelForNight?.hotelName || "",
+      roomType: hotelForNight?.roomCategory || "",
+      meals: "YES",
+    });
+
+    currentDate = datePlusDays(currentDate, 1);
+  }
+
+  return itinerary;
 }
 
 export function getMainClientName(clients: { name: string; passport: string }[]): string {

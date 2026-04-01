@@ -6,86 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { ConfirmationFormData, ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
 import { toast } from "@/hooks/use-toast";
+import { parseDateDDMMYYYY, formatDateDDMMYYYY, generateItineraryFromBookings } from "@/lib/confirmationUtils";
 
-// Helper to parse DD/MM/YYYY dates
-function parseDateDDMMYYYY(value: string): Date | null {
-  if (!value) return null;
-  const parts = value.split(/[\/\-]/);
-  if (parts.length !== 3) return null;
-  const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
-  const d = new Date(yyyy, mm - 1, dd);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function formatDateDDMMYYYY(date: Date): string {
-  const dd = String(date.getDate()).padStart(2, "0");
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yyyy = date.getFullYear();
-  return `${dd}/${mm}/${yyyy}`;
-}
-
-function datePlusDays(date: Date, days: number): Date {
-  const d = new Date(date.getTime());
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-// Generate itinerary from hotelBookings data
-function generateItineraryFromBookings(hotelBookings: HotelBooking[]): ItineraryDay[] {
-  if (!hotelBookings || hotelBookings.length === 0) return [];
-
-  // Sort bookings by check-in date
-  const sortedBookings = [...hotelBookings].sort((a, b) => {
-    const dateA = parseDateDDMMYYYY(a.checkIn);
-    const dateB = parseDateDDMMYYYY(b.checkIn);
-    if (!dateA || !dateB) return 0;
-    return dateA.getTime() - dateB.getTime();
-  });
-
-  // Find the earliest check-in and latest check-out
-  const allCheckIns = sortedBookings.map((b) => parseDateDDMMYYYY(b.checkIn)).filter((d): d is Date => d !== null);
-  const allCheckOuts = sortedBookings.map((b) => parseDateDDMMYYYY(b.checkOut)).filter((d): d is Date => d !== null);
-
-  if (allCheckIns.length === 0 || allCheckOuts.length === 0) return [];
-
-  const earliestCheckIn = new Date(Math.min(...allCheckIns.map((d) => d.getTime())));
-  const latestCheckOut = new Date(Math.max(...allCheckOuts.map((d) => d.getTime())));
-
-  // Generate itinerary days
-  const itinerary: ItineraryDay[] = [];
-  let currentDate = new Date(earliestCheckIn);
-
-  while (currentDate < latestCheckOut) {
-    const dateStr = formatDateDDMMYYYY(currentDate);
-
-    // Find which hotel covers this night
-    let hotelForNight: HotelBooking | undefined;
-    for (const booking of sortedBookings) {
-      const checkIn = parseDateDDMMYYYY(booking.checkIn);
-      const checkOut = parseDateDDMMYYYY(booking.checkOut);
-      if (checkIn && checkOut) {
-        // Check if currentDate is >= checkIn and < checkOut
-        if (currentDate >= checkIn && currentDate < checkOut) {
-          hotelForNight = booking;
-          break;
-        }
-      }
-    }
-
-    itinerary.push({
-      date: dateStr,
-      day: "",
-      route: "",
-      hotel: hotelForNight?.hotelName || "",
-      roomType: hotelForNight?.roomCategory || "",
-      meals: "YES", // Always YES for driver
-    });
-
-    currentDate = datePlusDays(currentDate, 1);
-  }
-
-  return itinerary;
-}
 
 export default function EditConfirmation() {
   const { id } = useParams<{ id: string }>();

@@ -3,6 +3,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef } from "react";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { canAccessFinances } from "@/lib/roles";
 
 interface EditableRouteProps {
   children: React.ReactNode;
@@ -11,9 +12,7 @@ interface EditableRouteProps {
 export const EditableRoute = ({ children }: EditableRouteProps) => {
   const { canEdit, isLoading } = useUserRole();
   const { viewAsRole } = useViewAs();
-  const effectiveCanEdit = viewAsRole
-    ? ["admin", "worker", "accountant", "coworker"].includes(viewAsRole)
-    : canEdit;
+  const effectiveCanEdit = viewAsRole ? canAccessFinances(viewAsRole) : canEdit;
   const { toast } = useToast();
   const hasShownToast = useRef(false);
 

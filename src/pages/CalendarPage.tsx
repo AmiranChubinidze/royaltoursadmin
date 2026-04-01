@@ -33,6 +33,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useSalaryProfiles } from "@/hooks/useSalaries";
 import { useUserRole } from "@/hooks/useUserRole";
+import { canManageFinances } from "@/lib/roles";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import {
   useCalendarNotificationHotels,
@@ -96,7 +97,7 @@ export default function CalendarPage() {
   const { role, isLoading: isRoleLoading } = useUserRole();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
-  const canSeeSalaries = ["admin", "worker", "accountant"].includes(effectiveRole || "");
+  const canSeeSalaries = canManageFinances(effectiveRole);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [timeLocal, setTimeLocal] = useState("09:00");
@@ -105,6 +106,7 @@ export default function CalendarPage() {
   const [hotelView, setHotelView] = useState<"owned" | "other" | "all">("all");
   const [checkInsOnly, setCheckInsOnly] = useState(false);
   const [calendarContentMode, setCalendarContentMode] = useState<CalendarContentMode>("stays");
+  const effectiveCalendarContentMode: CalendarContentMode = canSeeSalaries ? calendarContentMode : "stays";
   const [hasLoadedViewPrefs, setHasLoadedViewPrefs] = useState(false);
   const [remindersEnabled, setRemindersEnabled] = useState(false);
   const [useAllHotelsState, setUseAllHotelsState] = useState(true);
@@ -197,10 +199,10 @@ export default function CalendarPage() {
     const prefs = {
       hotelView,
       checkInsOnly,
-      calendarContentMode,
+      calendarContentMode: effectiveCalendarContentMode,
     };
     window.localStorage.setItem(CALENDAR_VIEW_PREFS_KEY, JSON.stringify(prefs));
-  }, [hotelView, checkInsOnly, calendarContentMode, hasLoadedViewPrefs]);
+  }, [hotelView, checkInsOnly, effectiveCalendarContentMode, hasLoadedViewPrefs]);
 
   useEffect(() => {
     if (isRoleLoading && !viewAsRole) return;
@@ -232,14 +234,10 @@ export default function CalendarPage() {
       const confirmationId = c.id;
       const code = c.confirmation_code;
       const client = c.main_client_name || null;
-      const payload = c.raw_payload as unknown;
-      const itineraryValue =
-        payload && typeof payload === "object" ? (payload as Record<string, unknown>)["itinerary"] : undefined;
-      const itineraryRaw = Array.isArray(itineraryValue) ? itineraryValue : [];
-      const itinerary = itineraryRaw
+      const itinerary = (c.raw_payload?.itinerary || [])
         .map((day) => {
-          const hotelName = String((day as any)?.hotel || "").trim();
-          const date = parseDateFlexible((day as any)?.date);
+          const hotelName = String(day?.hotel || "").trim();
+          const date = parseDateFlexible(day?.date);
           return { hotelName, date };
         })
         .filter((d) => !!d.hotelName && !!d.date)
@@ -293,17 +291,10 @@ export default function CalendarPage() {
       const confirmationId = c.id;
       const code = c.confirmation_code;
       const client = c.main_client_name || null;
-      const payload = c.raw_payload as unknown;
-      const itineraryValue =
-        payload && typeof payload === "object"
-          ? (payload as Record<string, unknown>)["itinerary"]
-          : undefined;
-      const itineraryRaw = Array.isArray(itineraryValue) ? itineraryValue : [];
-
-      const itinerary = itineraryRaw
+      const itinerary = (c.raw_payload?.itinerary || [])
         .map((day) => {
-          const hotelName = String((day as any)?.hotel || "").trim();
-          const date = parseDateFlexible((day as any)?.date);
+          const hotelName = String(day?.hotel || "").trim();
+          const date = parseDateFlexible(day?.date);
           return { hotelName, date };
         })
         .filter((d) => !!d.hotelName && !!d.date)
@@ -359,12 +350,12 @@ export default function CalendarPage() {
   );
   const hotelViewLabel = hotelView === "owned" ? "Owned hotels" : hotelView === "other" ? "Other hotels" : "All hotels";
   const contentViewLabel = useMemo(() => {
-    if (calendarContentMode === "payments") return "Payments only";
-    if (calendarContentMode === "both") return checkInsOnly ? "Check-ins + payments" : "All stay days + payments";
+    if (effectiveCalendarContentMode === "payments") return "Payments only";
+    if (effectiveCalendarContentMode === "both") return checkInsOnly ? "Check-ins + payments" : "All stay days + payments";
     return checkInsOnly ? "Check-ins only" : "All stay days";
-  }, [calendarContentMode, checkInsOnly]);
+  }, [effectiveCalendarContentMode, checkInsOnly]);
   const viewingSummary =
-    calendarContentMode === "payments"
+    effectiveCalendarContentMode === "payments"
       ? "Payments only"
       : `${hotelViewLabel} · ${contentViewLabel}`;
   const dayNumberFormatter = useMemo(
@@ -377,8 +368,8 @@ export default function CalendarPage() {
     days.push(day);
   }
 
-  const showHotelStays = calendarContentMode !== "payments";
-  const showSalaryPayments = canSeeSalaries && calendarContentMode !== "stays";
+  const showHotelStays = effectiveCalendarContentMode !== "payments";
+  const showSalaryPayments = canSeeSalaries && effectiveCalendarContentMode !== "stays";
   const baseStaysByDate = showHotelStays ? (checkInsOnly ? checkInsByDate : staysByDate) : new Map<string, OwnedStay[]>();
   const visibleStaysByDate = useMemo(() => {
     const map = new Map<string, OwnedStay[]>();
@@ -664,7 +655,7 @@ export default function CalendarPage() {
                           onClick={() => setCalendarContentMode(opt.key)}
                           className={cn(
                             "h-9 rounded-lg text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
-                            calendarContentMode === opt.key
+                            effectiveCalendarContentMode === opt.key
                               ? "bg-white text-[#0F4C5C] shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           )}

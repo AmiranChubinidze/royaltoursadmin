@@ -3,6 +3,7 @@ import { CalendarDays, Home, PlusCircle, Shield, Database, Wallet } from "lucide
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useViewAs } from "@/contexts/ViewAsContext";
+import { canAccessFinances } from "@/lib/roles";
 
 const navItemBase =
   "flex flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 text-[10px] font-medium transition-colors";
@@ -15,7 +16,7 @@ export function MobileBottomNav() {
   const effectiveRole = viewAsRole || role;
   const isAdmin = effectiveRole === "admin";
   const isBooking = effectiveRole === "booking";
-  const canSeeFinances = ["admin", "accountant", "coworker"].includes(effectiveRole);
+  const canSeeFinances = canAccessFinances(effectiveRole);
   const isCoworker = effectiveRole === "coworker";
 
   const items = [

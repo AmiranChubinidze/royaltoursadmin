@@ -559,7 +559,7 @@ export default function ConfirmationAttachments() {
 
   
   const attachmentsByStay = useMemo(() => {
-    const map = new Map<string, { invoices: ConfirmationAttachment[]; payment: ConfirmationAttachment | null }>();
+    const map = new Map<string, { invoices: ConfirmationAttachment[]; payments: ConfirmationAttachment[] }>();
     if (!attachments || visibleHotelStays.length === 0) return map;
 
     const buckets = new Map<string, { invoice: ConfirmationAttachment[]; payment: ConfirmationAttachment[] }>();
@@ -578,8 +578,8 @@ export default function ConfirmationAttachments() {
 
     buckets.forEach((bucket, stayKey) => {
       const invoices = bucket.invoice.sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
-      const payment = bucket.payment.sort((a, b) => new Date(b.uploaded_at).getTime() - new Date(a.uploaded_at).getTime())[0] || null;
-      map.set(stayKey, { invoices, payment });
+      const payments = bucket.payment.sort((a, b) => new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime());
+      map.set(stayKey, { invoices, payments });
     });
 
     return map;
@@ -713,8 +713,8 @@ export default function ConfirmationAttachments() {
     const allCovered = visibleHotelStays.every((stay, idx) => {
       const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
       const stayKey = getStayKey(stay.hotel, sameHotelBefore);
-      const paymentMatch = attachmentsByStay.get(stayKey)?.payment;
-      return Boolean(paymentMatch) || manualPaymentChecks.includes(stayKey);
+      const stayPayments = attachmentsByStay.get(stayKey)?.payments ?? [];
+      return stayPayments.length > 0 || manualPaymentChecks.includes(stayKey);
     });
 
     if (allCovered && !isPaidNow) {
@@ -982,18 +982,27 @@ export default function ConfirmationAttachments() {
                 const stayKey = getStayKey(stay.hotel, sameHotelBefore);
                 const attachmentMatches = attachmentsByStay.get(stayKey);
                 const invoices = attachmentMatches?.invoices ?? [];
-                const paymentMatch = attachmentMatches?.payment ?? null;
+                const payments = attachmentMatches?.payments ?? [];
                 const stayAttachmentsRaw = attachmentsByStayRaw.get(stayKey) || [];
                 const hasInvoiceUpload = invoices.length > 0;
-                const hasPayment = !!paymentMatch;
+                const hasPayment = payments.length > 0;
                 const manualChecked = manualPaymentChecks.includes(stayKey);
                 const paymentChecked = hasPayment || manualChecked;
                 const isSavingCheck = paymentCheckSaving === stayKey;
+                const paymentExpenseEntries = payments
+                  .map((p) => expenseMap?.[p.id])
+                  .filter((v): v is AttachmentExpense => Boolean(v?.amount));
+                const totalPaymentAmount = paymentExpenseEntries.reduce(
+                  (sum, e) => sum + (e.amount || 0),
+                  0
+                );
+                const paymentCurrencyEntry = paymentExpenseEntries.find((e) => e.currency);
                 const paymentExpense =
-                  (paymentMatch ? expenseMap?.[paymentMatch.id] : undefined) ||
-                  stayAttachmentsRaw
-                    .map((attachment) => expenseMap?.[attachment.id])
-                    .find((value) => value?.amount != null);
+                  totalPaymentAmount > 0
+                    ? { amount: totalPaymentAmount, currency: paymentCurrencyEntry?.currency || "USD" }
+                    : stayAttachmentsRaw
+                        .map((attachment) => expenseMap?.[attachment.id])
+                        .find((value) => value?.amount != null);
                 const invoiceAmountEntries = invoices
                   .map((inv) => invoiceAmountMap[inv.id])
                   .filter(Boolean);
@@ -1076,22 +1085,24 @@ export default function ConfirmationAttachments() {
                       </Badge>
                     )}
                     <div className="flex flex-col gap-2 shrink-0">
-                      <div className={cn(
-                        "flex items-center gap-2 rounded-md border px-2 py-1",
-                        hasPayment ? "border-emerald-200 bg-emerald-50/70 text-emerald-700" : "border-border bg-background"
-                      )}>
-                        <span className="text-xs font-medium w-16">Payment</span>
-                        {hasPayment && paymentMatch ? (
+                      {payments.map((pay, payIdx) => (
+                        <div
+                          key={pay.id}
+                          className="flex items-center gap-2 rounded-md border px-2 py-1 border-emerald-200 bg-emerald-50/70 text-emerald-700"
+                        >
+                          <span className="text-xs font-medium w-16 truncate">
+                            {payments.length > 1 ? `Payment ${payIdx + 1}` : "Payment"}
+                          </span>
                           <div className="flex items-center gap-1 ml-auto">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handlePreview(paymentMatch.file_path, paymentMatch.file_name, paymentMatch.id)}
-                              disabled={previewLoadingId === paymentMatch.id}
+                              onClick={() => handlePreview(pay.file_path, pay.file_name, pay.id)}
+                              disabled={previewLoadingId === pay.id}
                               title="Preview payment order"
                               className="h-7 w-7"
                             >
-                              {previewLoadingId === paymentMatch.id ? (
+                              {previewLoadingId === pay.id ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               ) : (
                                 <Eye className="h-3.5 w-3.5" />
@@ -1113,19 +1124,15 @@ export default function ConfirmationAttachments() {
                                   <AlertDialogHeader>
                                     <AlertDialogTitle>Delete Payment Order</AlertDialogTitle>
                                     <AlertDialogDescription>
-                                      Are you sure you want to delete "{paymentMatch.file_name}"? This action cannot be undone.
+                                      Are you sure you want to delete "{pay.file_name}"? This action cannot be undone.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                     <AlertDialogAction
-                                      onClick={() => handleDeleteAttachment(
-                                        paymentMatch.id,
-                                        paymentMatch.file_path,
-                                        id!,
-                                        stayKey,
-                                        "payment"
-                                      )}
+                                      onClick={() =>
+                                        handleDeleteAttachment(pay.id, pay.file_path, id!, stayKey, "payment")
+                                      }
                                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
                                       Delete
@@ -1135,17 +1142,42 @@ export default function ConfirmationAttachments() {
                               </AlertDialog>
                             )}
                           </div>
-                        ) : canUpload ? (
+                        </div>
+                      ))}
+                      {canUpload && (
+                        <div
+                          className={cn(
+                            "flex items-center gap-2 rounded-md border px-2 py-1",
+                            payments.length === 0
+                              ? "border-border bg-background"
+                              : "border-emerald-100 bg-transparent"
+                          )}
+                        >
+                          {payments.length === 0 && (
+                            <span className="text-xs font-medium w-16">Payment</span>
+                          )}
                           <label className="ml-auto">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-7 w-7 p-0 border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-50"
+                              className={cn(
+                                "h-7 p-0 border-emerald-200 text-emerald-700 bg-emerald-50/60 hover:bg-emerald-50",
+                                payments.length === 0 ? "w-7" : "w-auto px-2 gap-1 text-xs"
+                              )}
                               asChild
                             >
                               <span>
-                                <Upload className="h-3.5 w-3.5" />
-                                <span className="sr-only">Upload payment order</span>
+                                {payments.length === 0 ? (
+                                  <>
+                                    <Upload className="h-3.5 w-3.5" />
+                                    <span className="sr-only">Upload payment order</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Plus className="h-3 w-3" />
+                                    Add Payment
+                                  </>
+                                )}
                               </span>
                             </Button>
                             <input
@@ -1158,8 +1190,8 @@ export default function ConfirmationAttachments() {
                               disabled={uploadMutation.isPending}
                             />
                           </label>
-                        ) : null}
-                      </div>
+                        </div>
+                      )}
 
                       {invoices.map((inv, invIdx) => (
                         <div

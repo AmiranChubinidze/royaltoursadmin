@@ -208,166 +208,49 @@ export const useUploadAttachment = () => {
         }
       }
 
-      // Only payment uploads should affect ledger rows.
+      // Only payment uploads should affect ledger rows. Each payment upload
+      // creates its own expense + transaction so multiple payments per stay
+      // are tracked independently.
       if (isPaymentOrder && hasAmount && data) {
         const today = new Date().toISOString().split("T")[0];
         const description = `Payment: ${displayName}`;
-        let existingExpense: { id: string; description: string | null } | null = null;
 
-        if (stayPathKey) {
-          const { data: stayAttachments, error: stayError } = await supabase
-            .from("confirmation_attachments")
-            .select("id")
-            .eq("confirmation_id", confirmationId)
-            .ilike("file_path", `%/${stayPathKey}/%`);
+        const { error: transactionError } = await supabase
+          .from("transactions")
+          .insert({
+            date: today,
+            kind: "out",
+            type: "expense",
+            category: "hotel",
+            description,
+            amount: storageAmount,
+            currency: storageCurrency,
+            status: "confirmed",
+            confirmation_id: confirmationId,
+            is_auto_generated: false,
+            is_paid: true,
+            created_by: user.id,
+            responsible_holder_id: uploaderResponsibleHolderId,
+          });
 
-          if (!stayError && stayAttachments?.length) {
-            const stayAttachmentIds = stayAttachments.map((a) => a.id);
-            const { data: existingExpenses, error: expenseLookupError } = await supabase
-              .from("expenses")
-              .select("id, description")
-              .eq("confirmation_id", confirmationId)
-              .in("attachment_id", stayAttachmentIds)
-              .limit(1);
-
-            if (!expenseLookupError && existingExpenses?.length) {
-              existingExpense = existingExpenses[0];
-            }
-          }
+        if (transactionError) {
+          console.error("Failed to create transaction:", transactionError);
         }
 
-        if (existingExpense) {
-          const { error: updateExpenseError } = await supabase
-            .from("expenses")
-            .update({
-              attachment_id: data.id,
-              amount: storageAmount,
-              description,
-              expense_type: "hotel",
-              expense_date: today,
-            })
-            .eq("id", existingExpense.id);
+        const { error: expenseError } = await supabase
+          .from("expenses")
+          .insert({
+            confirmation_id: confirmationId,
+            expense_type: "hotel",
+            description,
+            amount: storageAmount,
+            expense_date: today,
+            created_by: user.id,
+            attachment_id: data.id,
+          });
 
-          if (updateExpenseError) {
-            console.error("Failed to update expense:", updateExpenseError);
-            const { error: insertExpenseError } = await supabase
-              .from("expenses")
-              .insert({
-                confirmation_id: confirmationId,
-                expense_type: "hotel",
-                description,
-                amount: storageAmount,
-                expense_date: today,
-                created_by: user.id,
-                attachment_id: data.id,
-              });
-            if (insertExpenseError) {
-              console.error("Failed to insert fallback expense:", insertExpenseError);
-            }
-          }
-
-          if (existingExpense.description) {
-            const updatePayload: Record<string, any> = {
-              amount: storageAmount,
-              currency: storageCurrency,
-              description,
-              date: today,
-            };
-            if (uploaderResponsibleHolderId) {
-              updatePayload.responsible_holder_id = uploaderResponsibleHolderId;
-            }
-
-            const { error: updateTxError } = await supabase
-              .from("transactions")
-              .update(updatePayload)
-              .eq("confirmation_id", confirmationId)
-              .eq("type", "expense")
-              .eq("description", existingExpense.description);
-
-            if (updateTxError) {
-              console.error("Failed to update transaction:", updateTxError);
-              const { error: insertTxError } = await supabase
-                .from("transactions")
-                .insert({
-                  date: today,
-                  kind: "out",
-                  type: "expense",
-                  category: "hotel",
-                  description,
-                  amount: storageAmount,
-                  currency: storageCurrency,
-                  status: "confirmed",
-                  confirmation_id: confirmationId,
-                  is_auto_generated: false,
-                  is_paid: true,
-                  created_by: user.id,
-                  responsible_holder_id: uploaderResponsibleHolderId,
-                });
-              if (insertTxError) {
-                console.error("Failed to insert fallback transaction:", insertTxError);
-              }
-            }
-          } else {
-            const { error: transactionError } = await supabase
-              .from("transactions")
-              .insert({
-                date: today,
-                kind: "out",
-                type: "expense",
-                category: "hotel",
-                description,
-                amount: storageAmount,
-                currency: storageCurrency,
-                status: "confirmed",
-                confirmation_id: confirmationId,
-                is_auto_generated: false,
-                is_paid: true,
-                created_by: user.id,
-                responsible_holder_id: uploaderResponsibleHolderId,
-              });
-
-            if (transactionError) {
-              console.error("Failed to create transaction:", transactionError);
-            }
-          }
-        } else {
-          const { error: transactionError } = await supabase
-            .from("transactions")
-            .insert({
-              date: today,
-              kind: "out",
-              type: "expense",
-              category: "hotel",
-              description,
-              amount: storageAmount,
-              currency: storageCurrency,
-              status: "confirmed",
-              confirmation_id: confirmationId,
-              is_auto_generated: false,
-              is_paid: true,
-              created_by: user.id,
-              responsible_holder_id: uploaderResponsibleHolderId,
-            });
-
-          if (transactionError) {
-            console.error("Failed to create transaction:", transactionError);
-          }
-
-          const { error: expenseError } = await supabase
-            .from("expenses")
-            .insert({
-              confirmation_id: confirmationId,
-              expense_type: "hotel",
-              description,
-              amount: storageAmount,
-              expense_date: today,
-              created_by: user.id,
-              attachment_id: data.id,
-            });
-
-          if (expenseError) {
-            console.error("Failed to create expense:", expenseError);
-          }
+        if (expenseError) {
+          console.error("Failed to create expense:", expenseError);
         }
       }
 

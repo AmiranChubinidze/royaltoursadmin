@@ -74,7 +74,7 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
         {/* Company Block */}
         <div className="text-right mt-[70px] print:mt-[40px]" style={{ lineHeight: 1.4 }}>
           <div className="font-[800] text-lg print:text-[13px] print:leading-tight">Royal Georgian Tours</div>
-          <div className="print:text-[11px]">IE: Levani Shanshiashvili</div>
+          <div className="text-[#6b7280] print:text-[11px]">IE: Levani Shanshiashvili</div>
           <div className="text-[#6b7280] print:text-[11px]">ID: 01017040069</div>
           <div className="print:text-[11px]">+995 557 141 357</div>
           <div className="print:text-[11px]">+995 592 005 450</div>

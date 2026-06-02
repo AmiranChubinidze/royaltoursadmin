@@ -284,7 +284,7 @@ Tomorrow check-ins:
 ${lines.join("\n")}
 
 Best regards,
-LLC Royal Georgian Tours`;
+Royal Georgian Tours`;
 
       const finalBody = body.substring(0, MAX_CONTENT_LENGTH);
 

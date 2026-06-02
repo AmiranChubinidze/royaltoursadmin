@@ -1,5 +1,5 @@
 import { Confirmation, ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
-import signatureStamp from "@/assets/signature-stamp.jpg";
+import signatureStamp from "@/assets/signature-levani.png";
 import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, generateItineraryFromBookings } from "@/lib/confirmationUtils";
 
 interface ConfirmationLetterProps {
@@ -73,10 +73,12 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
         
         {/* Company Block */}
         <div className="text-right mt-[70px] print:mt-[40px]" style={{ lineHeight: 1.4 }}>
-          <div className="font-[800] text-lg print:text-[13px] print:leading-tight">LLC Royal Georgian Tours</div>
-          <div className="text-[#6b7280] print:text-[11px]">ID: 404515208</div>
+          <div className="font-[800] text-lg print:text-[13px] print:leading-tight">Royal Georgian Tours</div>
+          <div className="print:text-[11px]">IE: Levani Shanshiashvili</div>
+          <div className="text-[#6b7280] print:text-[11px]">ID: 01017040069</div>
           <div className="print:text-[11px]">+995 557 141 357</div>
           <div className="print:text-[11px]">+995 592 005 450</div>
+          <div className="print:text-[11px]">+995 557 385 537</div>
           <div className="font-bold text-[#2f5597] print:text-[11px]">Royalgeorgiantours@gmail.com</div>
         </div>
       </header>

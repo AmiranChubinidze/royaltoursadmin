@@ -7,6 +7,7 @@ import {
   calculateDaysAndNights,
   getMainClientName,
   formatDateToDDMMYYYY,
+  isoDateFromDdMmYyyy,
 } from "@/lib/confirmationUtils";
 import { toast } from "@/hooks/use-toast";
 import { Json } from "@/integrations/supabase/types";
@@ -86,6 +87,7 @@ export function useCreateConfirmation() {
           total_nights: nights,
           raw_payload: toJson(payload),
           price: payload.price || null,
+          price_currency: payload.priceCurrency || "USD",
         })
         .select()
         .single();
@@ -95,7 +97,7 @@ export function useCreateConfirmation() {
       // Auto-create "Tour IN" transaction if price is set
       if (payload.price && payload.price > 0) {
         await supabase.from("transactions").insert({
-          date: arrivalDate,
+          date: isoDateFromDdMmYyyy(arrivalDate),
           confirmation_id: data.id,
           kind: "in",
           type: "income",
@@ -103,7 +105,7 @@ export function useCreateConfirmation() {
           category: "tour_payment",
           description: `Tour payment - ${mainClientName || confirmationCode}`,
           amount: payload.price,
-          currency: "USD",
+          currency: payload.priceCurrency || "USD",
           is_paid: false,
           is_auto_generated: true,
         });
@@ -178,6 +180,7 @@ export function useUpdateConfirmation() {
         total_nights: nights,
         raw_payload: toJson({ ...existingRawPayload, ...payload }),
         price: payload.price ?? null,
+        price_currency: payload.priceCurrency || "USD",
       };
 
       // Add status if provided (for draft completion)
@@ -194,8 +197,27 @@ export function useUpdateConfirmation() {
 
       if (error) throw error;
 
-      // When completing a draft (status becomes "confirmed") with a price, create the Tour IN transaction
-      if (status === "confirmed" && payload.price && payload.price > 0) {
+      // Reconcile auto-generated expense-rule transactions: if a rule was removed
+      // from the confirmation, delete its auto-generated ledger rows so the ledger
+      // stays in sync with the form (e.g. unchecking the breakfast charge).
+      const oldRuleIds: string[] = Array.isArray(existingRawPayload.selectedRuleIds)
+        ? existingRawPayload.selectedRuleIds
+        : [];
+      const newRuleIds: string[] = payload.selectedRuleIds ?? [];
+      const removedRuleIds = oldRuleIds.filter((rid) => !newRuleIds.includes(rid));
+      for (const rid of removedRuleIds) {
+        await supabase
+          .from("transactions")
+          .delete()
+          .eq("confirmation_id", id)
+          .eq("is_auto_generated", true)
+          .ilike("notes", `%[rule:${rid}]%`);
+      }
+
+      // Ensure the pending "Tour IN" transaction exists whenever the confirmation
+      // has a price — not only when a draft is completed. Without this, a priced
+      // confirmation edited while still a draft would never show as pending income.
+      if (payload.price && payload.price > 0) {
         // Check if auto-generated transaction already exists
         const { data: existingTx } = await supabase
           .from("transactions")
@@ -207,7 +229,7 @@ export function useUpdateConfirmation() {
 
         if (!existingTx) {
           await supabase.from("transactions").insert({
-            date: arrivalDate,
+            date: isoDateFromDdMmYyyy(arrivalDate),
             confirmation_id: id,
             kind: "in",
             type: "income",
@@ -215,7 +237,7 @@ export function useUpdateConfirmation() {
             category: "tour_payment",
             description: `Tour payment - ${mainClientName || confirmationCode}`,
             amount: payload.price,
-            currency: "USD",
+            currency: payload.priceCurrency || "USD",
             is_paid: false,
             is_auto_generated: true,
           });

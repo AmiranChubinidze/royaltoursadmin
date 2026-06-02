@@ -1,854 +1,269 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Mail, Send, ArrowLeft, Plane, Users, FileText, ArrowUpRight, Trash2, Edit, X } from "lucide-react";
-import { format, parse, isValid } from "date-fns";
-import { CompactHotelBookingCard, HotelBooking } from "@/components/CompactHotelBookingCard";
-import { useBookingDrafts, useCreateBookingDraft, useDeleteBookingDraft, useUpdateBookingDraft, BookingDraft } from "@/hooks/useBookingDrafts";
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
+  Plane,
+  Mail,
+  Send,
+  CheckCircle2,
+  Circle,
+  Hotel,
+  Search,
+  AlertCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useConfirmations } from "@/hooks/useConfirmations";
+import { useSavedHotels } from "@/hooks/useSavedData";
+import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
 import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  horizontalListSortingStrategy,
-} from "@dnd-kit/sortable";
-
-const parseDateDDMMYYYY = (value: string): Date | null => {
-  if (!value) return null;
-  const parsed = parse(value, "dd/MM/yyyy", new Date());
-  return isValid(parsed) ? parsed : null;
-};
-
-const formatDateDDMMYYYY = (date: Date): string => {
-  return format(date, "dd/MM/yyyy");
-};
-
-const generateEmailBody = (booking: HotelBooking): string => {
-  const checkInDate = parseDateDDMMYYYY(booking.checkIn);
-  const checkOutDate = parseDateDDMMYYYY(booking.checkOut);
-  
-  let nights = 0;
-  if (checkInDate && checkOutDate) {
-    nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
-  }
-
-  const guestText = booking.numKids > 0 
-    ? `${booking.numAdults} Adults + ${booking.numKids} Kids`
-    : `${booking.numAdults} Adults`;
-
-  return `Dear ${booking.hotelName},
-
-Please book the following:
-
-Check-in: ${booking.checkIn}
-Check-out: ${booking.checkOut}
-Nights: ${nights}
-Guests: ${guestText}
-Meal: ${booking.mealType === "FB" ? "Full Board" : "Bed & Breakfast"}
-Room: ${booking.roomCategory}
-
-Best regards,
-Royal Travel Georgia`;
-};
+  getConfirmationHotels,
+  useSetHotelApproval,
+  useMarkHotelsEmailed,
+} from "@/hooks/useHotelApprovals";
+import { Confirmation, ConfirmationPayload } from "@/types/confirmation";
 
 export default function CreateBookingRequest() {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTransferring, setIsTransferring] = useState<string | null>(null);
-  const [savedHotels, setSavedHotels] = useState<{ name: string; email: string; is_owned: boolean }[]>([]);
-  
-  const { data: drafts, isLoading: draftsLoading } = useBookingDrafts();
-  const createDraft = useCreateBookingDraft();
-  const deleteDraft = useDeleteBookingDraft();
-  const updateDraft = useUpdateBookingDraft();
-  const [sharedGuests, setSharedGuests] = useState({ adults: 2, kids: 0, applyToAll: true });
-  
-  // Editing state
-  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  const [originalHotelBookings, setOriginalHotelBookings] = useState<HotelBooking[]>([]);
-  const [sendingHotelIndex, setSendingHotelIndex] = useState<number | null>(null);
-  
-  const [hotelBookings, setHotelBookings] = useState<(HotelBooking & { id: string })[]>([
-    {
-      id: crypto.randomUUID(),
-      hotelName: "",
-      hotelEmail: "",
-      checkIn: "",
-      checkOut: "",
-      numAdults: 2,
-      numKids: 0,
-      mealType: "BB",
-      roomCategory: "Standard",
-    },
-  ]);
+  const { data: confirmations, isLoading } = useConfirmations(200);
+  const { data: savedHotels = [] } = useSavedHotels();
+  const setApproval = useSetHotelApproval();
+  const markEmailed = useMarkHotelsEmailed();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const [search, setSearch] = useState("");
+  const [previewConf, setPreviewConf] = useState<Confirmation | null>(null);
 
-  useEffect(() => {
-    const fetchHotels = async () => {
-      const { data, error } = await supabase
-        .from("saved_hotels")
-        .select("name, email, is_owned")
-        .order("name");
+  // Only confirmations that actually have hotels to book (non-owned).
+  const rows = useMemo(() => {
+    if (!confirmations) return [];
+    return confirmations
+      .map((c) => ({ confirmation: c, hotels: getConfirmationHotels(c, savedHotels) }))
+      .filter((r) => r.hotels.length > 0);
+  }, [confirmations, savedHotels]);
 
-      if (error) {
-        toast.error("Failed to load hotels");
-        return;
-      }
-      setSavedHotels(data.map(h => ({ name: h.name, email: h.email || "", is_owned: !!h.is_owned })));
-    };
-    fetchHotels();
-  }, []);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (over && active.id !== over.id) {
-      setHotelBookings((items) => {
-        const oldIndex = items.findIndex((i) => i.id === active.id);
-        const newIndex = items.findIndex((i) => i.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-  };
-
-  const addHotelBooking = () => {
-    const lastBooking = hotelBookings[hotelBookings.length - 1];
-    const newBooking = {
-      id: crypto.randomUUID(),
-      hotelName: "",
-      hotelEmail: "",
-      checkIn: lastBooking?.checkOut || "",
-      checkOut: "",
-      numAdults: sharedGuests.applyToAll ? sharedGuests.adults : 2,
-      numKids: sharedGuests.applyToAll ? sharedGuests.kids : 0,
-      mealType: "BB" as const,
-      roomCategory: "Standard" as const,
-    };
-    setHotelBookings([...hotelBookings, newBooking]);
-  };
-
-  const updateHotelBooking = (index: number, booking: HotelBooking) => {
-    setHotelBookings((prev) => {
-      const updated = prev.map((b, i) => (i === index ? { ...booking, id: b.id } : b));
-      
-      if (booking.checkOut && index < updated.length - 1) {
-        const nextHotel = updated[index + 1];
-        if (!nextHotel.checkIn || nextHotel.checkIn === prev[index].checkOut) {
-          updated[index + 1] = { ...nextHotel, checkIn: booking.checkOut };
-        }
-      }
-
-      if (sharedGuests.applyToAll) {
-        const newAdults = booking.numAdults;
-        const newKids = booking.numKids;
-        if (newAdults !== sharedGuests.adults || newKids !== sharedGuests.kids) {
-          setSharedGuests({ ...sharedGuests, adults: newAdults, kids: newKids });
-          return updated.map(b => ({ ...b, numAdults: newAdults, numKids: newKids }));
-        }
-      }
-      
-      return updated;
-    });
-  };
-
-  const removeHotelBooking = (index: number) => {
-    if (hotelBookings.length > 1) {
-      setHotelBookings(hotelBookings.filter((_, i) => i !== index));
-    }
-  };
-
-  const toggleSharedGuests = () => {
-    const newApplyToAll = !sharedGuests.applyToAll;
-    setSharedGuests({ ...sharedGuests, applyToAll: newApplyToAll });
-    
-    if (newApplyToAll) {
-      setHotelBookings(prev => 
-        prev.map(b => ({ ...b, numAdults: sharedGuests.adults, numKids: sharedGuests.kids }))
-      );
-    }
-  };
-
-  const updateSharedGuests = (field: 'adults' | 'kids', value: number) => {
-    const newShared = { ...sharedGuests, [field]: value };
-    setSharedGuests(newShared);
-    
-    if (sharedGuests.applyToAll) {
-      setHotelBookings(prev => 
-        prev.map(b => ({ 
-          ...b, 
-          numAdults: field === 'adults' ? value : b.numAdults,
-          numKids: field === 'kids' ? value : b.numKids 
-        }))
-      );
-    }
-  };
-
-  const isCheckInLinked = (index: number): boolean => {
-    if (index === 0) return false;
-    const prevBooking = hotelBookings[index - 1];
-    const currentBooking = hotelBookings[index];
-    return prevBooking?.checkOut === currentBooking?.checkIn && currentBooking?.checkIn !== "";
-  };
-
-  const handleSubmit = async () => {
-    // Only validate bookings that have an email (hotels requiring booking)
-    const bookingsWithEmail = hotelBookings.filter(b => b.hotelEmail);
-    const invalidBookings = bookingsWithEmail.filter(
-      (b) => !b.hotelName || !b.checkIn || !b.checkOut
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      ({ confirmation: c }) =>
+        c.confirmation_code.toLowerCase().includes(q) ||
+        (c.main_client_name || "").toLowerCase().includes(q)
     );
-
-    if (bookingsWithEmail.length === 0) {
-      toast.error("Please add at least one hotel with an email address");
-      return;
-    }
-
-    if (invalidBookings.length > 0) {
-      toast.error("Please fill in check-in and check-out dates for all hotels");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
-      const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
-      const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
-
-      // Save as draft first
-      await createDraft.mutateAsync({
-        hotel_bookings: bookingsToSave,
-        guest_info: { numAdults: totalAdults, numKids: totalKids },
-        emails_sent: true,
-      });
-
-      // Send emails
-      const hotelsToEmail = hotelBookings.filter(b => b.hotelEmail);
-      
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token || "";
-      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-      const authHeader = accessToken || apiKey;
-      const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
-        body: {
-          hotels: hotelsToEmail.map((booking) => ({
-            hotelName: booking.hotelName,
-            hotelEmail: booking.hotelEmail,
-            clientName: "TBD",
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            roomType: booking.roomCategory,
-            meals: booking.mealType,
-            confirmationCode: "PENDING",
-            guestInfo: {
-              numAdults: booking.numAdults,
-              numKids: booking.numKids,
-              kidsAges: [],
-            },
-          })),
-          confirmationCode: "PENDING",
-        },
-        headers: {
-          ...(authHeader ? { Authorization: `Bearer ${authHeader}` } : {}),
-          ...(apiKey ? { apikey: apiKey } : {}),
-        },
-      });
-
-      if (emailError) {
-        console.error("Email error:", emailError);
-        toast.warning(`Draft saved but emails failed: ${emailError.message}`);
-      } else {
-        toast.success(`Sent ${hotelsToEmail.length} emails and saved draft`);
-      }
-
-      // Reset form
-      setHotelBookings([{
-        id: crypto.randomUUID(),
-        hotelName: "",
-        hotelEmail: "",
-        checkIn: "",
-        checkOut: "",
-        numAdults: 2,
-        numKids: 0,
-        mealType: "BB",
-        roomCategory: "Standard",
-      }]);
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to create booking request");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleTransferToConfirmation = async (draft: BookingDraft) => {
-    setIsTransferring(draft.id);
-
-    try {
-      const today = new Date();
-      const dateCode = format(today, "ddMMyy");
-      
-      const { count } = await supabase
-        .from("confirmations")
-        .select("*", { count: "exact", head: true })
-        .eq("date_code", dateCode);
-
-      const sequenceNumber = (count || 0) + 1;
-      const confirmationCode = `${dateCode}-${String(sequenceNumber).padStart(3, "0")}`;
-
-      const hotelNames = draft.hotel_bookings.map((b) => b.hotelName);
-
-      const checkInDates = draft.hotel_bookings
-        .map((b) => parseDateDDMMYYYY(b.checkIn))
-        .filter((d): d is Date => d !== null);
-      const checkOutDates = draft.hotel_bookings
-        .map((b) => parseDateDDMMYYYY(b.checkOut))
-        .filter((d): d is Date => d !== null);
-
-      const earliestCheckIn = checkInDates.length > 0
-        ? formatDateDDMMYYYY(new Date(Math.min(...checkInDates.map((d) => d.getTime()))))
-        : null;
-      const latestCheckOut = checkOutDates.length > 0
-        ? formatDateDDMMYYYY(new Date(Math.max(...checkOutDates.map((d) => d.getTime()))))
-        : null;
-
-      let totalDays = 1;
-      let totalNights = 0;
-      if (checkInDates.length > 0 && checkOutDates.length > 0) {
-        const earliestDate = new Date(Math.min(...checkInDates.map((d) => d.getTime())));
-        const latestDate = new Date(Math.max(...checkOutDates.map((d) => d.getTime())));
-        const diffTime = latestDate.getTime() - earliestDate.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        totalNights = diffDays;
-        totalDays = diffDays + 1;
-      }
-
-      const totalGuests = draft.guest_info.numAdults + draft.guest_info.numKids;
-      const emptyClients = Array.from({ length: totalGuests }, () => ({ name: "", passport: "" }));
-
-      const { data: insertedData, error: insertError } = await supabase
-        .from("confirmations")
-        .insert([{
-          confirmation_code: confirmationCode,
-          date_code: dateCode,
-          confirmation_date: format(today, "yyyy-MM-dd"),
-          status: "draft",
-          hotels_emailed: hotelNames,
-          arrival_date: earliestCheckIn,
-          departure_date: latestCheckOut,
-          total_days: totalDays,
-          total_nights: totalNights,
-          raw_payload: {
-            hotelBookings: draft.hotel_bookings,
-            clients: emptyClients,
-            guestInfo: { numAdults: draft.guest_info.numAdults, numKids: draft.guest_info.numKids, kidsAges: [] },
-            arrival: { date: earliestCheckIn || "", time: "", flight: "", from: "" },
-            departure: { date: latestCheckOut || "", time: "", flight: "", to: "" },
-            itinerary: [],
-            services: "",
-            notes: "",
-          } as any,
-        }])
-        .select()
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Delete the draft after successful transfer
-      await deleteDraft.mutateAsync(draft.id);
-
-      toast.success(`Created draft confirmation ${confirmationCode}`);
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to transfer to confirmation");
-    } finally {
-      setIsTransferring(null);
-    }
-  };
-
-  const handleDeleteDraft = async (id: string) => {
-    try {
-      await deleteDraft.mutateAsync(id);
-      toast.success("Draft deleted");
-      // Clear editing state if we're deleting the draft we're editing
-      if (editingDraftId === id) {
-        handleCancelEdit();
-      }
-    } catch (error) {
-      toast.error("Failed to delete draft");
-    }
-  };
-
-  const handleEditDraft = (draft: BookingDraft) => {
-    setEditingDraftId(draft.id);
-    setOriginalHotelBookings(draft.hotel_bookings);
-    setHotelBookings(
-      draft.hotel_bookings.map((b) => ({
-        ...b,
-        id: crypto.randomUUID(),
-      }))
-    );
-    setSharedGuests({
-      adults: draft.guest_info.numAdults,
-      kids: draft.guest_info.numKids,
-      applyToAll: true,
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingDraftId(null);
-    setOriginalHotelBookings([]);
-    setHotelBookings([
-      {
-        id: crypto.randomUUID(),
-        hotelName: "",
-        hotelEmail: "",
-        checkIn: "",
-        checkOut: "",
-        numAdults: 2,
-        numKids: 0,
-        mealType: "BB",
-        roomCategory: "Standard",
-      },
-    ]);
-    setSharedGuests({ adults: 2, kids: 0, applyToAll: true });
-  };
-
-  const handleSaveEditedDraft = async () => {
-    if (!editingDraftId) return;
-    
-    setIsSubmitting(true);
-    try {
-      const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
-      const totalAdults = hotelBookings.reduce((max, b) => Math.max(max, b.numAdults || 0), 0);
-      const totalKids = hotelBookings.reduce((max, b) => Math.max(max, b.numKids || 0), 0);
-
-      await updateDraft.mutateAsync({
-        id: editingDraftId,
-        hotel_bookings: bookingsToSave,
-        guest_info: { numAdults: totalAdults, numKids: totalKids },
-      });
-
-      toast.success("Draft updated");
-      handleCancelEdit();
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to update draft");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const isHotelModified = (index: number): boolean => {
-    if (!editingDraftId || !originalHotelBookings[index]) return false;
-    const original = originalHotelBookings[index];
-    const current = hotelBookings[index];
-    if (!current) return false;
-    
-    return (
-      original.hotelName !== current.hotelName ||
-      original.hotelEmail !== current.hotelEmail ||
-      original.checkIn !== current.checkIn ||
-      original.checkOut !== current.checkOut ||
-      original.numAdults !== current.numAdults ||
-      original.numKids !== current.numKids ||
-      original.mealType !== current.mealType ||
-      original.roomCategory !== current.roomCategory
-    );
-  };
-
-  const handleSendSingleHotel = async (index: number) => {
-    const booking = hotelBookings[index];
-    if (!booking.hotelEmail) {
-      toast.error("No email address for this hotel");
-      return;
-    }
-
-    setSendingHotelIndex(index);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token || "";
-      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-      const authHeader = accessToken || apiKey;
-      const { error: emailError } = await supabase.functions.invoke("send-hotel-emails", {
-        body: {
-          hotels: [{
-            hotelName: booking.hotelName,
-            hotelEmail: booking.hotelEmail,
-            clientName: "TBD",
-            checkIn: booking.checkIn,
-            checkOut: booking.checkOut,
-            roomType: booking.roomCategory,
-            meals: booking.mealType,
-            confirmationCode: "PENDING",
-            guestInfo: {
-              numAdults: booking.numAdults,
-              numKids: booking.numKids,
-              kidsAges: [],
-            },
-          }],
-          confirmationCode: "PENDING",
-        },
-        headers: {
-          ...(authHeader ? { Authorization: `Bearer ${authHeader}` } : {}),
-          ...(apiKey ? { apikey: apiKey } : {}),
-        },
-      });
-
-      if (emailError) {
-        toast.error(`Failed to send email: ${emailError.message}`);
-      } else {
-        toast.success(`Email sent to ${booking.hotelName}`);
-        
-        // Update the original to match current (so it's no longer "modified")
-        setOriginalHotelBookings((prev) => {
-          const updated = [...prev];
-          updated[index] = { ...booking };
-          delete (updated[index] as any).id;
-          return updated;
-        });
-
-        // Also save the draft with the updated hotel
-        if (editingDraftId) {
-          const bookingsToSave = hotelBookings.map(({ id, ...rest }) => rest);
-          await updateDraft.mutateAsync({
-            id: editingDraftId,
-            hotel_bookings: bookingsToSave,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error("Failed to send email");
-    } finally {
-      setSendingHotelIndex(null);
-    }
-  };
-
-  const validEmailCount = hotelBookings.filter(b => b.hotelName && b.hotelEmail).length;
+  }, [rows, search]);
 
   return (
     <div>
-      {/* Minimal Header */}
+      {/* Header */}
       <div className="border-b border-[#0F4C5C]/10 bg-gradient-to-r from-white via-white to-[#EAF7F8] -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
           <Plane className="h-4 w-4 text-[#0F4C5C]" />
-          <h1 className="text-sm font-semibold text-[#0F4C5C]">
-            {editingDraftId ? "Edit Booking Draft" : "Create Booking Request"}
-          </h1>
-          {editingDraftId && (
-            <Badge variant="outline" className="ml-2 border-[#0F4C5C]/20 text-[#0F4C5C] bg-[#EAF7F8]">
-              Editing
-            </Badge>
-          )}
+          <h1 className="text-sm font-semibold text-[#0F4C5C]">Hotel Bookings</h1>
+          <span className="text-xs text-muted-foreground">
+            Send hotel emails and track approvals per confirmation
+          </span>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
-        {/* Guest Settings Card */}
-        <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] overflow-hidden">
-          <div className="bg-gradient-to-r from-white via-white to-[#EAF7F8] px-5 py-3 border-b border-[#0F4C5C]/10">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#0F4C5C]" />
-              <span className="font-semibold text-sm">Guest Settings</span>
-            </div>
-          </div>
-          <CardContent className="py-4 px-5">
-            <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                    Adults
-                  </Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={sharedGuests.adults}
-                    onChange={(e) => updateSharedGuests('adults', parseInt(e.target.value) || 1)}
-                    className="w-16 h-10 text-center font-medium border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/20 focus-visible:border-[#0F4C5C]/40"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-medium text-muted-foreground whitespace-nowrap">
-                    Kids
-                  </Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={sharedGuests.kids}
-                    onChange={(e) => updateSharedGuests('kids', parseInt(e.target.value) || 0)}
-                    className="w-16 h-10 text-center font-medium border-[#0F4C5C]/15 focus-visible:ring-[#0F4C5C]/20 focus-visible:border-[#0F4C5C]/40"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="sync-guests"
-                  checked={sharedGuests.applyToAll}
-                  onCheckedChange={toggleSharedGuests}
-                />
-                <Label htmlFor="sync-guests" className="text-sm cursor-pointer font-medium">
-                  Apply to all stops
-                </Label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="max-w-5xl mx-auto px-4 md:px-8 py-2 space-y-5">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by code or client..."
+            className="pl-9 max-w-sm"
+          />
+        </div>
 
-        {/* Itinerary Cards */}
-        <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)]">
-          <CardContent className="p-5">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext
-                items={hotelBookings.map(b => b.id)}
-                strategy={horizontalListSortingStrategy}
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-14 text-center">
+              <Hotel className="h-10 w-10 text-[#0F4C5C]/15 mx-auto mb-3" />
+              <p className="text-sm font-medium">No confirmations with hotels yet</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-4">
+                Create a confirmation with hotels in its itinerary, then send booking emails here.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full border-[#0F4C5C]/30 text-[#0F4C5C]"
+                onClick={() => navigate("/new")}
               >
-                <div className="flex gap-5 overflow-x-auto pt-3 pb-5 items-stretch scrollbar-thin">
-                  {hotelBookings.map((booking, index) => (
-                    <div key={booking.id} className="flex flex-col">
-                      <CompactHotelBookingCard
-                        id={booking.id}
-                        booking={booking}
-                        index={index}
-                        onChange={(updated) => updateHotelBooking(index, updated)}
-                        onRemove={() => removeHotelBooking(index)}
-                        canRemove={hotelBookings.length > 1}
-                        isCheckInLinked={isCheckInLinked(index)}
-                        savedHotels={savedHotels}
-                        hideGuestFields={sharedGuests.applyToAll}
-                      />
-                      {/* Send button for modified hotels while editing */}
-                      {editingDraftId && isHotelModified(index) && booking.hotelEmail && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleSendSingleHotel(index)}
-                          disabled={sendingHotelIndex === index}
-                          className="mt-2 gap-1.5 border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                New confirmation
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map(({ confirmation: c, hotels }) => {
+              const approvals = c.raw_payload?.hotel_approvals || {};
+              const emailed = new Set(c.hotels_emailed || []);
+              const approvedCount = hotels.filter((h) => approvals[h.hotelName]?.approved).length;
+              const allApproved = approvedCount === hotels.length;
+              const anyEmailed = hotels.some((h) => emailed.has(h.hotelName));
+              const emailableNames = hotels.filter((h) => h.hasEmail).map((h) => h.hotelName);
+
+              return (
+                <Card
+                  key={c.id}
+                  className={cn(
+                    "border bg-white/95 shadow-[0_10px_24px_rgba(15,76,92,0.08)] overflow-hidden transition-colors",
+                    allApproved ? "border-emerald-300" : "border-[#0F4C5C]/10"
+                  )}
+                >
+                  <CardHeader className="pb-3 bg-gradient-to-r from-white via-white to-[#EAF7F8]/50 border-b border-[#0F4C5C]/10">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <button
+                          className="font-mono font-semibold text-[#0F4C5C] hover:underline"
+                          onClick={() => navigate(`/confirmation/${c.id}`)}
                         >
-                          <Send className="h-3 w-3" />
-                          {sendingHotelIndex === index ? "Sending..." : "Send Update"}
-                        </Button>
-                      )}
-                      {editingDraftId && !isHotelModified(index) && originalHotelBookings[index] && (
-                        <Badge variant="outline" className="mt-2 justify-center border-emerald-500 text-emerald-600">
-                          <Mail className="h-3 w-3 mr-1" />
-                          Sent
+                          {c.confirmation_code}
+                        </button>
+                        <span className="text-sm text-muted-foreground truncate">
+                          {c.main_client_name || "—"}
+                        </span>
+                        {c.arrival_date && (
+                          <span className="text-xs text-muted-foreground">{c.arrival_date}</span>
+                        )}
+                      </div>
+                      {/* Status pill */}
+                      {allApproved ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          All approved
+                        </Badge>
+                      ) : !anyEmailed ? (
+                        <Badge variant="outline" className="text-muted-foreground gap-1">
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Not sent
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300">
+                          {approvedCount}/{hotels.length} approved
                         </Badge>
                       )}
                     </div>
-                  ))}
-                  
-                  
-                  {/* Add Hotel Card */}
-                  <Card 
-                    className="min-w-[240px] w-[240px] flex-shrink-0 border-dashed border-2 border-[#0F4C5C]/20 bg-gradient-to-br from-white via-white to-[#EAF7F8]/60 cursor-pointer hover:border-[#0F4C5C]/50 hover:bg-[#EAF7F8] transition-all duration-300 flex items-center justify-center group"
-                    onClick={addHotelBooking}
-                    style={{ minHeight: '420px' }}
-                  >
-                    <div className="text-center text-[#0F4C5C]/70 group-hover:text-[#0F4C5C] transition-colors duration-300">
-                      <div className="w-14 h-14 rounded-full bg-[#0F4C5C]/10 group-hover:bg-[#0F4C5C]/15 flex items-center justify-center mx-auto mb-4 transition-all duration-300 group-hover:scale-110">
-                        <Plus className="h-7 w-7 text-[#0F4C5C]" />
-                      </div>
-                      <span className="text-sm font-semibold">Add Stop</span>
-                      <p className="text-xs mt-1 opacity-70">Click to add another hotel</p>
+                    {/* Progress bar */}
+                    <div className="mt-2 h-1.5 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          allApproved ? "bg-emerald-500" : "bg-[#0F4C5C]"
+                        )}
+                        style={{ width: `${(approvedCount / hotels.length) * 100}%` }}
+                      />
                     </div>
-                  </Card>
-                </div>
-              </SortableContext>
-            </DndContext>
-          </CardContent>
-        </Card>
+                  </CardHeader>
 
-        {/* Email Preview */}
-        {validEmailCount > 0 && (
-          <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] overflow-hidden">
-            <Accordion type="single" collapsible defaultValue="">
-              <AccordionItem value="email-preview" className="border-none">
-                <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-[#EAF7F8]/70 transition-colors">
-                  <div className="flex items-center gap-3 text-left">
-                    <div className="w-8 h-8 rounded-lg bg-[#0F4C5C]/10 flex items-center justify-center">
-                      <Mail className="h-4 w-4 text-[#0F4C5C]" />
-                    </div>
-                    <div>
-                      <span className="font-semibold">Email Preview</span>
-                      <span className="text-muted-foreground font-normal ml-2">
-                        {validEmailCount} {validEmailCount === 1 ? 'email' : 'emails'} ready to send
-                      </span>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-5 pb-5">
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {hotelBookings.filter(b => b.hotelName && b.hotelEmail).map((booking, index) => (
-                      <Card key={index} className="bg-white/90 border-[#0F4C5C]/10 overflow-hidden shadow-[0_6px_16px_rgba(15,76,92,0.06)]">
-                        <CardHeader className="py-3 px-4 bg-[#EAF7F8]/60 border-b border-[#0F4C5C]/10">
-                          <CardTitle className="text-sm font-semibold">{booking.hotelName}</CardTitle>
-                          <p className="text-xs text-muted-foreground">{booking.hotelEmail}</p>
-                        </CardHeader>
-                        <CardContent className="p-4">
-                          <pre className="text-xs whitespace-pre-wrap font-mono bg-white p-3 rounded-lg border border-[#0F4C5C]/10 max-h-48 overflow-auto">
-                            {generateEmailBody(booking)}
-                          </pre>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </Card>
-        )}
-
-        {/* Saved Drafts Section */}
-        <Card className="border-[#0F4C5C]/10 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-white via-white to-[#EAF7F8] py-4 px-5 border-b border-[#0F4C5C]/10">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#0F4C5C]" />
-              <CardTitle className="text-sm font-semibold">Saved Drafts</CardTitle>
-              {drafts && drafts.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {drafts.length}
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="p-5">
-            {draftsLoading ? (
-              <div className="space-y-3">
-                {[...Array(2)].map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full" />
-                ))}
-              </div>
-            ) : !drafts?.length ? (
-              <p className="text-center text-muted-foreground py-8 text-sm">
-                No drafts yet. Send emails to hotels to create drafts.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {drafts.map((draft) => (
-                  <Card key={draft.id} className="bg-white/90 border-[#0F4C5C]/10 overflow-hidden shadow-[0_6px_16px_rgba(15,76,92,0.06)]">
-                    <div className="p-4 flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">
-                            {draft.hotel_bookings.map(b => b.hotelName).filter(Boolean).join(" → ") || "No hotels"}
-                          </span>
-                          {draft.emails_sent && (
-                            <Badge variant="outline" className="text-xs border-emerald-500 text-emerald-600">
-                              <Mail className="h-3 w-3 mr-1" />
-                              Emails Sent
-                            </Badge>
+                  <CardContent className="p-4 space-y-2">
+                    {hotels.map((h) => {
+                      const approved = !!approvals[h.hotelName]?.approved;
+                      const wasEmailed = emailed.has(h.hotelName);
+                      return (
+                        <div
+                          key={h.hotelName}
+                          className={cn(
+                            "flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors",
+                            approved ? "border-emerald-200 bg-emerald-50/50" : "border-border bg-white"
                           )}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Hotel className="h-4 w-4 text-[#0F4C5C] shrink-0" />
+                              <span className="text-sm font-medium truncate">{h.hotelName}</span>
+                              {wasEmailed && (
+                                <Badge variant="outline" className="border-emerald-400 text-emerald-600 gap-1 text-[10px]">
+                                  <Mail className="h-3 w-3" />
+                                  Emailed
+                                </Badge>
+                              )}
+                              {!h.hasEmail && (
+                                <span className="text-[10px] text-muted-foreground">(no email)</span>
+                              )}
+                            </div>
+                            {(h.checkIn || h.checkOut) && (
+                              <p className="text-xs text-muted-foreground mt-0.5 pl-6">
+                                {h.checkIn} {h.checkOut ? `→ ${h.checkOut}` : ""}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant={approved ? "default" : "outline"}
+                            className={cn(
+                              "gap-1.5 shrink-0",
+                              approved
+                                ? "bg-emerald-600 hover:bg-emerald-700"
+                                : "border-[#0F4C5C]/30 text-[#0F4C5C]"
+                            )}
+                            disabled={setApproval.isPending}
+                            onClick={() =>
+                              setApproval.mutate({
+                                confirmationId: c.id,
+                                hotelName: h.hotelName,
+                                approved: !approved,
+                              })
+                            }
+                          >
+                            {approved ? (
+                              <CheckCircle2 className="h-4 w-4" />
+                            ) : (
+                              <Circle className="h-4 w-4" />
+                            )}
+                            {approved ? "Approved" : "Mark approved"}
+                          </Button>
                         </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span>{draft.guest_info.numAdults} Adults{draft.guest_info.numKids > 0 ? ` + ${draft.guest_info.numKids} Kids` : ""}</span>
-                          <span>•</span>
-                          <span>{format(new Date(draft.created_at), "MMM d, yyyy 'at' h:mm a")}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditDraft(draft)}
-                          disabled={editingDraftId === draft.id}
-                          className="gap-1.5 border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]"
-                        >
-                          <Edit className="h-4 w-4" />
-                          {editingDraftId === draft.id ? "Editing..." : "Edit"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleTransferToConfirmation(draft)}
-                          disabled={isTransferring === draft.id || editingDraftId === draft.id}
-                          className="gap-1.5 bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
-                        >
-                          <ArrowUpRight className="h-4 w-4" />
-                          {isTransferring === draft.id ? "Transferring..." : "Transfer"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteDraft(draft.id)}
-                          disabled={editingDraftId === draft.id}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      );
+                    })}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        {emailableNames.length > 0
+                          ? `${emailableNames.length} hotel${emailableNames.length > 1 ? "s" : ""} with email`
+                          : "No hotel emails on file"}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="gap-1.5 bg-[#0F4C5C] hover:bg-[#0F4C5C]/90"
+                        disabled={emailableNames.length === 0}
+                        onClick={() => setPreviewConf(c)}
+                      >
+                        <Send className="h-4 w-4" />
+                        {anyEmailed ? "Review & send emails" : "Send booking emails"}
+                      </Button>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Spacer for floating button */}
-        <div className="h-20" />
-      </div>
-
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
-        {editingDraftId && (
-          <Button
-            size="lg"
-            variant="outline"
-            onClick={handleCancelEdit}
-            className="gap-2 px-6 h-14 text-base font-semibold shadow-xl bg-background rounded-full border-[#0F4C5C]/20 text-[#0F4C5C] hover:bg-[#EAF7F8]"
-          >
-            <X className="h-5 w-5" />
-            Cancel
-          </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         )}
-        <Button
-          size="lg"
-          onClick={editingDraftId ? handleSaveEditedDraft : handleSubmit}
-          disabled={isSubmitting || hotelBookings.every(b => !b.hotelName)}
-          className="gap-2 px-6 h-14 text-base font-semibold shadow-xl hover:shadow-2xl transition-all duration-300 bg-[#0F4C5C] hover:bg-[#0F4C5C]/90 rounded-full"
-        >
-          <Send className="h-5 w-5" />
-          {isSubmitting 
-            ? (editingDraftId ? "Saving..." : "Sending...")
-            : editingDraftId
-              ? "Save Draft"
-              : validEmailCount > 0 
-                ? `Send ${validEmailCount}`
-                : "Save"
-          }
-        </Button>
       </div>
+
+      {previewConf && (
+        <EmailPreviewDialog
+          open={!!previewConf}
+          onOpenChange={(o) => {
+            if (!o) setPreviewConf(null);
+          }}
+          payload={previewConf.raw_payload as ConfirmationPayload}
+          confirmationCode={previewConf.confirmation_code}
+          onSent={(names) =>
+            markEmailed.mutate({ confirmationId: previewConf.id, hotelNames: names })
+          }
+        />
+      )}
     </div>
   );
 }

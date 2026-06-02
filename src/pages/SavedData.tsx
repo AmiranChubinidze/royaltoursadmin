@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { ExpenseRulesSection } from "@/components/ExpenseRulesSection";
+import { HotelPriceAttachments } from "@/components/HotelPriceAttachments";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -587,6 +588,12 @@ export default function SavedData() {
                   </div>
                 )}
               </div>
+
+              {editingHotel && (
+                <div className="border-t pt-4">
+                  <HotelPriceAttachments hotelId={editingHotel.id} />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={closeEditDialog}>

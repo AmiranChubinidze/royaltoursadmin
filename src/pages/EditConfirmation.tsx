@@ -116,6 +116,7 @@ export default function EditConfirmation() {
     services: payload?.services || "",
     notes: payload?.notes || "",
     price: confirmation.price ?? payload?.price ?? null,
+    priceCurrency: confirmation.price_currency ?? payload?.priceCurrency ?? "USD",
     selectedRuleIds: payload?.selectedRuleIds || [],
   };
 
@@ -145,6 +146,7 @@ export default function EditConfirmation() {
           tourSource: data.tourSource,
           guestInfo: data.guestInfo,
           price: data.price,
+          priceCurrency: data.priceCurrency,
           selectedRuleIds: data.selectedRuleIds,
           // Keep hotelBookings for reference
           hotelBookings: hotelBookings,

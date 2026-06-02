@@ -40,6 +40,7 @@ export interface Transaction {
   confirmation?: {
     confirmation_code: string;
     main_client_name: string | null;
+    tour_source: string | null;
   } | null;
   holder?: {
     id: string;
@@ -110,7 +111,7 @@ export const useTransactions = (filters?: {
         .from("transactions")
         .select(`
           *,
-          confirmation:confirmations(confirmation_code, main_client_name),
+          confirmation:confirmations(confirmation_code, main_client_name, tour_source),
           holder:holders!transactions_holder_id_fkey(id, name, type),
           from_holder:holders!transactions_from_holder_id_fkey(id, name, type),
           to_holder:holders!transactions_to_holder_id_fkey(id, name, type),

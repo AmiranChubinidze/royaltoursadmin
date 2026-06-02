@@ -75,7 +75,7 @@ Room Category (Standard/Upgrade): ${booking.roomCategory}
 Please confirm receipt of this reservation request.
 
 Best regards,
-LLC Royal Georgian Tours
+Royal Georgian Tours
 Phone: +995 592 005 450
 Email: Royalgeorgiantours@gmail.com`;
 }
@@ -263,7 +263,7 @@ Room Category (Standard/Upgrade): ${booking.roomCategory}
 Please confirm receipt of this reservation request.
 
 Best regards,
-LLC Royal Georgian Tours
+Royal Georgian Tours
 Phone: +995 592 005 450
 Email: Royalgeorgiantours@gmail.com`;
 }

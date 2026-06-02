@@ -35,6 +35,20 @@ export function getDateCode(dateStr: string): string {
   return dateStr.replace(/\//g, "");
 }
 
+// Convert a DD/MM/YYYY string to an ISO YYYY-MM-DD string suitable for a
+// Postgres DATE column. Falls back to today if the input isn't parseable.
+// IMPORTANT: never pass DD/MM/YYYY directly into transactions.date — Postgres
+// reads it as MM/DD and rejects days > 12, silently dropping the row.
+export function isoDateFromDdMmYyyy(dateStr: string | null | undefined): string {
+  if (dateStr) {
+    const parts = dateStr.split("/");
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    }
+  }
+  return new Date().toISOString().split("T")[0];
+}
+
 export function calculateDaysAndNights(
   arrivalDate: string,
   departureDate: string

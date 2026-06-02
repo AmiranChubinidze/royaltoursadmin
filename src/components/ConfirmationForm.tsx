@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -324,7 +324,13 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
 
   // Track selected hotel per itinerary row for activity suggestions
   const [selectedHotels, setSelectedHotels] = useState<(SavedHotel | null)[]>([]);
-  
+
+  // Expense-rule ids the user has explicitly turned off. The auto-select effect
+  // below must not re-add these, otherwise hotel-restricted rules (e.g. the
+  // owned-hotel breakfast charge) can never be unchecked.
+  const manuallyDeselectedRef = useRef<Set<string>>(new Set());
+  const seededDeselectionsRef = useRef(false);
+
 
   const [formData, setFormData] = useState<ConfirmationFormData>({
     tourSource: initialData?.tourSource || "direct",
@@ -337,6 +343,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     services: initialData?.services || "",
     notes: initialData?.notes || "",
     price: initialData?.price ?? null,
+    priceCurrency: initialData?.priceCurrency ?? "USD",
     selectedRuleIds: initialData?.selectedRuleIds || [],
   });
 
@@ -379,13 +386,28 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     const hotelRules = activeRules.filter((r) => (r.hotel_ids ?? []).length > 0);
     if (!hotelRules.length) return;
 
+    // On edit, any matching hotel-rule that was saved unselected is treated as an
+    // intentional opt-out so we don't auto-re-add it on load.
+    if (!seededDeselectionsRef.current) {
+      seededDeselectionsRef.current = true;
+      if (isEdit) {
+        const initialIds = initialData?.selectedRuleIds || [];
+        for (const rule of hotelRules) {
+          const nights = countHotelNights(formData.itinerary, rule.hotel_ids ?? [], savedHotels);
+          if (nights > 0 && !initialIds.includes(rule.id)) {
+            manuallyDeselectedRef.current.add(rule.id);
+          }
+        }
+      }
+    }
+
     setFormData((prev) => {
       let ids = [...prev.selectedRuleIds];
       let changed = false;
       for (const rule of hotelRules) {
         const nights = countHotelNights(prev.itinerary, rule.hotel_ids ?? [], savedHotels);
         const isSelected = ids.includes(rule.id);
-        if (nights > 0 && !isSelected) {
+        if (nights > 0 && !isSelected && !manuallyDeselectedRef.current.has(rule.id)) {
           ids = [...ids, rule.id];
           changed = true;
         } else if (nights === 0 && isSelected) {
@@ -395,7 +417,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
       }
       return changed ? { ...prev, selectedRuleIds: ids } : prev;
     });
-  }, [formData.itinerary, activeRules, savedHotels]);
+  }, [formData.itinerary, activeRules, savedHotels, isEdit, initialData]);
 
   // Sync adults count with client count
   useEffect(() => {
@@ -576,6 +598,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         services: filteredData.services,
         notes: filteredData.notes,
         price: filteredData.price,
+        priceCurrency: filteredData.priceCurrency,
         selectedRuleIds: filteredData.selectedRuleIds,
       });
 
@@ -653,17 +676,46 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 </div>
                 
                 <div>
-                  <Label htmlFor="price" className="text-sm font-medium mb-1.5 block">Tour Price ($)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    placeholder="0.00"
-                    value={formData.price ?? ""}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      price: e.target.value ? parseFloat(e.target.value) : null 
-                    }))}
-                  />
+                  <Label htmlFor="price" className="text-sm font-medium mb-1.5 block">Tour Price</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="price"
+                      type="number"
+                      placeholder="0.00"
+                      className="flex-1"
+                      value={formData.price ?? ""}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        price: e.target.value ? parseFloat(e.target.value) : null
+                      }))}
+                    />
+                    <div className="flex rounded-md border border-input bg-background overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, priceCurrency: "USD" }))}
+                        className={cn(
+                          "px-3 text-sm font-medium transition-colors",
+                          formData.priceCurrency === "USD"
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted"
+                        )}
+                      >
+                        $
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, priceCurrency: "GEL" }))}
+                        className={cn(
+                          "px-3 text-sm font-medium transition-colors",
+                          formData.priceCurrency === "GEL"
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted"
+                        )}
+                      >
+                        ₾
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 
@@ -1089,12 +1141,24 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
 
                     function toggle() {
                       if (isDisabled) return;
-                      setFormData(prev => ({
-                        ...prev,
-                        selectedRuleIds: isSelected
-                          ? prev.selectedRuleIds.filter(id => id !== rule.id)
-                          : [...prev.selectedRuleIds, rule.id],
-                      }));
+                      // Rules sharing a group toggle together (e.g. both insurance charges).
+                      const affectedIds = rule.group
+                        ? activeRules.filter(r => r.group === rule.group).map(r => r.id)
+                        : [rule.id];
+                      const willSelect = !isSelected;
+                      setFormData(prev => {
+                        const set = new Set(prev.selectedRuleIds);
+                        for (const id of affectedIds) {
+                          if (willSelect) set.add(id);
+                          else set.delete(id);
+                        }
+                        return { ...prev, selectedRuleIds: Array.from(set) };
+                      });
+                      // Remember explicit opt-outs so the auto-select effect won't undo them.
+                      for (const id of affectedIds) {
+                        if (willSelect) manuallyDeselectedRef.current.delete(id);
+                        else manuallyDeselectedRef.current.add(id);
+                      }
                     }
 
                     return (

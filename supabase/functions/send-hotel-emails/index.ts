@@ -170,7 +170,7 @@ Guest Name: ${clientName}
 Please confirm receipt of this reservation request.
 
 Best regards,
-LLC Royal Georgian Tours
+Royal Georgian Tours
 Phone: +995 599 123 456
 Email: Royalgeorgiantours@gmail.com
         `.trim();

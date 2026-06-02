@@ -58,7 +58,7 @@ import { TransactionModal } from "./TransactionModal";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { useSavedHotels } from "@/hooks/useSavedData";
-import { countHotelNights } from "@/lib/confirmationUtils";
+import { countHotelNights, isoDateFromDdMmYyyy } from "@/lib/confirmationUtils";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useHolders } from "@/hooks/useHolders";
 import { useToast } from "@/hooks/use-toast";
@@ -125,15 +125,6 @@ const getCategoryLabel = (category: string) => {
 
 const getCategoryColor = (category: string) => {
   return CATEGORY_COLORS[category] || "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400";
-};
-
-const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
-  if (!dateStr) return new Date().toISOString().split("T")[0];
-  const parts = dateStr.split("/");
-  if (parts.length === 3) {
-    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-  }
-  return new Date().toISOString().split("T")[0];
 };
 
 export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
@@ -207,6 +198,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     arrivalDate: string | null;
     days: number;
     revenueExpected: number;
+    currency: string;
     clientPaid: boolean;
     responsibleHolderId: string | null;
   }
@@ -244,6 +236,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
           arrivalDate: c.arrival_date,
           days,
           revenueExpected,
+          currency: c.price_currency || "USD",
           clientPaid: c.client_paid || false,
           responsibleHolderId: incomeTransaction?.responsible_holder_id || null,
         };
@@ -315,7 +308,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
               category: "tour_payment",
               description: `Tour payment - ${confirmation.confirmation_code}`,
               amount: confirmation.price || 0,
-              currency: "USD",
+              currency: confirmation.price_currency || "USD",
               status: "confirmed",
               confirmation_id: id,
               is_auto_generated: false,
@@ -568,7 +561,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
     // ===== SHEET 1: All Transactions =====
     const headers = [
-      "Date", "Confirmation", "Kind", "Category", "Description",
+      "Date", "Confirmation", "Source", "Kind", "Category", "Description",
       "Amount", "Currency", "Status", "Method", "Responsible", "From", "To", "Notes"
     ];
 
@@ -592,6 +585,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       const row = [
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
+        { v: t.confirmation?.tour_source || "—", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.kind.toUpperCase(), s: { ...cellBorder, ...rowStyle, ...centerStyle, font: { bold: true } } },
         { v: getCategoryLabel(t.category), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
@@ -609,19 +603,20 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
 
     const allTransactionsSheet = XLSX.utils.aoa_to_sheet(transactionRows);
     allTransactionsSheet["!cols"] = [
-      { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 28 },
+      { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 28 },
       { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 22 }
     ];
     allTransactionsSheet["!freeze"] = { xSplit: 0, ySplit: 1 };
 
     // ===== SHEET 2: Income Only =====
     const incomeTransactions = ledgerTransactions.filter(t => t.kind === "in");
-    const incomeRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
-    
+    const incomeRows: any[][] = [["Date", "Confirmation", "Source", "Category", "Description", "Amount", "Currency", "Status"].map(h => ({ v: h, s: headerStyle }))];
+
     incomeTransactions.forEach((t) => {
       incomeRows.push([
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
+        { v: t.confirmation?.tour_source || "—", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: getCategoryLabel(t.category), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.amount, s: { ...cellBorder, ...incomeRowStyle, ...amountStyle } },
@@ -631,26 +626,27 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     });
 
     incomeRows.push([]);
-    incomeRows.push([{ v: "TOTAL", s: { font: { bold: true, sz: 11 } } }, "", "", "", 
+    incomeRows.push([{ v: "TOTAL", s: { font: { bold: true, sz: 11 } } }, "", "", "", "",
       { v: incomeTransactions.reduce((sum, t) => sum + (t.currency === "USD" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
       { v: "USD", s: { ...centerStyle, font: { bold: true } } }
     ]);
-    incomeRows.push(["", "", "", "", 
+    incomeRows.push(["", "", "", "", "",
       { v: incomeTransactions.reduce((sum, t) => sum + (t.currency === "GEL" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
       { v: "GEL", s: { ...centerStyle, font: { bold: true } } }
     ]);
 
     const incomeSheet = XLSX.utils.aoa_to_sheet(incomeRows);
-    incomeSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
+    incomeSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }];
 
     // ===== SHEET 3: Expenses Only =====
     const expenseTransactions = ledgerTransactions.filter(t => t.kind === "out");
-    const expenseRows: any[][] = [["Date", "Confirmation", "Category", "Description", "Amount", "Currency", "Status", "Responsible"].map(h => ({ v: h, s: headerStyle }))];
-    
+    const expenseRows: any[][] = [["Date", "Confirmation", "Source", "Category", "Description", "Amount", "Currency", "Status", "Responsible"].map(h => ({ v: h, s: headerStyle }))];
+
     expenseTransactions.forEach((t) => {
       expenseRows.push([
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
+        { v: t.confirmation?.tour_source || "—", s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: getCategoryLabel(t.category), s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: t.amount, s: { ...cellBorder, ...expenseRowStyle, ...amountStyle } },
@@ -661,17 +657,17 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
     });
 
     expenseRows.push([]);
-    expenseRows.push([{ v: "TOTAL", s: { font: { bold: true, sz: 11 } } }, "", "", "", 
+    expenseRows.push([{ v: "TOTAL", s: { font: { bold: true, sz: 11 } } }, "", "", "", "",
       { v: expenseTransactions.reduce((sum, t) => sum + (t.currency === "USD" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
       { v: "USD", s: { ...centerStyle, font: { bold: true } } }
     ]);
-    expenseRows.push(["", "", "", "", 
+    expenseRows.push(["", "", "", "", "",
       { v: expenseTransactions.reduce((sum, t) => sum + (t.currency === "GEL" ? t.amount : 0), 0), s: { ...amountStyle, font: { bold: true } } },
       { v: "GEL", s: { ...centerStyle, font: { bold: true } } }
     ]);
 
     const expenseSheet = XLSX.utils.aoa_to_sheet(expenseRows);
-    expenseSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
+    expenseSheet["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 28 }, { wch: 12 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
 
     // Create workbook and add sheets
     const workbook = XLSX.utils.book_new();
@@ -874,7 +870,7 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
                       {row.days}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-emerald-600">
-                      ${Math.round(row.revenueExpected).toLocaleString()}
+                      {formatTransactionAmount(row.revenueExpected, row.currency)}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex justify-center">

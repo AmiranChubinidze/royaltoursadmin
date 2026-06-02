@@ -259,11 +259,11 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     isActive={isActive("/create-booking-request")}
                     onClick={() => go("/create-booking-request")}
-                    tooltip="Booking Request"
+                    tooltip="Hotel Bookings"
                     className={navItemClass("/create-booking-request")}
                   >
                     <NavIcon icon={Inbox} />
-                    <span className="group-data-[collapsible=icon]:hidden">Booking Request</span>
+                    <span className="group-data-[collapsible=icon]:hidden">Hotel Bookings</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}

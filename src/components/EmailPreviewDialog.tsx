@@ -32,6 +32,8 @@ interface EmailPreviewDialogProps {
   onOpenChange: (open: boolean) => void;
   payload: ConfirmationPayload;
   confirmationCode: string;
+  /** Called with the hotel names whose emails sent successfully, so callers can track them. */
+  onSent?: (sentHotelNames: string[]) => void;
 }
 
 function generateEmailBody(hotel: HotelEmailData): string {
@@ -53,7 +55,7 @@ Room Category (Standard/Upgrade): [------]
 Please confirm receipt of this reservation request.
 
 Best regards,
-LLC Royal Georgian Tours
+Royal Georgian Tours
 Phone: +995 592 005 450
 Email: Royalgeorgiantours@gmail.com`;
 }
@@ -63,6 +65,7 @@ export function EmailPreviewDialog({
   onOpenChange,
   payload,
   confirmationCode,
+  onSent,
 }: EmailPreviewDialogProps) {
   const [hotels, setHotels] = useState<HotelEmailData[]>([]);
   const [emailBodies, setEmailBodies] = useState<Record<string, string>>({});
@@ -192,6 +195,14 @@ export function EmailPreviewDialog({
       if (error) throw error;
 
       const successCount = data.results.filter((r: { success: boolean }) => r.success).length;
+
+      // Results come back in the same order the emails were sent → map successes to hotel names.
+      const sentHotelNames = hotelsToSend
+        .filter((_, i) => data.results[i]?.success)
+        .map((h) => h.hotelName);
+      if (sentHotelNames.length > 0) {
+        onSent?.(sentHotelNames);
+      }
 
       if (successCount === hotelsToSend.length) {
         toast({

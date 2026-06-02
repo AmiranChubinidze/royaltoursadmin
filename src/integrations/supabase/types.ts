@@ -24,6 +24,7 @@ export type Database = {
           per_day: boolean
           active: boolean
           hotel_ids: string[]
+          group: string | null
           created_at: string
         }
         Insert: {
@@ -35,6 +36,7 @@ export type Database = {
           per_day?: boolean
           active?: boolean
           hotel_ids?: string[]
+          group?: string | null
           created_at?: string
         }
         Update: {
@@ -46,6 +48,7 @@ export type Database = {
           per_day?: boolean
           active?: boolean
           hotel_ids?: string[]
+          group?: string | null
           created_at?: string
         }
         Relationships: []
@@ -265,6 +268,7 @@ export type Database = {
           paid_at: string | null
           paid_by: string | null
           price: number | null
+          price_currency: string | null
           raw_payload: Json | null
           status: string
           total_days: number | null
@@ -291,6 +295,7 @@ export type Database = {
           paid_at?: string | null
           paid_by?: string | null
           price?: number | null
+          price_currency?: string | null
           raw_payload?: Json | null
           status?: string
           total_days?: number | null
@@ -317,6 +322,7 @@ export type Database = {
           paid_at?: string | null
           paid_by?: string | null
           price?: number | null
+          price_currency?: string | null
           raw_payload?: Json | null
           status?: string
           total_days?: number | null
@@ -561,6 +567,44 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      saved_hotel_attachments: {
+        Row: {
+          id: string
+          hotel_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          id?: string
+          hotel_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          id?: string
+          hotel_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_hotel_attachments_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "saved_hotels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {

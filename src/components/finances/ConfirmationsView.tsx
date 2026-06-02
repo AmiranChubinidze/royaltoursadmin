@@ -30,7 +30,7 @@ import { useConfirmations } from "@/hooks/useConfirmations";
 import { useBulkCreateTransactions, useTransactions, Transaction } from "@/hooks/useTransactions";
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { useSavedHotels } from "@/hooks/useSavedData";
-import { countHotelNights } from "@/lib/confirmationUtils";
+import { countHotelNights, isoDateFromDdMmYyyy } from "@/lib/confirmationUtils";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useHolders } from "@/hooks/useHolders";
 import { TransactionModal } from "./TransactionModal";
@@ -54,15 +54,6 @@ interface ConfirmationsViewProps {
   dateFrom?: Date;
   dateTo?: Date;
 }
-
-const isoDateFromDdMmYyyy = (dateStr: string | null | undefined) => {
-  if (!dateStr) return new Date().toISOString().split("T")[0];
-  const parts = dateStr.split("/");
-  if (parts.length === 3) {
-    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-  }
-  return new Date().toISOString().split("T")[0];
-};
 
 interface ConfirmationRow {
   id: string;
@@ -141,7 +132,9 @@ export function ConfirmationsView({ dateFrom, dateTo }: ConfirmationsViewProps) 
       .map((c) => {
         const confirmationTransactions = transactions?.filter((t) => t.confirmation_id === c.id) || [];
         const confirmationExpenses = expenses?.filter((e) => e.confirmation_id === c.id) || [];
-        const revenueExpected = Number(c.price) || 0;
+        // This view normalizes everything to USD for profit math, so convert the
+        // tour price (which may now be GEL) the same way received/expenses are.
+        const revenueExpected = toUSD(Number(c.price) || 0, c.price_currency || "USD");
         const days = c.total_days || 1;
 
         // Calculate received (confirmed "in" transactions only) - convert to USD

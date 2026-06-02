@@ -116,7 +116,7 @@ export const useUploadAttachment = () => {
       amount?: number; // Amount entered by user
       originalCurrency?: string; // Currency selected
       originalAmount?: number; // Kept for compatibility
-      attachmentType?: "invoice" | "payment";
+      attachmentType?: "invoice" | "payment" | "id";
       stayKey?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -266,6 +266,13 @@ export const useUploadAttachment = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["confirmation", variables.confirmationId] });
+      if (variables.attachmentType === "id") {
+        toast({
+          title: "ID uploaded",
+          description: "The passenger ID has been attached successfully.",
+        });
+        return;
+      }
       toast({
         title: variables.attachmentType === "payment" ? "Payment order uploaded" : "Invoice uploaded",
         description: variables.attachmentType === "payment"

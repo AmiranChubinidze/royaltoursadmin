@@ -40,6 +40,7 @@ interface RuleFormData {
   per_person: boolean;
   per_day: boolean;
   hotel_ids: string[];
+  group: string;
 }
 
 const EMPTY_FORM: RuleFormData = {
@@ -49,6 +50,7 @@ const EMPTY_FORM: RuleFormData = {
   per_person: false,
   per_day: false,
   hotel_ids: [],
+  group: "",
 };
 
 const PREVIEW_ADULTS = 2;
@@ -83,6 +85,7 @@ export function ExpenseRulesSection() {
       per_person: rule.per_person,
       per_day: rule.per_day,
       hotel_ids: rule.hotel_ids ?? [],
+      group: rule.group ?? "",
     });
     setDialogOpen(true);
   }
@@ -104,6 +107,7 @@ export function ExpenseRulesSection() {
       per_person: form.per_person,
       per_day: form.per_day,
       hotel_ids: form.hotel_ids,
+      group: form.group.trim() || null,
       active: editingRule ? editingRule.active : true,
     };
 
@@ -421,6 +425,19 @@ export function ExpenseRulesSection() {
                 )}
               </div>
             )}
+
+            {/* Group */}
+            <div className="space-y-1.5">
+              <Label>Group <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                placeholder="insurance"
+                value={form.group}
+                onChange={(e) => setForm((f) => ({ ...f, group: e.target.value }))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Rules with the same group are selected together on a confirmation (e.g. both insurance charges).
+              </p>
+            </div>
 
             {/* Live preview */}
             {previewValid && (

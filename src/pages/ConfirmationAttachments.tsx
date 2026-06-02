@@ -43,6 +43,7 @@ import {
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSavedHotels } from "@/hooks/useSavedData";
+import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -76,6 +77,53 @@ export default function ConfirmationAttachments() {
   const invoiceAmountMap = useMemo(() => {
     return confirmation?.raw_payload?.invoice_amounts ?? {};
   }, [confirmation]);
+
+  // Passenger ID documents are stored under a dedicated "passenger_ids" path
+  // segment so they stay out of the per-hotel invoice/payment grouping.
+  const isIdAttachment = (a: ConfirmationAttachment) =>
+    a.file_path.includes("/passenger_ids/");
+  const idAttachments = useMemo(
+    () => (attachments ?? []).filter(isIdAttachment),
+    [attachments]
+  );
+  const stayAttachments = useMemo(
+    () => (attachments ?? []).filter((a) => !isIdAttachment(a)),
+    [attachments]
+  );
+
+  // Passenger ID uploads only matter for insured tours, so the section appears
+  // once an insurance expense rule is selected on the confirmation.
+  const { data: expenseRules } = useExpenseRules();
+  const insuranceSelected = useMemo(() => {
+    const selected = confirmation?.raw_payload?.selectedRuleIds ?? [];
+    if (!selected.length || !expenseRules) return false;
+    return expenseRules.some(
+      (r) =>
+        selected.includes(r.id) &&
+        ((r.group ?? "").toLowerCase() === "insurance" ||
+          r.name.toLowerCase().includes("insurance"))
+    );
+  }, [confirmation, expenseRules]);
+
+  const idFileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingIds, setUploadingIds] = useState(false);
+
+  const handleUploadIds = async (files: FileList | null) => {
+    if (!files || !files.length || !id) return;
+    setUploadingIds(true);
+    try {
+      for (const file of Array.from(files)) {
+        await uploadMutation.mutateAsync({
+          confirmationId: id,
+          file,
+          attachmentType: "id",
+          stayKey: "passenger_ids",
+        });
+      }
+    } finally {
+      setUploadingIds(false);
+    }
+  };
   
   const [isDragging, setIsDragging] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -525,17 +573,17 @@ export default function ConfirmationAttachments() {
   }, [confirmation]);
 
   const derivedStayMapInfo = useMemo(() => {
-    if (!attachments || !visibleHotelStays.length) {
+    if (!stayAttachments.length || !visibleHotelStays.length) {
       return { map: rawAttachmentStayMap, changed: false };
     }
     return buildAttachmentStayMap(
-      attachments,
+      stayAttachments,
       visibleHotelStays,
       rawAttachmentStayMap,
       expenseMap,
       invoiceAmountMap
     );
-  }, [attachments, visibleHotelStays, rawAttachmentStayMap, expenseMap, invoiceAmountMap]);
+  }, [stayAttachments, visibleHotelStays, rawAttachmentStayMap, expenseMap, invoiceAmountMap]);
 
 
   useEffect(() => {
@@ -560,11 +608,11 @@ export default function ConfirmationAttachments() {
   
   const attachmentsByStay = useMemo(() => {
     const map = new Map<string, { invoices: ConfirmationAttachment[]; payments: ConfirmationAttachment[] }>();
-    if (!attachments || visibleHotelStays.length === 0) return map;
+    if (!stayAttachments.length || visibleHotelStays.length === 0) return map;
 
     const buckets = new Map<string, { invoice: ConfirmationAttachment[]; payment: ConfirmationAttachment[] }>();
 
-    attachments.forEach((attachment) => {
+    stayAttachments.forEach((attachment) => {
       const stayKey = derivedStayMapInfo.map[attachment.id] || null;
       if (!stayKey) return;
       const bucket = buckets.get(stayKey) || { invoice: [], payment: [] };
@@ -583,13 +631,13 @@ export default function ConfirmationAttachments() {
     });
 
     return map;
-  }, [attachments, visibleHotelStays, derivedStayMapInfo.map, expenseMap, invoiceAmountMap]);
+  }, [stayAttachments, visibleHotelStays, derivedStayMapInfo.map, expenseMap, invoiceAmountMap]);
 
   const attachmentsByStayRaw = useMemo(() => {
     const map = new Map<string, ConfirmationAttachment[]>();
-    if (!attachments || visibleHotelStays.length === 0) return map;
+    if (!stayAttachments.length || visibleHotelStays.length === 0) return map;
 
-    attachments.forEach((attachment) => {
+    stayAttachments.forEach((attachment) => {
       const stayKey = derivedStayMapInfo.map[attachment.id] || null;
       if (!stayKey) return;
       const list = map.get(stayKey) || [];
@@ -598,7 +646,7 @@ export default function ConfirmationAttachments() {
     });
 
     return map;
-  }, [attachments, visibleHotelStays, derivedStayMapInfo.map]);
+  }, [stayAttachments, visibleHotelStays, derivedStayMapInfo.map]);
 
   useEffect(() => {
     if (!id || attachmentsLoading || !attachments || !expenseInfo) return;
@@ -956,6 +1004,112 @@ export default function ConfirmationAttachments() {
             )}
           </CardContent>
         </Card>
+
+        {/* Passenger IDs (insured tours) */}
+        {insuranceSelected && (
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Upload className="h-5 w-5 text-primary" />
+                  Passenger IDs
+                </CardTitle>
+                {canUpload && (
+                  <>
+                    <input
+                      ref={idFileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        handleUploadIds(e.target.files);
+                        e.target.value = "";
+                      }}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={uploadingIds}
+                      onClick={() => idFileInputRef.current?.click()}
+                    >
+                      {uploadingIds ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-1" />
+                      )}
+                      Add ID
+                    </Button>
+                  </>
+                )}
+              </div>
+              <CardDescription>Upload ID documents for insured passengers</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {idAttachments.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic py-2">
+                  No passenger IDs uploaded yet.
+                </p>
+              ) : (
+                idAttachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border bg-card p-2.5"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Eye className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="text-sm truncate">{att.file_name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        disabled={previewLoadingId === att.id}
+                        onClick={() => handlePreview(att.file_path, att.file_name, att.id)}
+                      >
+                        {previewLoadingId === att.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        disabled={downloadingId === att.id}
+                        onClick={() => handleDownload(att.file_path, att.file_name, att.id)}
+                      >
+                        {downloadingId === att.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </Button>
+                      {canDelete && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() =>
+                            deleteMutation.mutate({
+                              attachmentId: att.id,
+                              filePath: att.file_path,
+                              confirmationId: id!,
+                            })
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Hotel Payments Checklist */}
         {visibleHotelStays.length > 0 && (

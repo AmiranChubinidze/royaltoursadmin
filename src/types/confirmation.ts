@@ -61,9 +61,14 @@ export interface ConfirmationPayload {
   notes?: string;
   tourSource?: string;
   price?: number | null;
+  priceCurrency?: "USD" | "GEL";
   selectedRuleIds?: string[];
+  // Passenger ID document attachments (for insured tours)
+  id_attachment_ids?: string[];
   // For draft confirmations from booking requests
   hotelBookings?: HotelBooking[];
+  // Per-hotel booking approval tracking (keyed by hotel name)
+  hotel_approvals?: Record<string, { approved: boolean; approved_at?: string }>;
   // Invoice tracking
   invoice_amounts?: Record<string, { amount: number; currency?: string }>;
   invoice_checks?: string[];
@@ -91,6 +96,7 @@ export interface Confirmation {
   paid_at: string | null;
   notes: string | null;
   price: number | null;
+  price_currency: "USD" | "GEL" | null;
   client_paid: boolean | null;  // Client paid us
   client_paid_at: string | null;
   client_paid_by: string | null;
@@ -107,11 +113,12 @@ export interface ConfirmationFormData {
   services: string;
   notes: string;
   price: number | null;
+  priceCurrency: "USD" | "GEL";
   selectedRuleIds: string[];
 }
 
 export const COMPANY_INFO = {
-  name: "LLC Royal Georgian Tours",
+  name: "Royal Georgian Tours",
   phone: "+995 599 123 456",
   email: "Royalgeorgiantours@gmail.com",
   address: "Tbilisi, Georgia",

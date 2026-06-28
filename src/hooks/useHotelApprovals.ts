@@ -112,12 +112,43 @@ export function useSetHotelApproval() {
       if (error) throw error;
       return { confirmationId };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
-      queryClient.invalidateQueries({ queryKey: ["confirmation", data.confirmationId] });
+    // Optimistic update — flip the checkbox/progress/pill instantly, reconcile on settle.
+    onMutate: async ({ confirmationId, hotelName, approved }) => {
+      await queryClient.cancelQueries({ queryKey: ["confirmations"] });
+      await queryClient.cancelQueries({ queryKey: ["confirmation", confirmationId] });
+
+      const patch = (conf: any) => {
+        if (!conf || conf.id !== confirmationId) return conf;
+        const rp = conf.raw_payload || {};
+        return {
+          ...conf,
+          raw_payload: {
+            ...rp,
+            hotel_approvals: {
+              ...(rp.hotel_approvals || {}),
+              [hotelName]: { approved, approved_at: approved ? new Date().toISOString() : undefined },
+            },
+          },
+        };
+      };
+
+      const previous = queryClient.getQueriesData({ queryKey: ["confirmations"] });
+      queryClient.setQueriesData({ queryKey: ["confirmations"] }, (list: any) =>
+        Array.isArray(list) ? list.map(patch) : list
+      );
+      const previousSingle = queryClient.getQueryData(["confirmation", confirmationId]);
+      queryClient.setQueryData(["confirmation", confirmationId], patch);
+
+      return { previous, previousSingle, confirmationId };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _vars, context) => {
+      context?.previous?.forEach(([key, data]: [any, any]) => queryClient.setQueryData(key, data));
+      if (context) queryClient.setQueryData(["confirmation", context.confirmationId], context.previousSingle);
       toast({ title: "Failed to update approval", description: error.message, variant: "destructive" });
+    },
+    onSettled: (_data, _error, { confirmationId }) => {
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", confirmationId] });
     },
   });
 }

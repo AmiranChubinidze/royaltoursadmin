@@ -23,6 +23,7 @@ const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const FinancesPage = lazy(() => import("./pages/FinancesPage"));
 const CalendarPage = lazy(() => import("./pages/CalendarPage"));
 const CreateBookingRequest = lazy(() => import("./pages/CreateBookingRequest"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="admin" element={<AdminPanel />} />
                 <Route path="finances" element={<AccountantRoute><FinancesPage /></AccountantRoute>} />
                 <Route path="calendar" element={<CalendarPage />} />
+                <Route path="settings" element={<SettingsPage />} />
                 <Route path="confirmation/:id" element={<ViewConfirmation />} />
                 <Route path="confirmation/:id/edit" element={<EditableRoute><EditConfirmation /></EditableRoute>} />
                 <Route path="confirmation/:id/attachments" element={<BookingRoute><ConfirmationAttachments /></BookingRoute>} />

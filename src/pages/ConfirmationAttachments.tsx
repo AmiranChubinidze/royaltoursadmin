@@ -43,6 +43,7 @@ import {
 } from "@/hooks/useConfirmationAttachments";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSavedHotels } from "@/hooks/useSavedData";
+import { getHotelStays, roomStayKey } from "@/lib/confirmationUtils";
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -324,42 +325,9 @@ export default function ConfirmationAttachments() {
   const hasAttachments = attachments && attachments.length > 0;
 
   const rawPayload = confirmation?.raw_payload ?? {};
-  const itinerary = rawPayload?.itinerary || [];
-  // Extract hotel stays from itinerary — each consecutive run of the same hotel = one stay
-  const hotelStays: { hotel: string; checkIn: string; checkOut: string }[] = [];
-  if (itinerary.length > 0) {
-    let currentHotel = "";
-    let checkIn = "";
-    for (let i = 0; i < itinerary.length; i++) {
-      const day = itinerary[i];
-      const hotelName = (day.hotel || "").trim();
-      if (!hotelName || hotelName === "-" || hotelName.toLowerCase() === "n/a") {
-        if (currentHotel) {
-          hotelStays.push({ hotel: currentHotel, checkIn, checkOut: day.date || itinerary[i - 1]?.date || "" });
-          currentHotel = "";
-          checkIn = "";
-        }
-        continue;
-      }
-      if (hotelName !== currentHotel) {
-        if (currentHotel) {
-          hotelStays.push({ hotel: currentHotel, checkIn, checkOut: day.date || "" });
-        }
-        currentHotel = hotelName;
-        checkIn = day.date || "";
-      }
-    }
-    if (currentHotel) {
-      const lastDay = itinerary[itinerary.length - 1];
-      hotelStays.push({ hotel: currentHotel, checkIn, checkOut: lastDay.date || "" });
-    }
-  }
-  // Also include hotelBookings from draft flow if no itinerary hotels found
-  if (hotelStays.length === 0 && rawPayload?.hotelBookings) {
-    for (const hb of rawPayload.hotelBookings) {
-      hotelStays.push({ hotel: hb.hotelName, checkIn: hb.checkIn, checkOut: hb.checkOut });
-    }
-  }
+  // Hotel stays derived via the shared util (single source of truth — also used
+  // by the unpaid-arrival warning so the per-stay keys always line up).
+  const hotelStays = getHotelStays(rawPayload);
 
   const ownedHotelSet = new Set(
     (savedHotels || [])
@@ -748,6 +716,36 @@ export default function ConfirmationAttachments() {
     [id, queryClient]
   );
 
+  // Persist a date-keyed per-stay paid snapshot into raw_payload.hotel_paid so the
+  // unpaid-arrival warning (dashboard banner/badge + daily email) can read it
+  // without re-deriving attachment logic. Key = roomStayKey(hotel, checkIn).
+  // ponytail: only refreshes while this page is open + read-modify-write on
+  // raw_payload (last-write-wins) — same staleness model as is_paid. Per-row
+  // locking only if concurrent editing ever becomes real.
+  const persistHotelPaid = useCallback(
+    async (map: Record<string, boolean>) => {
+      if (!id || !confirmation) return;
+      const existing = (confirmation.raw_payload?.hotel_paid ?? {}) as Record<string, boolean>;
+      const ek = Object.keys(existing);
+      const mk = Object.keys(map);
+      const unchanged = ek.length === mk.length && mk.every((k) => existing[k] === map[k]);
+      if (unchanged) return;
+
+      const nextPayload = { ...(confirmation.raw_payload ?? {}), hotel_paid: map };
+      const { error } = await supabase
+        .from("confirmations")
+        .update({ raw_payload: nextPayload })
+        .eq("id", id);
+      if (error) {
+        console.error("Failed to persist hotel_paid snapshot", error);
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
+    },
+    [id, confirmation, queryClient]
+  );
+
   // Auto-mark as paid when all visible hotel stays have payment order uploaded or manually checked
   useEffect(() => {
     if (!confirmation || !id || attachmentsLoading) return;
@@ -758,12 +756,18 @@ export default function ConfirmationAttachments() {
       return;
     }
 
-    const allCovered = visibleHotelStays.every((stay, idx) => {
+    const nextHotelPaid: Record<string, boolean> = {};
+    let allCovered = true;
+    visibleHotelStays.forEach((stay, idx) => {
       const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
       const stayKey = getStayKey(stay.hotel, sameHotelBefore);
       const stayPayments = attachmentsByStay.get(stayKey)?.payments ?? [];
-      return stayPayments.length > 0 || manualPaymentChecks.includes(stayKey);
+      const covered = stayPayments.length > 0 || manualPaymentChecks.includes(stayKey);
+      if (!covered) allCovered = false;
+      nextHotelPaid[roomStayKey(stay.hotel, stay.checkIn)] = covered;
     });
+
+    persistHotelPaid(nextHotelPaid);
 
     if (allCovered && !isPaidNow) {
       setPaidStatusSilently(true);
@@ -780,6 +784,7 @@ export default function ConfirmationAttachments() {
     attachmentsByStay,
     manualPaymentChecks,
     setPaidStatusSilently,
+    persistHotelPaid,
   ]);
 
 

@@ -67,7 +67,7 @@ export default function CreateBookingRequest() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 md:px-8 py-2 space-y-5">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-2 space-y-5">
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -80,8 +80,8 @@ export default function CreateBookingRequest() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
+          <div className="grid gap-4 lg:grid-cols-2 items-start">
+            {[...Array(4)].map((_, i) => (
               <Skeleton key={i} className="h-32 w-full rounded-2xl" />
             ))}
           </div>
@@ -104,7 +104,7 @@ export default function CreateBookingRequest() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2 items-start">
             {filtered.map(({ confirmation: c, hotels }) => {
               const approvals = c.raw_payload?.hotel_approvals || {};
               const emailed = new Set(c.hotels_emailed || []);
@@ -121,11 +121,11 @@ export default function CreateBookingRequest() {
                     allApproved ? "border-emerald-300" : "border-[#0F4C5C]/10"
                   )}
                 >
-                  <CardHeader className="pb-3 bg-gradient-to-r from-white via-white to-[#EAF7F8]/50 border-b border-[#0F4C5C]/10">
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-3 min-w-0">
+                  <CardHeader className="p-3 pb-2.5 bg-gradient-to-r from-white via-white to-[#EAF7F8]/50 border-b border-[#0F4C5C]/10">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <button
-                          className="font-mono font-semibold text-[#0F4C5C] hover:underline"
+                          className="font-mono text-sm font-semibold text-[#0F4C5C] hover:underline shrink-0"
                           onClick={() => navigate(`/confirmation/${c.id}`)}
                         >
                           {c.confirmation_code}
@@ -134,28 +134,28 @@ export default function CreateBookingRequest() {
                           {c.main_client_name || "—"}
                         </span>
                         {c.arrival_date && (
-                          <span className="text-xs text-muted-foreground">{c.arrival_date}</span>
+                          <span className="text-[11px] text-muted-foreground/80 shrink-0">{c.arrival_date}</span>
                         )}
                       </div>
                       {/* Status pill */}
                       {allApproved ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 gap-1">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          All approved
+                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 gap-1 shrink-0 text-[10px] px-1.5 py-0">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Approved
                         </Badge>
                       ) : !anyEmailed ? (
-                        <Badge variant="outline" className="text-muted-foreground gap-1">
-                          <AlertCircle className="h-3.5 w-3.5" />
+                        <Badge variant="outline" className="text-muted-foreground gap-1 shrink-0 text-[10px] px-1.5 py-0">
+                          <AlertCircle className="h-3 w-3" />
                           Not sent
                         </Badge>
                       ) : (
-                        <Badge className="bg-amber-100 text-amber-700 border-amber-300">
-                          {approvedCount}/{hotels.length} approved
+                        <Badge className="bg-amber-100 text-amber-700 border-amber-300 shrink-0 text-[10px] px-1.5 py-0">
+                          {approvedCount}/{hotels.length}
                         </Badge>
                       )}
                     </div>
                     {/* Progress bar */}
-                    <div className="mt-2 h-1.5 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
+                    <div className="mt-2 h-1 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
@@ -166,7 +166,7 @@ export default function CreateBookingRequest() {
                     </div>
                   </CardHeader>
 
-                  <CardContent className="p-4 space-y-2">
+                  <CardContent className="p-3 space-y-1.5">
                     {hotels.map((h) => {
                       const approved = !!approvals[h.hotelName]?.approved;
                       const wasEmailed = emailed.has(h.hotelName);
@@ -174,26 +174,23 @@ export default function CreateBookingRequest() {
                         <div
                           key={h.hotelName}
                           className={cn(
-                            "flex items-center justify-between gap-3 rounded-xl border p-3 transition-colors",
+                            "flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 transition-colors",
                             approved ? "border-emerald-200 bg-emerald-50/50" : "border-border bg-white"
                           )}
                         >
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <Hotel className="h-4 w-4 text-[#0F4C5C] shrink-0" />
+                            <div className="flex items-center gap-1.5">
+                              <Hotel className="h-3.5 w-3.5 text-[#0F4C5C] shrink-0" />
                               <span className="text-sm font-medium truncate">{h.hotelName}</span>
                               {wasEmailed && (
-                                <Badge variant="outline" className="border-emerald-400 text-emerald-600 gap-1 text-[10px]">
-                                  <Mail className="h-3 w-3" />
-                                  Emailed
-                                </Badge>
+                                <Mail className="h-3 w-3 text-emerald-600 shrink-0" />
                               )}
                               {!h.hasEmail && (
-                                <span className="text-[10px] text-muted-foreground">(no email)</span>
+                                <span className="text-[10px] text-muted-foreground shrink-0">(no email)</span>
                               )}
                             </div>
                             {(h.checkIn || h.checkOut) && (
-                              <p className="text-xs text-muted-foreground mt-0.5 pl-6">
+                              <p className="text-[11px] text-muted-foreground mt-0.5 pl-5">
                                 {h.checkIn} {h.checkOut ? `→ ${h.checkOut}` : ""}
                               </p>
                             )}
@@ -201,8 +198,9 @@ export default function CreateBookingRequest() {
                           <Button
                             size="sm"
                             variant={approved ? "default" : "outline"}
+                            title={approved ? "Approved — click to undo" : "Mark approved"}
                             className={cn(
-                              "gap-1.5 shrink-0",
+                              "h-7 w-7 p-0 shrink-0",
                               approved
                                 ? "bg-emerald-600 hover:bg-emerald-700"
                                 : "border-[#0F4C5C]/30 text-[#0F4C5C]"
@@ -221,26 +219,25 @@ export default function CreateBookingRequest() {
                             ) : (
                               <Circle className="h-4 w-4" />
                             )}
-                            {approved ? "Approved" : "Mark approved"}
                           </Button>
                         </div>
                       );
                     })}
 
-                    <div className="flex items-center justify-between pt-1">
-                      <p className="text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between gap-2 pt-0.5">
+                      <p className="text-[11px] text-muted-foreground truncate">
                         {emailableNames.length > 0
-                          ? `${emailableNames.length} hotel${emailableNames.length > 1 ? "s" : ""} with email`
-                          : "No hotel emails on file"}
+                          ? `${emailableNames.length} with email`
+                          : "No hotel emails"}
                       </p>
                       <Button
                         size="sm"
-                        className="gap-1.5 bg-[#0F4C5C] hover:bg-[#0F4C5C]/90"
+                        className="h-8 gap-1.5 bg-[#0F4C5C] hover:bg-[#0F4C5C]/90 shrink-0"
                         disabled={emailableNames.length === 0}
                         onClick={() => setPreviewConf(c)}
                       >
-                        <Send className="h-4 w-4" />
-                        {anyEmailed ? "Review & send emails" : "Send booking emails"}
+                        <Send className="h-3.5 w-3.5" />
+                        {anyEmailed ? "Review & send" : "Send emails"}
                       </Button>
                     </div>
                   </CardContent>

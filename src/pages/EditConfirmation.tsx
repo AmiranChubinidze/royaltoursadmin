@@ -118,6 +118,7 @@ export default function EditConfirmation() {
     price: confirmation.price ?? payload?.price ?? null,
     priceCurrency: confirmation.price_currency ?? payload?.priceCurrency ?? "USD",
     selectedRuleIds: payload?.selectedRuleIds || [],
+    room_usage: payload?.room_usage || {},
   };
 
   // Debug logging for draft completion
@@ -148,6 +149,7 @@ export default function EditConfirmation() {
           price: data.price,
           priceCurrency: data.priceCurrency,
           selectedRuleIds: data.selectedRuleIds,
+          room_usage: data.room_usage,
           // Keep hotelBookings for reference
           hotelBookings: hotelBookings,
         },

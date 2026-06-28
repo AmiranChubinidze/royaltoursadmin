@@ -69,11 +69,17 @@ export interface ConfirmationPayload {
   hotelBookings?: HotelBooking[];
   // Per-hotel booking approval tracking (keyed by hotel name)
   hotel_approvals?: Record<string, { approved: boolean; approved_at?: string }>;
+  // Rooms taken per owned-hotel stay (keyed by roomStayKey: hotelLower::checkIn)
+  room_usage?: Record<string, number>;
   // Invoice tracking
   invoice_amounts?: Record<string, { amount: number; currency?: string }>;
   invoice_checks?: string[];
   // Attachment to hotel stay mapping
   attachment_stay_map?: Record<string, string>;
+  // Per-stay paid snapshot, keyed by roomStayKey (hotelLower::checkInRaw).
+  // Written by ConfirmationAttachments when it recomputes is_paid; read by the
+  // unpaid-arrival warning (dashboard + email). See unpaidArrivalsForDay.
+  hotel_paid?: Record<string, boolean>;
 }
 
 export interface Confirmation {
@@ -115,6 +121,7 @@ export interface ConfirmationFormData {
   price: number | null;
   priceCurrency: "USD" | "GEL";
   selectedRuleIds: string[];
+  room_usage?: Record<string, number>;
 }
 
 export const COMPANY_INFO = {

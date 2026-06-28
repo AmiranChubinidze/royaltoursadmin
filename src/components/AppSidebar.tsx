@@ -32,6 +32,7 @@ import {
   Database,
   Wallet,
   Shield,
+  Settings,
   LogOut,
   Eye,
   ChevronUp,
@@ -305,6 +306,28 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Settings */}
+        <SidebarGroup className="rounded-2xl border border-[#ECEBF4] bg-white/90 px-2.5 py-2 shadow-[0_2px_6px_rgba(17,24,39,0.05)] group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:shadow-none group-data-[collapsible=icon]:px-1.5 group-data-[collapsible=icon]:py-1.5">
+          <SidebarGroupLabel className="uppercase tracking-[0.14em] text-[11px] text-[#8A92A6] font-semibold px-2.5 mb-1.5">
+            Settings
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="space-y-0.5 flex flex-col group-data-[collapsible=icon]:items-center">
+            <SidebarMenu className="group-data-[collapsible=icon]:w-auto">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={isActive("/settings")}
+                  onClick={() => go("/settings")}
+                  tooltip="Settings"
+                  className={navItemClass("/settings")}
+                >
+                  <NavIcon icon={Settings} />
+                  <span className="group-data-[collapsible=icon]:hidden">Settings</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

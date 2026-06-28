@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +32,7 @@ import {
   ExpenseRule,
 } from "@/hooks/useExpenseRules";
 import { useSavedHotels } from "@/hooks/useSavedData";
+import { cn } from "@/lib/utils";
 
 interface RuleFormData {
   name: string;
@@ -148,49 +149,23 @@ export function ExpenseRulesSection() {
   }
 
   return (
-    <div className="mt-6">
-      <Card className="border-border/60 bg-white/95 shadow-[0_12px_30px_rgba(15,76,92,0.08)] rounded-2xl overflow-hidden">
-        <CardHeader className="pb-4 pt-5 px-6 border-b border-border/40">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-[#EAF7F8] p-2 rounded-xl border border-[#0F4C5C]/10">
-                <Zap className="h-4 w-4 text-[#0F4C5C]" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-[#0F4C5C]">Expense Rules</p>
-                <p className="text-xs text-muted-foreground">Auto-charges applied per tour</p>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              className="rounded-full bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 gap-1.5"
-              onClick={openAdd}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add Rule
-            </Button>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-6">
-          {/* Stat bar */}
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            {[
-              { label: "Active", value: activeCount },
-              { label: "Total", value: rules.length },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-[#0F4C5C]/10 bg-gradient-to-br from-white via-white to-[#EAF7F8] px-4 py-3 shadow-[0_8px_20px_rgba(15,76,92,0.08)]"
-              >
-                <p className="text-xs uppercase tracking-[0.15em] text-[#0F4C5C]/60 font-medium">
-                  {label}
-                </p>
-                <p className="text-xl font-semibold text-[#0F4C5C] mt-0.5">{value}</p>
-              </div>
-            ))}
-          </div>
-
+    <>
+      <CollapsibleSection
+        icon={<Zap className="h-4 w-4 text-[#0F4C5C]" />}
+        title="Expense Rules"
+        summary={`${activeCount} active / ${rules.length} total`}
+        action={
+          <Button
+            size="sm"
+            className="rounded-full bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 gap-1.5"
+            onClick={openAdd}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Rule
+          </Button>
+        }
+        storageKey="saved-data-expense-rules"
+      >
           {/* Rule cards */}
           {isLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading...</div>
@@ -212,7 +187,7 @@ export function ExpenseRulesSection() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {rules.map((rule) => {
                 const sym = rule.currency === "GEL" ? "₾" : "$";
                 const ruleHotelIds = rule.hotel_ids ?? [];
@@ -227,60 +202,48 @@ export function ExpenseRulesSection() {
                 return (
                   <div
                     key={rule.id}
-                    className={`group rounded-2xl overflow-hidden border border-[#0F4C5C]/10 bg-white shadow-[0_10px_24px_rgba(15,76,92,0.08)] hover:shadow-[0_14px_34px_rgba(15,76,92,0.12)] hover:-translate-y-0.5 transition-all duration-200 p-4 ${!rule.active ? "opacity-50 grayscale" : ""}`}
+                    className={cn(
+                      "rounded-xl border border-[#0F4C5C]/10 bg-white p-3 shadow-[0_6px_16px_rgba(15,76,92,0.06)] transition-opacity",
+                      !rule.active && "opacity-55"
+                    )}
                   >
-                    {/* Top row */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="bg-[#EAF7F8] border border-[#0F4C5C]/10 p-2.5 rounded-xl">
-                          <Zap className="h-3.5 w-3.5 text-[#0F4C5C]" />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground">{rule.name}</span>
+                    {/* Top: name + rate + switch */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold text-foreground truncate">{rule.name}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-base font-bold font-mono text-[#0F4C5C] tabular-nums">
+                          {rule.rate} {sym}
+                        </span>
+                        <Switch checked={rule.active} onCheckedChange={() => handleToggleActive(rule)} />
                       </div>
-                      <Switch
-                        checked={rule.active}
-                        onCheckedChange={() => handleToggleActive(rule)}
-                        className="mt-0.5"
-                      />
                     </div>
 
-                    {/* Rate */}
-                    <p className="text-3xl font-bold font-mono text-[#0F4C5C] tracking-tight">
-                      {rule.rate} {sym}
-                    </p>
-
-                    {/* Pills + actions row */}
-                    <div className="flex items-end justify-between mt-2">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="inline-flex flex-wrap gap-1.5">
-                          {pills.map((pill) => (
-                            <span
-                              key={pill}
-                              className="text-[10px] font-medium bg-[#EAF7F8] text-[#0F4C5C] border border-[#0F4C5C]/10 rounded-full px-2 py-0.5"
-                            >
-                              {pill}
-                            </span>
-                          ))}
-                        </div>
-                        {ruleHotelNames.length > 0 && (
-                          <div className="inline-flex flex-wrap gap-1">
-                            {ruleHotelNames.map((name) => (
-                              <span
-                                key={name}
-                                className="text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full px-2 py-0.5 flex items-center gap-1"
-                              >
-                                <Hotel className="h-2.5 w-2.5" />
-                                {name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                    {/* Bottom: pills + actions */}
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1 min-w-0">
+                        {pills.map((pill) => (
+                          <span
+                            key={pill}
+                            className="text-[10px] font-medium bg-[#EAF7F8] text-[#0F4C5C] rounded-full px-2 py-0.5"
+                          >
+                            {pill}
+                          </span>
+                        ))}
+                        {ruleHotelNames.map((name) => (
+                          <span
+                            key={name}
+                            className="text-[10px] font-medium bg-amber-50 text-amber-700 rounded-full px-2 py-0.5 flex items-center gap-1"
+                          >
+                            <Hotel className="h-2.5 w-2.5" />
+                            {name}
+                          </span>
+                        ))}
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex shrink-0 gap-0.5">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 rounded-full text-muted-foreground hover:text-[#0F4C5C]"
+                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-[#0F4C5C]"
                           onClick={() => openEdit(rule)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
@@ -290,7 +253,7 @@ export function ExpenseRulesSection() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 rounded-full text-muted-foreground hover:text-destructive"
+                              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -321,8 +284,7 @@ export function ExpenseRulesSection() {
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CollapsibleSection>
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
@@ -472,6 +434,6 @@ export function ExpenseRulesSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

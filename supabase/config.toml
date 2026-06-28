@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-arrival-reminders]
 verify_jwt = false
+
+[functions.send-payment-warnings]
+verify_jwt = false

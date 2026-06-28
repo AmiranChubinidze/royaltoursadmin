@@ -22,6 +22,7 @@ import {
   ClipboardCheck,
   ChevronRight,
 } from "lucide-react";
+import { UnpaidArrivalBadge } from "@/components/UnpaidArrivalWarning";
 
 interface MobileConfirmationCardProps {
   confirmation: {
@@ -43,6 +44,7 @@ interface MobileConfirmationCardProps {
   canDeleteConfirmations: boolean;
   effectiveIsBooking: boolean;
   effectiveIsVisitor: boolean;
+  unpaidArrival?: boolean;
   onDelete: (id: string) => void;
 }
 
@@ -52,6 +54,7 @@ export function MobileConfirmationCard({
   canDeleteConfirmations,
   effectiveIsBooking,
   effectiveIsVisitor,
+  unpaidArrival,
   onDelete,
 }: MobileConfirmationCardProps) {
   const navigate = useNavigate();
@@ -85,6 +88,7 @@ export function MobileConfirmationCard({
           {wasEdited && !effectiveIsVisitor && (
             <span className="text-[10px] text-muted-foreground">(edited)</span>
           )}
+          {unpaidArrival && <UnpaidArrivalBadge />}
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       </div>

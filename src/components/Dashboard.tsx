@@ -39,6 +39,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileConfirmationCard } from "@/components/MobileConfirmationCard";
 import { useViewAs } from "@/contexts/ViewAsContext";
 import { canAccessFinances, canManageFinances } from "@/lib/roles";
+import { useUnpaidArrivalsToday } from "@/hooks/useUnpaidArrivalsToday";
+import { UnpaidArrivalsBanner, UnpaidArrivalBadge } from "@/components/UnpaidArrivalWarning";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -66,6 +68,7 @@ export function Dashboard() {
   const actualIsVisitor = role === "visitor";
   const deleteMutation = useDeleteConfirmation();
   const duplicateMutation = useDuplicateConfirmation();
+  const { arrivals: unpaidArrivals, confirmationIds: unpaidArrivalIds } = useUnpaidArrivalsToday();
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -217,6 +220,12 @@ export function Dashboard() {
             <h1 className="text-[22px] font-semibold tracking-tight text-[#0F4C5C]">Dashboard</h1>
             <p className="text-xs text-muted-foreground">Arrivals, confirmations, and quick actions.</p>
           </div>
+
+          {unpaidArrivals.length > 0 && (
+            <div className="px-4 pt-4">
+              <UnpaidArrivalsBanner arrivals={unpaidArrivals} />
+            </div>
+          )}
 
           {/* Mobile Stats */}
           <div className="px-4 py-4">
@@ -376,6 +385,7 @@ export function Dashboard() {
                   canDeleteConfirmations={effectiveCanDeleteConfirmations}
                   effectiveIsBooking={effectiveIsBooking}
                   effectiveIsVisitor={effectiveIsVisitor}
+                  unpaidArrival={unpaidArrivalIds.has(confirmation.id)}
                   onDelete={handleDelete}
                 />
               ))
@@ -415,6 +425,9 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+        {unpaidArrivals.length > 0 && (
+          <UnpaidArrivalsBanner arrivals={unpaidArrivals} className="mb-5" />
+        )}
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
           {[
@@ -636,6 +649,7 @@ export function Dashboard() {
                                   (edited)
                                 </span>
                               )}
+                              {unpaidArrivalIds.has(confirmation.id) && <UnpaidArrivalBadge />}
                             </div>
                           </TableCell>
                           <TableCell className="font-medium">

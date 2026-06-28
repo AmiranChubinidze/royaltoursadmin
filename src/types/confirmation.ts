@@ -80,6 +80,10 @@ export interface ConfirmationPayload {
   // Written by ConfirmationAttachments when it recomputes is_paid; read by the
   // unpaid-arrival warning (dashboard + email). See unpaidArrivalsForDay.
   hotel_paid?: Record<string, boolean>;
+  // Per-stay invoice amount due, same roomStayKey. Persisted alongside hotel_paid
+  // (the amount derives from mapped invoice attachments, so it can't be read
+  // server-side). Read by the warning email to show price + total per hotel.
+  hotel_amounts?: Record<string, { amount: number; currency: string }>;
 }
 
 export interface Confirmation {

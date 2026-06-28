@@ -547,6 +547,7 @@ export type Database = {
           id: string
           is_owned: boolean
           name: string
+          room_count: number | null
         }
         Insert: {
           activities?: string[] | null
@@ -556,6 +557,7 @@ export type Database = {
           id?: string
           is_owned?: boolean
           name: string
+          room_count?: number | null
         }
         Update: {
           activities?: string[] | null
@@ -565,6 +567,7 @@ export type Database = {
           id?: string
           is_owned?: boolean
           name?: string
+          room_count?: number | null
         }
         Relationships: []
       }

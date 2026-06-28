@@ -61,7 +61,19 @@ export function useUpdateExpenseRule() {
       if (error) throw error;
       return data as ExpenseRule;
     },
-    onSuccess: () => {
+    // Optimistic — flip the toggle/edit instantly, reconcile on settle.
+    onMutate: async ({ id, ...rule }) => {
+      await queryClient.cancelQueries({ queryKey: ["expense_rules"] });
+      const previous = queryClient.getQueryData<ExpenseRule[]>(["expense_rules"]);
+      queryClient.setQueryData<ExpenseRule[]>(["expense_rules"], (list) =>
+        list?.map((r) => (r.id === id ? { ...r, ...rule } : r))
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) queryClient.setQueryData(["expense_rules"], context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["expense_rules"] });
     },
   });

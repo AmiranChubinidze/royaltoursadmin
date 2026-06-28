@@ -8,6 +8,7 @@ export interface SavedHotel {
   address: string | null;
   activities: string[];
   is_owned: boolean;
+  room_count?: number | null;
   created_at: string;
 }
 

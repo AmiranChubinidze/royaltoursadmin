@@ -9,7 +9,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { Bell, CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal, Home } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,18 +29,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useConfirmations } from "@/hooks/useConfirmations";
 import { useSavedHotels } from "@/hooks/useSavedData";
+import { getOwnedRoomStays } from "@/lib/confirmationUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useToast } from "@/hooks/use-toast";
 import { useSalaryProfiles } from "@/hooks/useSalaries";
 import { useUserRole } from "@/hooks/useUserRole";
 import { canManageFinances } from "@/lib/roles";
 import { useViewAs } from "@/contexts/ViewAsContext";
-import {
-  useCalendarNotificationHotels,
-  useCalendarNotificationSettings,
-  useSetCalendarNotificationHotels,
-  useUpsertCalendarNotificationSettings,
-} from "@/hooks/useCalendarNotifications";
 
 type OwnedStay = {
   confirmationId: string;
@@ -89,81 +83,18 @@ export default function CalendarPage() {
   const { data: confirmations, isLoading } = useConfirmations(500);
   const { data: savedHotels } = useSavedHotels();
   const isMobile = useIsMobile();
-  const { data: notificationSettings } = useCalendarNotificationSettings();
-  const { data: selectedHotelIds } = useCalendarNotificationHotels();
-  const upsertSettings = useUpsertCalendarNotificationSettings();
-  const setNotificationHotels = useSetCalendarNotificationHotels();
-  const { toast } = useToast();
   const { role, isLoading: isRoleLoading } = useUserRole();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
   const canSeeSalaries = canManageFinances(effectiveRole);
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [timeLocal, setTimeLocal] = useState("09:00");
-  const [remindersOpen, setRemindersOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [hotelView, setHotelView] = useState<"owned" | "other" | "all">("all");
   const [checkInsOnly, setCheckInsOnly] = useState(false);
   const [calendarContentMode, setCalendarContentMode] = useState<CalendarContentMode>("stays");
   const effectiveCalendarContentMode: CalendarContentMode = canSeeSalaries ? calendarContentMode : "stays";
   const [hasLoadedViewPrefs, setHasLoadedViewPrefs] = useState(false);
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
-  const [useAllHotelsState, setUseAllHotelsState] = useState(true);
-  const [useAllOtherHotelsState, setUseAllOtherHotelsState] = useState(true);
-  const [remindOffsetDays, setRemindOffsetDays] = useState(1);
-  const [tzOffsetState] = useState(-240);
-  const [selectedHotelIdsState, setSelectedHotelIdsState] = useState<string[]>([]);
-  const [hasSyncedHotels, setHasSyncedHotels] = useState(false);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-  const [pendingSettings, setPendingSettings] = useState({
-    enabled: remindersEnabled,
-    time_local: timeLocal,
-    use_all_hotels: useAllHotelsState,
-    use_all_other_hotels: useAllOtherHotelsState,
-    remind_offset_days: remindOffsetDays,
-  });
-
-  useEffect(() => {
-    if (notificationSettings?.time_local) {
-      setTimeLocal(notificationSettings.time_local);
-    }
-    if (notificationSettings?.enabled !== undefined) {
-      setRemindersEnabled(notificationSettings.enabled);
-    }
-    if (notificationSettings?.use_all_hotels !== undefined) {
-      setUseAllHotelsState(notificationSettings.use_all_hotels);
-    }
-    if (notificationSettings?.use_all_other_hotels !== undefined) {
-      setUseAllOtherHotelsState(notificationSettings.use_all_other_hotels);
-    }
-    if (notificationSettings?.remind_offset_days !== undefined) {
-      setRemindOffsetDays(notificationSettings.remind_offset_days);
-    }
-  }, [
-    notificationSettings?.time_local,
-    notificationSettings?.enabled,
-    notificationSettings?.use_all_hotels,
-    notificationSettings?.use_all_other_hotels,
-    notificationSettings?.remind_offset_days,
-  ]);
-
-  useEffect(() => {
-    setPendingSettings({
-      enabled: remindersEnabled,
-      time_local: timeLocal,
-      use_all_hotels: useAllHotelsState,
-      use_all_other_hotels: useAllOtherHotelsState,
-      remind_offset_days: remindOffsetDays,
-    });
-  }, [remindersEnabled, timeLocal, useAllHotelsState, useAllOtherHotelsState, remindOffsetDays]);
-
-  useEffect(() => {
-    if (!hasSyncedHotels && selectedHotelIds) {
-      setSelectedHotelIdsState(selectedHotelIds);
-      setHasSyncedHotels(true);
-    }
-  }, [selectedHotelIds, hasSyncedHotels]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -219,12 +150,6 @@ export default function CalendarPage() {
     );
   }, [savedHotels]);
 
-  const ownedHotels = useMemo(() => {
-    return (savedHotels || []).filter((h) => h.is_owned);
-  }, [savedHotels]);
-  const otherHotels = useMemo(() => {
-    return (savedHotels || []).filter((h) => !h.is_owned);
-  }, [savedHotels]);
 
   const staysByDate = useMemo(() => {
     const map = new Map<string, OwnedStay[]>();
@@ -390,9 +315,6 @@ export default function CalendarPage() {
   const selectedDateLabel = selectedDate
     ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(selectedDate)
     : "Select a Date";
-  const notificationsEnabled = notificationSettings?.enabled ?? remindersEnabled;
-  const selectedSet = useMemo(() => new Set(selectedHotelIdsState || []), [selectedHotelIdsState]);
-  const tzOffset = tzOffsetState;
 
   const { data: salaryProfiles } = useSalaryProfiles({
     enabled: showSalaryPayments,
@@ -486,59 +408,47 @@ export default function CalendarPage() {
     return result;
   }, [confirmations]);
 
-  const updateSettings = (
-    next: Partial<{
-      enabled: boolean;
-      time_local: string;
-      use_all_hotels: boolean;
-      use_all_other_hotels: boolean;
-      remind_offset_days: number;
-    }>
-  ) => {
-    setPendingSettings((prev) => ({
-      ...prev,
-      ...next,
-    }));
-  };
+  // Owned hotels that have room tracking on.
+  const ownedRoomHotels = useMemo(
+    () => (savedHotels || []).filter((h) => h.is_owned && h.room_count != null),
+    [savedHotels]
+  );
 
-  const saveSettings = async () => {
-    setIsSavingSettings(true);
-    try {
-      await upsertSettings.mutateAsync({
-        enabled: pendingSettings.enabled,
-        time_local: pendingSettings.time_local,
-        tz_offset_min: tzOffset,
-        use_all_hotels: pendingSettings.use_all_hotels,
-        use_all_other_hotels: pendingSettings.use_all_other_hotels,
-        remind_offset_days: pendingSettings.remind_offset_days,
-      });
-      toast({ title: "Saved", description: "Reminder settings updated." });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to save settings.";
-      toast({ title: "Save failed", description: message, variant: "destructive" });
-    } finally {
-      setIsSavingSettings(false);
+  // Rooms booked per day per owned hotel, summed across all confirmations.
+  // Keyed dateKey -> hotelNameLower -> rooms. Uses the same stay grouping as the
+  // confirmation form so the room_usage keys line up.
+  const bookedRoomsByDate = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    if (!confirmations || ownedRoomHotels.length === 0) return map;
+    for (const c of confirmations) {
+      const usage = c.raw_payload?.room_usage || {};
+      const stays = getOwnedRoomStays(c.raw_payload?.itinerary || [], savedHotels || []);
+      for (const stay of stays) {
+        const rooms = Number(usage[stay.stayKey] || 0);
+        if (rooms <= 0) continue;
+        const hotelLower = stay.hotelName.trim().toLowerCase();
+        for (const raw of stay.dates) {
+          const parsed = parseDateFlexible(raw);
+          if (!parsed) continue;
+          const dk = format(parsed, "yyyy-MM-dd");
+          const inner = map.get(dk) || new Map<string, number>();
+          inner.set(hotelLower, (inner.get(hotelLower) || 0) + rooms);
+          map.set(dk, inner);
+        }
+      }
     }
-  };
+    return map;
+  }, [confirmations, savedHotels, ownedRoomHotels]);
 
-  const toggleHotelSelection = (hotelId: string) => {
-    const next = new Set(selectedSet);
-    if (next.has(hotelId)) {
-      next.delete(hotelId);
-    } else {
-      next.add(hotelId);
-    }
-    const nextList = Array.from(next);
-    setSelectedHotelIdsState(nextList);
-    setNotificationHotels.mutate(nextList);
-  };
+  const selectedRoomsByHotel = selectedKey ? bookedRoomsByDate.get(selectedKey) : undefined;
+
 
   return (
     <div className="animate-fade-in max-w-7xl mx-auto space-y-4">
       <div className="mb-1 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="page-title text-foreground">Calendar</h1>
-          <p className="text-muted-foreground">Hotel stays and arrival reminders.</p>
+          <p className="text-muted-foreground">Hotel stays.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border border-[#0F4C5C]/10 bg-white px-2 py-1.5 text-xs text-muted-foreground">
@@ -665,242 +575,6 @@ export default function CalendarPage() {
                       ))}
                   </div>
                   <p className="text-[11px] text-muted-foreground">Choose whether to see stays, salary payments, or both.</p>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-          <Popover open={remindersOpen} onOpenChange={setRemindersOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "h-9 rounded-xl border-[#0F4C5C]/15 hover:bg-[#EAF7F8]",
-                  remindersOpen && "bg-[#EAF7F8] text-[#0F4C5C]",
-                )}
-                aria-label="Arrival reminder options"
-              >
-                <Bell className="h-4 w-4 mr-2" />
-                Reminders
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-[360px] p-4 max-h-[80vh] overflow-y-auto"
-            >
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-[#0F4C5C]">Arrival Reminders</div>
-                    <p className="text-[11px] text-muted-foreground">
-                      Email you before guests arrive.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={pendingSettings.enabled}
-                    onCheckedChange={(checked) => {
-                      setRemindersEnabled(checked);
-                      updateSettings({ enabled: checked });
-                    }}
-                    aria-label="Enable arrival reminders"
-                  />
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Before</Label>
-                    <Select
-                      value={String(pendingSettings.remind_offset_days)}
-                      onValueChange={(value) => {
-                        const nextValue = Number(value);
-                        setRemindOffsetDays(nextValue);
-                        updateSettings({ remind_offset_days: nextValue });
-                      }}
-                    >
-                      <SelectTrigger className="h-9 rounded-lg border-border/70 bg-[#F7FAFB] text-xs font-medium text-[#0F4C5C]">
-                        <SelectValue placeholder="Choose" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">Same day</SelectItem>
-                        <SelectItem value="1">1 day before</SelectItem>
-                        <SelectItem value="2">2 days before</SelectItem>
-                        <SelectItem value="3">3 days before</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Time</Label>
-                    <Select
-                      value={pendingSettings.time_local}
-                      onValueChange={(value) => {
-                        setTimeLocal(value);
-                        updateSettings({ time_local: value });
-                      }}
-                    >
-                      <SelectTrigger className="h-9 rounded-lg border-border/70 bg-[#F7FAFB] text-xs font-medium text-[#0F4C5C]">
-                        <SelectValue placeholder="Choose" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 24 * 4 }).map((_, idx) => {
-                          const hour = Math.floor(idx / 4);
-                          const minute = (idx % 4) * 15;
-                          const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-                          return (
-                            <SelectItem key={value} value={value}>
-                              {value}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Separator className="bg-border/70" />
-
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <Label className="text-xs text-muted-foreground">Owned Hotels</Label>
-                    <p className="text-[11px] text-muted-foreground truncate">Which owned hotels trigger reminders.</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">All</span>
-                    <Switch
-                      checked={pendingSettings.use_all_hotels}
-                      onCheckedChange={(checked) => {
-                        setUseAllHotelsState(checked);
-                        updateSettings({ use_all_hotels: checked });
-                      }}
-                      aria-label="Use all owned hotels"
-                    />
-                  </div>
-                </div>
-                {!pendingSettings.use_all_hotels && (
-                  <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
-                    <ScrollArea className="h-[180px]">
-                      <div className="p-2 space-y-2">
-                        {ownedHotels.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">No owned hotels saved yet.</div>
-                        ) : (
-                          ownedHotels.map((hotel) => {
-                            const checked = selectedSet.has(hotel.id);
-                            return (
-                              <div
-                                key={hotel.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggleHotelSelection(hotel.id)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault();
-                                    toggleHotelSelection(hotel.id);
-                                  }
-                                }}
-                                className={cn(
-                                  "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C5C]/30",
-                                  checked
-                                    ? "border-[#0F4C5C]/40 bg-[#F1FAFB] shadow-[0_1px_6px_rgba(15,76,92,0.08)]"
-                                    : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
-                                )}
-                              >
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
-                                </div>
-                                <div
-                                  onClick={(event) => event.stopPropagation()}
-                                  onKeyDown={(event) => event.stopPropagation()}
-                                >
-                                  <Checkbox
-                                    checked={checked}
-                                    onCheckedChange={() => toggleHotelSelection(hotel.id)}
-                                    className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#0F4C5C] data-[state=checked]:text-white cursor-pointer"
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <Label className="text-xs text-muted-foreground">Other Hotels</Label>
-                    <p className="text-[11px] text-muted-foreground truncate">Which other hotels trigger reminders.</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-muted-foreground">All</span>
-                    <Switch
-                      checked={pendingSettings.use_all_other_hotels}
-                      onCheckedChange={(checked) => {
-                        setUseAllOtherHotelsState(checked);
-                        updateSettings({ use_all_other_hotels: checked });
-                      }}
-                      aria-label="Use all other hotels"
-                    />
-                  </div>
-                </div>
-                {!pendingSettings.use_all_other_hotels && (
-                  <div className="rounded-xl border border-border/60 bg-[#F7FAFB] p-1">
-                    <ScrollArea className="h-[180px]">
-                      <div className="p-2 space-y-2">
-                        {otherHotels.length === 0 ? (
-                          <div className="text-xs text-muted-foreground">No other hotels saved yet.</div>
-                        ) : (
-                          otherHotels.map((hotel) => {
-                            const checked = selectedSet.has(hotel.id);
-                            return (
-                              <div
-                                key={hotel.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => toggleHotelSelection(hotel.id)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault();
-                                    toggleHotelSelection(hotel.id);
-                                  }
-                                }}
-                                className={cn(
-                                  "flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B4F55]/25",
-                                  checked
-                                    ? "border-[#4B4F55]/40 bg-[#F2F3F5] shadow-[0_1px_6px_rgba(75,79,85,0.08)]"
-                                    : "border-border/60 bg-white/90 hover:bg-[#F7FAFB]"
-                                )}
-                              >
-                                <div className="min-w-0">
-                                  <div className="text-sm font-medium text-foreground truncate">{hotel.name}</div>
-                                </div>
-                                <div
-                                  onClick={(event) => event.stopPropagation()}
-                                  onKeyDown={(event) => event.stopPropagation()}
-                                >
-                                  <Checkbox
-                                    checked={checked}
-                                    onCheckedChange={() => toggleHotelSelection(hotel.id)}
-                                    className="h-5 w-5 rounded-md border-border/70 data-[state=checked]:bg-[#4B4F55] data-[state=checked]:text-white cursor-pointer"
-                                  />
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end">
-                  <Button
-                    size="sm"
-                    className="h-9 px-4 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
-                    onClick={saveSettings}
-                    disabled={isSavingSettings}
-                  >
-                    {isSavingSettings ? "Saving..." : "Save"}
-                  </Button>
                 </div>
               </div>
             </PopoverContent>
@@ -1120,7 +794,86 @@ export default function CalendarPage() {
                   ))}
                 </div>
               )}
+
+              {(() => {
+                // ponytail: per-currency sum of everything shown above (USD + GEL can't merge into one number)
+                const totals: Record<string, number> = {};
+                for (const s of selectedStays) {
+                  const info = s.stayKey
+                    ? invoiceAmountByConfirmationStay.get(`${s.confirmationId}::${s.stayKey}`)
+                    : null;
+                  if (info) totals[info.currency] = (totals[info.currency] || 0) + info.amount;
+                }
+                if (showSalaryPayments) {
+                  for (const s of selectedSalaries) {
+                    totals[s.currency] = (totals[s.currency] || 0) + s.amount;
+                  }
+                }
+                const entries = Object.entries(totals).filter(([, v]) => v > 0);
+                if (entries.length === 0) return null;
+                return (
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-[#0F4C5C]/20 bg-[#EAF7F8]/70 px-3 py-2.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-[#0F4C5C]">Total due</span>
+                    <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      {entries.map(([currency, amount]) => (
+                        <Badge key={currency} className="border-0 bg-[#0F4C5C] text-white text-sm font-semibold px-2.5 py-0.5">
+                          {currencySymbol(currency)}
+                          {Math.round(amount).toLocaleString()}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
+          )}
+
+          {/* Owned-hotel room occupancy for the selected day */}
+          {ownedRoomHotels.length > 0 && (
+            <>
+              <Separator className="my-4 bg-border/70" />
+              <div className="space-y-2.5">
+                <div className="text-xs font-medium text-muted-foreground">Our hotels — rooms booked</div>
+                {ownedRoomHotels.map((hotel) => {
+                  const total = hotel.room_count as number;
+                  const booked = selectedRoomsByHotel?.get(hotel.name.trim().toLowerCase()) || 0;
+                  const filled = Math.min(booked, total);
+                  const over = booked > total;
+                  return (
+                    <div key={hotel.id} className="rounded-xl border border-[#0F4C5C]/10 bg-white/90 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground truncate">{hotel.name}</span>
+                        <span className={cn("text-xs font-semibold tabular-nums", over ? "text-amber-600" : "text-[#0F4C5C]")}>
+                          {booked}/{total}
+                        </span>
+                      </div>
+                      {/* ponytail: one icon per room; assumes modest counts (cottages). Falls back to a bar above ~24. */}
+                      {total <= 24 ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {Array.from({ length: total }).map((_, i) => (
+                            <Home
+                              key={i}
+                              className={cn("h-4 w-4", i < filled ? "text-[#12A6C2]" : "text-muted-foreground/30")}
+                              fill={i < filled ? "#12A6C2" : "none"}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 h-2 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full", over ? "bg-amber-500" : "bg-[#12A6C2]")}
+                            style={{ width: `${Math.min(100, (booked / total) * 100)}%` }}
+                          />
+                        </div>
+                      )}
+                      {over && (
+                        <p className="mt-1 text-[11px] font-medium text-amber-600">Overbooked by {booked - total}.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

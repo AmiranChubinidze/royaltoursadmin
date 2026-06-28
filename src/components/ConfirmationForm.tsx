@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +25,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Receipt } from "lucide-react";
+import { Plus, Minus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Receipt, BedDouble } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ConfirmationFormData,
@@ -39,7 +39,7 @@ import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSave
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, countHotelNights } from "@/lib/confirmationUtils";
+import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, countHotelNights, getOwnedRoomStays } from "@/lib/confirmationUtils";
 
 interface ConfirmationFormProps {
   initialData?: Partial<ConfirmationFormData>;
@@ -93,24 +93,89 @@ function DatePicker({
   );
 }
 
-// Time Picker Component
+// One scrollable wheel column for the TimePicker (hoisted so it never remounts → scroll position survives picks)
+function TimeColumn({
+  items,
+  selected,
+  onPick,
+  colRef,
+  label,
+}: {
+  items: string[];
+  selected: string;
+  onPick: (v: string) => void;
+  colRef: React.RefObject<HTMLDivElement>;
+  label: string;
+}) {
+  return (
+    <div className="flex flex-col">
+      <div className="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground text-center">
+        {label}
+      </div>
+      <div className="relative">
+        {/* center highlight band */}
+        <div className="pointer-events-none absolute inset-x-2 top-1/2 h-10 -translate-y-1/2 rounded-xl bg-muted/60" />
+        <div
+          ref={colRef}
+          className="relative h-52 w-24 overflow-y-auto scroll-smooth snap-y snap-mandatory px-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {/* spacers let the first/last items reach the center band */}
+          <div className="h-[84px]" aria-hidden />
+          {items.map((v) => (
+            <button
+              key={v}
+              type="button"
+              data-selected={v === selected}
+              onClick={() => onPick(v)}
+              className={cn(
+                "flex h-10 w-full snap-center items-center justify-center rounded-xl text-base tabular-nums transition-all",
+                v === selected
+                  ? "bg-primary font-semibold text-primary-foreground shadow-sm"
+                  : "text-foreground/70 hover:bg-muted hover:text-foreground"
+              )}
+            >
+              {v}
+            </button>
+          ))}
+          <div className="h-[84px]" aria-hidden />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Time Picker Component — custom wheel (hour + 5-min steps) with type-exact fallback
 function TimePicker({
   value,
   onChange,
-  placeholder = "Select time"
+  placeholder = "Select time",
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
   const [open, setOpen] = useState(false);
-  
-  const commonTimes = [
-    "00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
-    "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
-    "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
-    "18:00", "19:00", "20:00", "21:00", "22:00", "23:00"
-  ];
+  const [hh, mm] = (value || "").split(":");
+  const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+  const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, "0"));
+  const hourRef = useRef<HTMLDivElement>(null);
+  const minRef = useRef<HTMLDivElement>(null);
+
+  // Center the selected value in its column — on open, and again whenever a pick changes it.
+  const center = (col: HTMLDivElement | null) => {
+    const el = col?.querySelector<HTMLButtonElement>('[data-selected="true"]');
+    if (el && col) col.scrollTop = el.offsetTop - col.clientHeight / 2 + el.clientHeight / 2;
+  };
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => center(hourRef.current), 0);
+    return () => clearTimeout(t);
+  }, [open, hh]);
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => center(minRef.current), 0);
+    return () => clearTimeout(t);
+  }, [open, mm]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -126,34 +191,35 @@ function TimePicker({
           {value || placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-48 p-2 bg-popover" align="start">
-        <div className="grid grid-cols-3 gap-1">
-          {commonTimes.map((time) => (
-            <button
-              key={time}
-              onClick={() => {
-                onChange(time);
-                setOpen(false);
-              }}
-              className={cn(
-                "px-2 py-1.5 text-sm rounded-md hover:bg-muted transition-colors",
-                value === time && "bg-primary text-primary-foreground hover:bg-primary"
-              )}
-            >
-              {time}
-            </button>
-          ))}
-        </div>
-        <div className="mt-2 pt-2 border-t border-border">
-          <Input
-            type="time"
-            value={value}
-            onChange={(e) => {
-              onChange(e.target.value);
+      <PopoverContent className="w-auto rounded-2xl p-0 shadow-lg" align="start">
+        <div className="flex divide-x divide-border">
+          <TimeColumn
+            items={hours}
+            selected={hh}
+            colRef={hourRef}
+            label="Hour"
+            onPick={(h) => onChange(`${h}:${mm || "00"}`)}
+          />
+          <TimeColumn
+            items={minutes}
+            selected={mm}
+            colRef={minRef}
+            label="Min"
+            onPick={(m) => {
+              onChange(`${hh || "00"}:${m}`);
               setOpen(false);
             }}
-            className="h-8 text-sm"
-            placeholder="Custom time"
+          />
+        </div>
+        <div className="flex items-center gap-2 border-t border-border px-3 py-2.5">
+          <span className="text-xs text-muted-foreground">Exact</span>
+          <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="14:32"
+            maxLength={5}
+            inputMode="numeric"
+            className="h-8 flex-1 text-center text-sm tabular-nums"
           />
         </div>
       </PopoverContent>
@@ -345,7 +411,14 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     price: initialData?.price ?? null,
     priceCurrency: initialData?.priceCurrency ?? "USD",
     selectedRuleIds: initialData?.selectedRuleIds || [],
+    room_usage: initialData?.room_usage || {},
   });
+
+  // Owned-hotel stays (with room tracking on) auto-detected from the itinerary.
+  const roomStays = useMemo(
+    () => getOwnedRoomStays(formData.itinerary, savedHotels),
+    [formData.itinerary, savedHotels]
+  );
 
   const showTrackingNumber = formData.tourSource === "partner-agency";
 
@@ -576,10 +649,18 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   };
 
   const handleSubmit = async () => {
+    // Keep only room usage for stays that still exist, and only positive values.
+    const prunedRoomUsage: Record<string, number> = {};
+    for (const stay of roomStays) {
+      const rooms = formData.room_usage?.[stay.stayKey] || 0;
+      if (rooms > 0) prunedRoomUsage[stay.stayKey] = rooms;
+    }
+
     const filteredData = {
       ...formData,
       clients: formData.clients.filter(c => c.name.trim() || c.passport.trim()),
       itinerary: formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()),
+      room_usage: prunedRoomUsage,
     };
 
     if (onSubmit) {
@@ -600,6 +681,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         price: filteredData.price,
         priceCurrency: filteredData.priceCurrency,
         selectedRuleIds: filteredData.selectedRuleIds,
+        room_usage: prunedRoomUsage,
       });
 
       // Save custom hotels with activities
@@ -1106,6 +1188,79 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                 Add day
               </Button>
             </section>
+
+            {/* Rooms at our hotels — auto-detected owned-hotel stays */}
+            {roomStays.length > 0 && (
+              <section className={cn(isMobile && "rounded-2xl border border-border/60 bg-white p-4 shadow-[0_8px_20px_rgba(15,76,92,0.06)]")}>
+                <div className="flex items-center gap-2 mb-1">
+                  <BedDouble className="h-5 w-5 text-[#0F4C5C]" />
+                  <h2 className="text-lg font-semibold text-foreground">Rooms at our hotels</h2>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  How many rooms this tour takes at your hotels (auto-detected from the itinerary).
+                </p>
+                <div className="space-y-2.5">
+                  {roomStays.map((stay) => {
+                    const taken = formData.room_usage?.[stay.stayKey] || 0;
+                    const over = taken > stay.roomCount;
+                    const pct = stay.roomCount > 0 ? Math.min(100, (taken / stay.roomCount) * 100) : 0;
+                    const setRooms = (next: number) => {
+                      const clamped = Math.max(0, next);
+                      setFormData((prev) => ({
+                        ...prev,
+                        room_usage: { ...(prev.room_usage || {}), [stay.stayKey]: clamped },
+                      }));
+                    };
+                    return (
+                      <div key={stay.stayKey} className="rounded-xl border border-[#0F4C5C]/10 bg-white p-3 shadow-[0_6px_16px_rgba(15,76,92,0.05)]">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-foreground truncate">{stay.hotelName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {stay.checkIn}{stay.checkOut !== stay.checkIn ? ` → ${stay.checkOut}` : ""} · {stay.nights} {stay.nights === 1 ? "night" : "nights"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-full"
+                              disabled={taken <= 0}
+                              onClick={() => setRooms(taken - 1)}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="w-6 text-center text-base font-semibold tabular-nums">{taken}</span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 rounded-full"
+                              onClick={() => setRooms(taken + 1)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <span className="text-xs text-muted-foreground w-12 text-right">of {stay.roomCount}</span>
+                          </div>
+                        </div>
+                        <div className="mt-2 h-1.5 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
+                          <div
+                            className={cn("h-full rounded-full transition-all", over ? "bg-amber-500" : "bg-[#12A6C2]")}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {over && (
+                          <p className="mt-1.5 text-[11px] font-medium text-amber-600">
+                            Over capacity — {taken} booked but only {stay.roomCount} rooms exist.
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Additional Expenses */}
             {activeRules.length > 0 && (

@@ -183,6 +183,141 @@ export function countHotelNights(
   }).length;
 }
 
+// ---- Owned-hotel room tracking ----
+
+export interface OwnedRoomStay {
+  stayKey: string;
+  hotelId: string;
+  hotelName: string;
+  checkIn: string;   // raw dd/mm/yyyy of the first day of the stay
+  checkOut: string;  // raw dd/mm/yyyy of the last day of the stay
+  dates: string[];   // raw date of every day in the stay
+  nights: number;
+  roomCount: number; // hotel capacity
+}
+
+// Stable key for a stay's room usage. Same hotel booked on different check-in
+// dates → different keys (so two non-consecutive stays stay independent).
+export function roomStayKey(hotelName: string, checkIn: string): string {
+  return `${hotelName.trim().toLowerCase()}::${checkIn.trim()}`;
+}
+
+// Detect consecutive-day stays at company-owned hotels that have room tracking on.
+// Grouped in itinerary array order so the keys are IDENTICAL wherever this runs —
+// the confirmation form (writes room_usage) and the calendar (reads it). An empty
+// hotel day or a different hotel breaks the run.
+export function getOwnedRoomStays(
+  itinerary: Array<{ hotel?: string; date?: string }>,
+  savedHotels: SavedHotel[]
+): OwnedRoomStay[] {
+  const owned = new Map<string, SavedHotel>();
+  for (const h of savedHotels) {
+    if (h.is_owned && h.room_count != null) owned.set(h.name.trim().toLowerCase(), h);
+  }
+  if (owned.size === 0) return [];
+
+  const stays: OwnedRoomStay[] = [];
+  let i = 0;
+  while (i < itinerary.length) {
+    const hotelName = String(itinerary[i]?.hotel || "").trim();
+    if (!hotelName) {
+      i++;
+      continue;
+    }
+    const key = hotelName.toLowerCase();
+    const dates: string[] = [];
+    let j = i;
+    while (j < itinerary.length && String(itinerary[j]?.hotel || "").trim().toLowerCase() === key) {
+      const d = String(itinerary[j]?.date || "").trim();
+      if (d) dates.push(d);
+      j++;
+    }
+    const match = owned.get(key);
+    if (match && dates.length > 0) {
+      stays.push({
+        stayKey: roomStayKey(match.name, dates[0]),
+        hotelId: match.id,
+        hotelName: match.name,
+        checkIn: dates[0],
+        checkOut: dates[dates.length - 1],
+        dates,
+        nights: dates.length,
+        roomCount: match.room_count as number,
+      });
+    }
+    i = j;
+  }
+  return stays;
+}
+
+// ---- Hotel stay derivation + unpaid-arrival warning ----
+
+export interface HotelStay {
+  hotel: string;
+  checkIn: string;  // raw dd/mm/yyyy of first day
+  checkOut: string; // raw dd/mm/yyyy of last day
+}
+
+// Derive hotel stays from a confirmation payload. Each consecutive run of the
+// same hotel in the itinerary = one stay. Placeholder days ("-"/"n/a") break a
+// run. Falls back to draft hotelBookings when the itinerary has no hotels.
+// Single source of truth shared by ConfirmationAttachments + the warning logic.
+export function getHotelStays(payload: ConfirmationPayload | null | undefined): HotelStay[] {
+  const itinerary = payload?.itinerary || [];
+  const stays: HotelStay[] = [];
+  let currentHotel = "";
+  let checkIn = "";
+  for (let i = 0; i < itinerary.length; i++) {
+    const day = itinerary[i];
+    const hotelName = (day.hotel || "").trim();
+    if (!hotelName || hotelName === "-" || hotelName.toLowerCase() === "n/a") {
+      if (currentHotel) {
+        stays.push({ hotel: currentHotel, checkIn, checkOut: day.date || itinerary[i - 1]?.date || "" });
+        currentHotel = "";
+        checkIn = "";
+      }
+      continue;
+    }
+    if (hotelName !== currentHotel) {
+      if (currentHotel) {
+        stays.push({ hotel: currentHotel, checkIn, checkOut: day.date || "" });
+      }
+      currentHotel = hotelName;
+      checkIn = day.date || "";
+    }
+  }
+  if (currentHotel) {
+    stays.push({ hotel: currentHotel, checkIn, checkOut: itinerary[itinerary.length - 1]?.date || "" });
+  }
+
+  if (stays.length === 0 && payload?.hotelBookings) {
+    for (const hb of payload.hotelBookings) {
+      stays.push({ hotel: hb.hotelName, checkIn: hb.checkIn, checkOut: hb.checkOut });
+    }
+  }
+  return stays;
+}
+
+// Hotels whose guests check in on `today` and which aren't marked paid.
+// `today` and each stay's check-in are compared at day granularity.
+// Owned (company) hotels are excluded — you don't pay yourself.
+export function unpaidArrivalsForDay(
+  payload: ConfirmationPayload | null | undefined,
+  today: Date,
+  ownedLowerSet: Set<string>
+): HotelStay[] {
+  const paid = payload?.hotel_paid || {};
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return getHotelStays(payload).filter((stay) => {
+    const lower = stay.hotel.trim().toLowerCase();
+    if (ownedLowerSet.has(lower)) return false;
+    const d = parseDDMMYYYY(stay.checkIn);
+    if (!d) return false;
+    if (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() !== t) return false;
+    return paid[roomStayKey(stay.hotel, stay.checkIn)] !== true;
+  });
+}
+
 export function getMainClientName(clients: { name: string; passport: string }[]): string {
   const validClients = clients.filter((c) => c.name.trim());
   return validClients.length > 0 ? validClients[0].name : "";

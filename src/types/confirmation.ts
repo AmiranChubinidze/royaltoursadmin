@@ -50,12 +50,38 @@ export interface HotelBooking {
   roomCategory: "Standard" | "Upgrade";
 }
 
+// Which kind of document this confirmation row represents. Absent/legacy rows
+// are treated as the original Royal Georgian Tours tour confirmation.
+export type DocType = "rgt_tour" | "cottage";
+
+// Invoice details rendered by the RGT / Cottage invoice templates. Auto-filled
+// from the booking, then editable; persisted under raw_payload.invoice.
+export interface InvoiceData {
+  invoice_code?: string;      // defaults to the booking's confirmation_code
+  invoice_date?: string;      // dd/mm/yyyy, defaults today
+  currency?: "USD" | "GEL";
+  // RGT invoice
+  payment_method?: string;        // default "Bank Transfer"
+  bill_to?: string;               // partner agency
+  service_description?: string;   // default "Tour & Travel Services"
+  service_detail?: string;        // default "As per tour management confirmation criteria"
+  amount?: number | null;         // default booking price
+  // Cottage invoice
+  line_description?: string;      // default "Cottage Stay"
+  rate?: number | null;           // per-night rate
+  additional_charges?: number | null;
+}
+
 export interface ConfirmationPayload {
   clients: Client[];
   arrival: ArrivalInfo;
   departure: DepartureInfo;
   itinerary: ItineraryDay[];
   guestInfo?: GuestInfo;
+  // Document discriminator (RGT tour vs Inn Martvili cottage). Absent = rgt_tour.
+  doc_type?: DocType;
+  // Persisted invoice fields for the per-booking Invoice tab.
+  invoice?: InvoiceData;
   trackingNumber?: string;
   services?: string;
   notes?: string;

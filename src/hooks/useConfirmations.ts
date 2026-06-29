@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Confirmation, ConfirmationPayload } from "@/types/confirmation";
+import { Confirmation, ConfirmationPayload, InvoiceData } from "@/types/confirmation";
 import {
   generateConfirmationCode,
   getDateCode,
@@ -357,6 +357,43 @@ export function useDeleteConfirmation() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+}
+
+// Lightweight invoice-only update. Merges raw_payload.invoice without touching
+// codes, dates, or the finance transaction (unlike useUpdateConfirmation, which
+// recomputes the whole record). Used by the per-booking Invoice tab.
+export function useUpdateInvoice() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, invoice }: { id: string; invoice: InvoiceData }) => {
+      const { data: existing, error: fetchError } = await supabase
+        .from("confirmations")
+        .select("raw_payload")
+        .eq("id", id)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const rp =
+        existing?.raw_payload && typeof existing.raw_payload === "object"
+          ? (existing.raw_payload as Record<string, unknown>)
+          : {};
+
+      const { error } = await supabase
+        .from("confirmations")
+        .update({ raw_payload: { ...rp, invoice } as unknown as Json })
+        .eq("id", id);
+      if (error) throw error;
+      return { id, invoice };
+    },
+    onSuccess: ({ id }) => {
+      queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+    },
+    onError: (error) => {
+      toast({ title: "Error saving invoice", description: error.message, variant: "destructive" });
     },
   });
 }

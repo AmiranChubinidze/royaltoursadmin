@@ -2,9 +2,11 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Edit, Copy, Mail, Trash2, Printer, FileText, Tag } from "lucide-react";
+import { ArrowLeft, Edit, Copy, Mail, Trash2, Printer, FileText, Tag, Receipt } from "lucide-react";
 import { ConfirmationLetter } from "@/components/ConfirmationLetter";
+import { CottageConfirmationLetter } from "@/components/CottageConfirmationLetter";
 import { LuggageTagView } from "@/components/LuggageTagView";
+import { InvoiceView } from "@/components/InvoiceView";
 import {
   useConfirmation,
   useDeleteConfirmation,
@@ -35,7 +37,7 @@ export default function ViewConfirmation() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"letter" | "tag">("letter");
+  const [viewMode, setViewMode] = useState<"letter" | "tag" | "invoice">("letter");
   const { role } = useUserRole();
   const { viewAsRole } = useViewAs();
   const effectiveRole = viewAsRole || role;
@@ -60,8 +62,8 @@ export default function ViewConfirmation() {
   }, [searchParams, setSearchParams]);
 
   const handlePrint = () => {
-    // Clean up any stale print styles when printing letter
-    if (viewMode === "letter") {
+    // Clean up any stale luggage-tag print styles when printing the A4 letter/invoice
+    if (viewMode !== "tag") {
       document.body.classList.remove("printing-luggage-tag");
       document
         .querySelectorAll("style#luggage-tag-print-styles")
@@ -118,6 +120,7 @@ export default function ViewConfirmation() {
   const updatedAt = new Date(confirmation.updated_at).getTime();
   const wasEdited = updatedAt - createdAt > 60000;
   const editedDate = wasEdited ? format(new Date(confirmation.updated_at), "dd/MM/yyyy") : null;
+  const isCottage = (confirmation.raw_payload as ConfirmationPayload)?.doc_type === "cottage";
 
   return (
     <div className="container mx-auto px-4 py-6 md:py-8 print:p-0 print:m-0 print:max-w-none">
@@ -138,24 +141,35 @@ export default function ViewConfirmation() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 rounded-2xl border border-border/60 bg-white p-1 shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
+          <div className="flex rounded-2xl border border-border/60 bg-white p-1 shadow-[0_8px_20px_rgba(15,76,92,0.08)]">
             <button
               onClick={() => setViewMode("letter")}
-              className={`flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
                 viewMode === "letter" ? "bg-[#EAF3F4] text-[#0F4C5C]" : "text-muted-foreground"
               }`}
             >
               <FileText className="h-4 w-4" />
               Letter
             </button>
+            {!isCottage && (
+              <button
+                onClick={() => setViewMode("tag")}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
+                  viewMode === "tag" ? "bg-[#EAF3F4] text-[#0F4C5C]" : "text-muted-foreground"
+                }`}
+              >
+                <Tag className="h-4 w-4" />
+                Tag
+              </button>
+            )}
             <button
-              onClick={() => setViewMode("tag")}
-              className={`flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
-                viewMode === "tag" ? "bg-[#EAF3F4] text-[#0F4C5C]" : "text-muted-foreground"
+              onClick={() => setViewMode("invoice")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs font-semibold transition-colors ${
+                viewMode === "invoice" ? "bg-[#EAF3F4] text-[#0F4C5C]" : "text-muted-foreground"
               }`}
             >
-              <Tag className="h-4 w-4" />
-              Tag
+              <Receipt className="h-4 w-4" />
+              Invoice
             </button>
           </div>
 
@@ -244,8 +258,13 @@ export default function ViewConfirmation() {
             <button onClick={() => setViewMode("letter")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "letter" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
               <FileText className="h-4 w-4" />Letter
             </button>
-            <button onClick={() => setViewMode("tag")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "tag" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              <Tag className="h-4 w-4" />Tag
+            {!isCottage && (
+              <button onClick={() => setViewMode("tag")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "tag" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                <Tag className="h-4 w-4" />Tag
+              </button>
+            )}
+            <button onClick={() => setViewMode("invoice")} className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${viewMode === "invoice" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+              <Receipt className="h-4 w-4" />Invoice
             </button>
           </div>
 
@@ -283,7 +302,9 @@ export default function ViewConfirmation() {
 
       <div className="confirmation-letter-wrapper">
         {viewMode === "letter" ? (
-          isMobile ? (
+          isCottage ? (
+            <CottageConfirmationLetter confirmation={confirmation} />
+          ) : isMobile ? (
             <div className="overflow-x-auto -mx-4 px-4">
               <div className="min-w-[960px]">
                 <ConfirmationLetter confirmation={confirmation} />
@@ -292,6 +313,8 @@ export default function ViewConfirmation() {
           ) : (
             <ConfirmationLetter confirmation={confirmation} />
           )
+        ) : viewMode === "invoice" ? (
+          <InvoiceView confirmation={confirmation} canEdit={canEditConfirmations} />
         ) : (
           <LuggageTagView
             clients={(confirmation?.raw_payload as ConfirmationPayload)?.clients || []}

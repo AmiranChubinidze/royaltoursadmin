@@ -26,8 +26,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck, DollarSign, Filter } from "lucide-react";
+import { Plus, Eye, Edit, Copy, Trash2, FileText, Search, X, CalendarIcon, Paperclip, CheckCircle, Mail, ClipboardCheck, DollarSign, Filter, ChevronDown, Home } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ConfirmationPayload } from "@/types/confirmation";
 import {
   useConfirmations,
   useDeleteConfirmation,
@@ -41,6 +48,68 @@ import { useViewAs } from "@/contexts/ViewAsContext";
 import { canAccessFinances, canManageFinances } from "@/lib/roles";
 import { useUnpaidArrivalsToday } from "@/hooks/useUnpaidArrivalsToday";
 import { UnpaidArrivalsBanner, UnpaidArrivalBadge } from "@/components/UnpaidArrivalWarning";
+
+const COTTAGE_GREEN = "#2c5e4a";
+
+// Dropdown that lets the user choose which document type to create.
+function NewDocMenu({ className }: { className?: string }) {
+  const navigate = useNavigate();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          size="sm"
+          className={cn(
+            "h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]",
+            className
+          )}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          New
+          <ChevronDown className="ml-1.5 h-4 w-4 opacity-80" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem className="gap-2 py-2.5" onClick={() => navigate("/new")}>
+          <FileText className="h-4 w-4 text-[#2f5597]" />
+          <div>
+            <div className="text-sm font-medium">Tour Confirmation</div>
+            <div className="text-xs text-muted-foreground">Royal Georgian Tours</div>
+          </div>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="gap-2 py-2.5" onClick={() => navigate("/new?type=cottage")}>
+          <Home className="h-4 w-4" style={{ color: COTTAGE_GREEN }} />
+          <div>
+            <div className="text-sm font-medium">Cottage Confirmation</div>
+            <div className="text-xs text-muted-foreground">Inn Martvili</div>
+          </div>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Slim per-brand letter chip shown next to the code in the list.
+// T = Tourism company (RGT), C = Cottages (Inn Martvili).
+function DocTypeTag({ payload }: { payload: unknown }) {
+  const docType =
+    payload && typeof payload === "object" ? (payload as ConfirmationPayload).doc_type : undefined;
+  const isCottage = docType === "cottage";
+  const letter = isCottage ? "C" : "T";
+  const title = isCottage ? "Cottages — Inn Martvili" : "Tourism company — Royal Georgian Tours";
+  const color = isCottage ? COTTAGE_GREEN : "#2f5597";
+  const bg = isCottage ? "#eaf3ed" : "#eaf0f8";
+
+  return (
+    <span
+      title={title}
+      className="inline-flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-bold leading-none shadow-sm"
+      style={{ background: bg, color, boxShadow: `inset 0 0 0 1px ${color}22` }}
+    >
+      {letter}
+    </span>
+  );
+}
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -412,16 +481,7 @@ export function Dashboard() {
               <div className="rounded-full border border-[#0F4C5C]/10 bg-white px-4 py-2 text-xs text-muted-foreground">
                 {isLoading ? "..." : `${filteredConfirmations.length} of ${totalConfirmations} shown`}
               </div>
-              {effectiveCanEditConfirmations && (
-                <Button
-                  size="sm"
-                  className="h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
-                  onClick={() => navigate("/new")}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Confirmation
-                </Button>
-              )}
+              {effectiveCanEditConfirmations && <NewDocMenu />}
             </div>
           </div>
         </div>
@@ -594,13 +654,9 @@ export function Dashboard() {
                     : "Create your first tour confirmation letter"}
                 </p>
                 {!hasActiveFilters && effectiveCanEditConfirmations && (
-                  <Button
-                    onClick={() => navigate("/new")}
-                    className="h-9 rounded-xl bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90 shadow-[0_10px_24px_rgba(15,76,92,0.16)]"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Confirmation
-                  </Button>
+                  <div className="flex justify-center">
+                    <NewDocMenu />
+                  </div>
                 )}
               </div>
             ) : (
@@ -630,6 +686,7 @@ export function Dashboard() {
                         >
                           <TableCell className="font-mono font-semibold text-primary tracking-tight">
                             <div className="flex items-center gap-2">
+                              <DocTypeTag payload={confirmation.raw_payload} />
                               {confirmation.status === "draft" && (
                                 <Badge
                                   variant="outline"
@@ -672,7 +729,9 @@ export function Dashboard() {
                             })()}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
-                            {confirmation.total_days}D / {confirmation.total_nights}N
+                            {confirmation.total_days != null && confirmation.total_nights != null
+                              ? `${confirmation.total_days}D / ${confirmation.total_nights}N`
+                              : "—"}
                           </TableCell>
                         <TableCell className="text-right">
                           <div

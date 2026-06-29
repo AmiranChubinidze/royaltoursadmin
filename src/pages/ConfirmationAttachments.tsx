@@ -716,34 +716,74 @@ export default function ConfirmationAttachments() {
     [id, queryClient]
   );
 
-  // Persist a date-keyed per-stay paid snapshot into raw_payload.hotel_paid so the
-  // unpaid-arrival warning (dashboard banner/badge + daily email) can read it
-  // without re-deriving attachment logic. Key = roomStayKey(hotel, checkIn).
+  // Persist a date-keyed per-stay snapshot into raw_payload so the unpaid-arrival
+  // warning (dashboard banner/badge + daily email) can read paid status AND the
+  // amount due without re-deriving attachment logic. Key = roomStayKey(hotel, checkIn).
   // ponytail: only refreshes while this page is open + read-modify-write on
   // raw_payload (last-write-wins) — same staleness model as is_paid. Per-row
   // locking only if concurrent editing ever becomes real.
-  const persistHotelPaid = useCallback(
-    async (map: Record<string, boolean>) => {
+  const persistSnapshot = useCallback(
+    async (
+      paidMap: Record<string, boolean>,
+      amountMap: Record<string, { amount: number; currency: string }>
+    ) => {
       if (!id || !confirmation) return;
-      const existing = (confirmation.raw_payload?.hotel_paid ?? {}) as Record<string, boolean>;
-      const ek = Object.keys(existing);
-      const mk = Object.keys(map);
-      const unchanged = ek.length === mk.length && mk.every((k) => existing[k] === map[k]);
-      if (unchanged) return;
+      const rp = confirmation.raw_payload ?? {};
+      const existingPaid = (rp.hotel_paid ?? {}) as Record<string, boolean>;
+      const existingAmts = (rp.hotel_amounts ?? {}) as Record<string, { amount: number; currency: string }>;
 
-      const nextPayload = { ...(confirmation.raw_payload ?? {}), hotel_paid: map };
+      const pk = Object.keys(paidMap);
+      const epk = Object.keys(existingPaid);
+      const paidSame = pk.length === epk.length && pk.every((k) => existingPaid[k] === paidMap[k]);
+      const ak = Object.keys(amountMap);
+      const eak = Object.keys(existingAmts);
+      const amtsSame =
+        ak.length === eak.length &&
+        ak.every(
+          (k) => existingAmts[k]?.amount === amountMap[k].amount && existingAmts[k]?.currency === amountMap[k].currency
+        );
+      if (paidSame && amtsSame) return;
+
+      const nextPayload = { ...rp, hotel_paid: paidMap, hotel_amounts: amountMap };
       const { error } = await supabase
         .from("confirmations")
         .update({ raw_payload: nextPayload })
         .eq("id", id);
       if (error) {
-        console.error("Failed to persist hotel_paid snapshot", error);
+        console.error("Failed to persist hotel snapshot", error);
         return;
       }
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
       queryClient.invalidateQueries({ queryKey: ["confirmation", id] });
     },
     [id, confirmation, queryClient]
+  );
+
+  // Invoice amount DUE for a stay (sum of its mapped invoice attachments) — mirrors
+  // the per-row display logic, invoice side only. null = no known amount.
+  const stayInvoiceDue = useCallback(
+    (stayKey: string): { amount: number; currency: string } | null => {
+      const invoices = attachmentsByStay.get(stayKey)?.invoices ?? [];
+      const entries = invoices.map((inv) => invoiceAmountMap[inv.id]).filter(Boolean);
+      let total = 0;
+      let currency = "USD";
+      for (const a of entries) {
+        const amt = typeof a === "number" ? a : a?.amount;
+        total += amt || 0;
+        if (typeof a !== "number" && a?.currency) currency = a.currency;
+      }
+      if (total > 0) return { amount: total, currency };
+      const raw = (attachmentsByStayRaw.get(stayKey) || [])
+        .map((a) => invoiceAmountMap[a.id])
+        .find((v) => v != null);
+      if (raw != null) {
+        return typeof raw === "number"
+          ? { amount: raw, currency: "USD" }
+          : { amount: raw.amount, currency: raw.currency || "USD" };
+      }
+      return null;
+    },
+    [attachmentsByStay, attachmentsByStayRaw, invoiceAmountMap]
   );
 
   // Auto-mark as paid when all visible hotel stays have payment order uploaded or manually checked
@@ -757,6 +797,7 @@ export default function ConfirmationAttachments() {
     }
 
     const nextHotelPaid: Record<string, boolean> = {};
+    const nextHotelAmounts: Record<string, { amount: number; currency: string }> = {};
     let allCovered = true;
     visibleHotelStays.forEach((stay, idx) => {
       const sameHotelBefore = visibleHotelStays.slice(0, idx).filter(s => s.hotel === stay.hotel).length;
@@ -764,10 +805,13 @@ export default function ConfirmationAttachments() {
       const stayPayments = attachmentsByStay.get(stayKey)?.payments ?? [];
       const covered = stayPayments.length > 0 || manualPaymentChecks.includes(stayKey);
       if (!covered) allCovered = false;
-      nextHotelPaid[roomStayKey(stay.hotel, stay.checkIn)] = covered;
+      const dateKey = roomStayKey(stay.hotel, stay.checkIn);
+      nextHotelPaid[dateKey] = covered;
+      const due = stayInvoiceDue(stayKey);
+      if (due) nextHotelAmounts[dateKey] = due;
     });
 
-    persistHotelPaid(nextHotelPaid);
+    persistSnapshot(nextHotelPaid, nextHotelAmounts);
 
     if (allCovered && !isPaidNow) {
       setPaidStatusSilently(true);
@@ -784,7 +828,8 @@ export default function ConfirmationAttachments() {
     attachmentsByStay,
     manualPaymentChecks,
     setPaidStatusSilently,
-    persistHotelPaid,
+    persistSnapshot,
+    stayInvoiceDue,
   ]);
 
 

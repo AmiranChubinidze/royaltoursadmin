@@ -69,8 +69,11 @@ export interface ConfirmationPayload {
   hotelBookings?: HotelBooking[];
   // Per-hotel booking approval tracking (keyed by hotel name)
   hotel_approvals?: Record<string, { approved: boolean; approved_at?: string }>;
-  // Rooms taken per owned-hotel stay (keyed by roomStayKey: hotelLower::checkIn)
+  // DEPRECATED (count-based). Superseded by room_numbers; kept for old reads only.
   room_usage?: Record<string, number>;
+  // Specific room numbers (1..room_count) this tour takes per owned-hotel stay.
+  // Keyed by roomStayKey (hotelLower::checkIn). Replaces room_usage.
+  room_numbers?: Record<string, number[]>;
   // Invoice tracking
   invoice_amounts?: Record<string, { amount: number; currency?: string }>;
   invoice_checks?: string[];
@@ -80,6 +83,10 @@ export interface ConfirmationPayload {
   // Written by ConfirmationAttachments when it recomputes is_paid; read by the
   // unpaid-arrival warning (dashboard + email). See unpaidArrivalsForDay.
   hotel_paid?: Record<string, boolean>;
+  // Per-stay invoice amount due, same roomStayKey. Persisted alongside hotel_paid
+  // (the amount derives from mapped invoice attachments, so it can't be read
+  // server-side). Read by the warning email to show price + total per hotel.
+  hotel_amounts?: Record<string, { amount: number; currency: string }>;
 }
 
 export interface Confirmation {
@@ -122,6 +129,7 @@ export interface ConfirmationFormData {
   priceCurrency: "USD" | "GEL";
   selectedRuleIds: string[];
   room_usage?: Record<string, number>;
+  room_numbers?: Record<string, number[]>;
 }
 
 export const COMPANY_INFO = {

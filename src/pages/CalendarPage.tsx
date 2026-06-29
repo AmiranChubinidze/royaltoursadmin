@@ -9,7 +9,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal, Home } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -414,26 +414,28 @@ export default function CalendarPage() {
     [savedHotels]
   );
 
-  // Rooms booked per day per owned hotel, summed across all confirmations.
-  // Keyed dateKey -> hotelNameLower -> rooms. Uses the same stay grouping as the
-  // confirmation form so the room_usage keys line up.
+  // Room numbers booked per day per owned hotel, across all confirmations.
+  // dateKey -> hotelNameLower -> Map<roomNumber, count>. count > 1 = the same
+  // room double-booked that day by two tours. Same stay grouping as the form.
   const bookedRoomsByDate = useMemo(() => {
-    const map = new Map<string, Map<string, number>>();
+    const map = new Map<string, Map<string, Map<number, number>>>();
     if (!confirmations || ownedRoomHotels.length === 0) return map;
     for (const c of confirmations) {
-      const usage = c.raw_payload?.room_usage || {};
+      const roomNumbers = c.raw_payload?.room_numbers || {};
       const stays = getOwnedRoomStays(c.raw_payload?.itinerary || [], savedHotels || []);
       for (const stay of stays) {
-        const rooms = Number(usage[stay.stayKey] || 0);
-        if (rooms <= 0) continue;
+        const nums = roomNumbers[stay.stayKey] || [];
+        if (!nums.length) continue;
         const hotelLower = stay.hotelName.trim().toLowerCase();
         for (const raw of stay.dates) {
           const parsed = parseDateFlexible(raw);
           if (!parsed) continue;
           const dk = format(parsed, "yyyy-MM-dd");
-          const inner = map.get(dk) || new Map<string, number>();
-          inner.set(hotelLower, (inner.get(hotelLower) || 0) + rooms);
-          map.set(dk, inner);
+          const byHotel = map.get(dk) || new Map<string, Map<number, number>>();
+          const byRoom = byHotel.get(hotelLower) || new Map<number, number>();
+          for (const n of nums) byRoom.set(n, (byRoom.get(n) || 0) + 1);
+          byHotel.set(hotelLower, byRoom);
+          map.set(dk, byHotel);
         }
       }
     }
@@ -836,9 +838,12 @@ export default function CalendarPage() {
                 <div className="text-xs font-medium text-muted-foreground">Our hotels — rooms booked</div>
                 {ownedRoomHotels.map((hotel) => {
                   const total = hotel.room_count as number;
-                  const booked = selectedRoomsByHotel?.get(hotel.name.trim().toLowerCase()) || 0;
-                  const filled = Math.min(booked, total);
-                  const over = booked > total;
+                  const roomMap = selectedRoomsByHotel?.get(hotel.name.trim().toLowerCase());
+                  const booked = roomMap?.size || 0;
+                  const conflicts = roomMap ? [...roomMap.entries()].filter(([, c]) => c > 1).length : 0;
+                  // Booked numbers above capacity (shouldn't happen, but surface it).
+                  const extras = roomMap ? [...roomMap.keys()].filter((n) => n > total).sort((a, b) => a - b) : [];
+                  const over = conflicts > 0 || extras.length > 0;
                   return (
                     <div key={hotel.id} className="rounded-xl border border-[#0F4C5C]/10 bg-white/90 px-3 py-2.5">
                       <div className="flex items-center justify-between gap-2">
@@ -847,27 +852,45 @@ export default function CalendarPage() {
                           {booked}/{total}
                         </span>
                       </div>
-                      {/* ponytail: one icon per room; assumes modest counts (cottages). Falls back to a bar above ~24. */}
-                      {total <= 24 ? (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {Array.from({ length: total }).map((_, i) => (
-                            <Home
-                              key={i}
-                              className={cn("h-4 w-4", i < filled ? "text-[#12A6C2]" : "text-muted-foreground/30")}
-                              fill={i < filled ? "#12A6C2" : "none"}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="mt-1.5 h-2 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
-                          <div
-                            className={cn("h-full rounded-full", over ? "bg-amber-500" : "bg-[#12A6C2]")}
-                            style={{ width: `${Math.min(100, (booked / total) * 100)}%` }}
-                          />
-                        </div>
-                      )}
+                      {/* Numbered rooms: teal = booked, amber = double-booked, grey = free. */}
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {Array.from({ length: total }, (_, i) => i + 1).map((n) => {
+                          const count = roomMap?.get(n) || 0;
+                          const conflict = count > 1;
+                          const filled = count > 0;
+                          return (
+                            <span
+                              key={n}
+                              title={conflict ? `Room ${n} double-booked` : filled ? `Room ${n} booked` : `Room ${n} free`}
+                              className={cn(
+                                "inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md px-1 text-[11px] font-semibold tabular-nums border",
+                                conflict
+                                  ? "bg-amber-500 text-white border-amber-500"
+                                  : filled
+                                    ? "bg-[#12A6C2] text-white border-[#12A6C2]"
+                                    : "bg-transparent text-muted-foreground/40 border-[#0F4C5C]/10"
+                              )}
+                            >
+                              {n}
+                            </span>
+                          );
+                        })}
+                        {extras.map((n) => (
+                          <span
+                            key={`x${n}`}
+                            title={`Room ${n} is beyond this hotel's ${total} rooms`}
+                            className="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-md px-1 text-[11px] font-semibold tabular-nums border bg-amber-500 text-white border-amber-500"
+                          >
+                            {n}
+                          </span>
+                        ))}
+                      </div>
                       {over && (
-                        <p className="mt-1 text-[11px] font-medium text-amber-600">Overbooked by {booked - total}.</p>
+                        <p className="mt-1 text-[11px] font-medium text-amber-600">
+                          {conflicts > 0
+                            ? `${conflicts} room${conflicts === 1 ? "" : "s"} double-booked.`
+                            : `${extras.length} room${extras.length === 1 ? "" : "s"} beyond capacity.`}
+                        </p>
                       )}
                     </div>
                   );

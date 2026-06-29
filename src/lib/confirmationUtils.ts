@@ -318,6 +318,31 @@ export function unpaidArrivalsForDay(
   });
 }
 
+// A room booking at an owned hotel: which nights + which room numbers.
+export interface RoomBooking {
+  hotelLower: string;
+  dates: string[]; // raw dd/mm/yyyy nights of the stay
+  numbers: number[];
+}
+
+// Room numbers unavailable for `stay` because another booking occupies them on a
+// shared night at the same hotel. A room is taken for the whole stay if it clashes
+// on ANY overlapping night (you assign one room for the stay's duration).
+export function takenRoomNumbers(
+  stay: { hotelName: string; dates: string[] },
+  others: RoomBooking[]
+): Set<number> {
+  const hotelLower = stay.hotelName.trim().toLowerCase();
+  const nights = new Set(stay.dates.map((d) => d.trim()));
+  const taken = new Set<number>();
+  for (const o of others) {
+    if (o.hotelLower !== hotelLower) continue;
+    if (!o.dates.some((d) => nights.has(d.trim()))) continue;
+    for (const n of o.numbers) taken.add(n);
+  }
+  return taken;
+}
+
 export function getMainClientName(clients: { name: string; passport: string }[]): string {
   const validClients = clients.filter((c) => c.name.trim());
   return validClients.length > 0 ? validClients[0].name : "";

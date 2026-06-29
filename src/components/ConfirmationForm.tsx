@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +25,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Plus, Minus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Receipt, BedDouble } from "lucide-react";
+import { Plus, ArrowLeft, CalendarIcon, Clock, Check, ChevronsUpDown, Trash2, Receipt, BedDouble } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   ConfirmationFormData,
@@ -34,17 +34,18 @@ import {
   GuestInfo,
   KidInfo,
 } from "@/types/confirmation";
-import { useCreateConfirmation } from "@/hooks/useConfirmations";
+import { useCreateConfirmation, useConfirmations } from "@/hooks/useConfirmations";
 import { useSavedHotels, useCreateSavedHotel, SavedHotel } from "@/hooks/useSavedData";
 import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { toast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, countHotelNights, getOwnedRoomStays } from "@/lib/confirmationUtils";
+import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, countHotelNights, getOwnedRoomStays, takenRoomNumbers, type RoomBooking } from "@/lib/confirmationUtils";
 
 interface ConfirmationFormProps {
   initialData?: Partial<ConfirmationFormData>;
   onSubmit?: (data: ConfirmationFormData) => void;
   isEdit?: boolean;
+  confirmationId?: string;
 }
 
 
@@ -379,7 +380,7 @@ function ActivityCombobox({
   );
 }
 
-export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: ConfirmationFormProps) {
+export function ConfirmationForm({ initialData, onSubmit, isEdit = false, confirmationId }: ConfirmationFormProps) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const createMutation = useCreateConfirmation();
@@ -411,13 +412,42 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
     price: initialData?.price ?? null,
     priceCurrency: initialData?.priceCurrency ?? "USD",
     selectedRuleIds: initialData?.selectedRuleIds || [],
-    room_usage: initialData?.room_usage || {},
+    room_numbers: initialData?.room_numbers || {},
   });
 
   // Owned-hotel stays (with room tracking on) auto-detected from the itinerary.
   const roomStays = useMemo(
     () => getOwnedRoomStays(formData.itinerary, savedHotels),
     [formData.itinerary, savedHotels]
+  );
+
+  // Rooms already taken by OTHER tours (and this tour's other stays) on overlapping
+  // nights — so you can't double-book a room number while creating.
+  const { data: allConfirmations } = useConfirmations();
+  const externalBookings = useMemo<RoomBooking[]>(() => {
+    const list: RoomBooking[] = [];
+    for (const c of allConfirmations || []) {
+      if (c.id === confirmationId) continue;
+      const rn = c.raw_payload?.room_numbers || {};
+      for (const s of getOwnedRoomStays(c.raw_payload?.itinerary || [], savedHotels)) {
+        const numbers = rn[s.stayKey] || [];
+        if (numbers.length) list.push({ hotelLower: s.hotelName.trim().toLowerCase(), dates: s.dates, numbers });
+      }
+    }
+    return list;
+  }, [allConfirmations, confirmationId, savedHotels]);
+
+  const takenForStay = useCallback(
+    (stay: { stayKey: string; hotelName: string; dates: string[] }): Set<number> => {
+      const others: RoomBooking[] = [...externalBookings];
+      for (const s of roomStays) {
+        if (s.stayKey === stay.stayKey) continue;
+        const numbers = formData.room_numbers?.[s.stayKey] || [];
+        if (numbers.length) others.push({ hotelLower: s.hotelName.trim().toLowerCase(), dates: s.dates, numbers });
+      }
+      return takenRoomNumbers(stay, others);
+    },
+    [externalBookings, roomStays, formData.room_numbers]
   );
 
   const showTrackingNumber = formData.tourSource === "partner-agency";
@@ -649,18 +679,20 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
   };
 
   const handleSubmit = async () => {
-    // Keep only room usage for stays that still exist, and only positive values.
-    const prunedRoomUsage: Record<string, number> = {};
+    // Keep only room numbers for stays that still exist (and within capacity).
+    const prunedRoomNumbers: Record<string, number[]> = {};
     for (const stay of roomStays) {
-      const rooms = formData.room_usage?.[stay.stayKey] || 0;
-      if (rooms > 0) prunedRoomUsage[stay.stayKey] = rooms;
+      const nums = (formData.room_numbers?.[stay.stayKey] || [])
+        .filter((n) => n >= 1 && n <= stay.roomCount)
+        .sort((a, b) => a - b);
+      if (nums.length > 0) prunedRoomNumbers[stay.stayKey] = nums;
     }
 
     const filteredData = {
       ...formData,
       clients: formData.clients.filter(c => c.name.trim() || c.passport.trim()),
       itinerary: formData.itinerary.filter(d => d.date.trim() || d.hotel.trim() || d.route.trim()),
-      room_usage: prunedRoomUsage,
+      room_numbers: prunedRoomNumbers,
     };
 
     if (onSubmit) {
@@ -681,7 +713,7 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
         price: filteredData.price,
         priceCurrency: filteredData.priceCurrency,
         selectedRuleIds: filteredData.selectedRuleIds,
-        room_usage: prunedRoomUsage,
+        room_numbers: prunedRoomNumbers,
       });
 
       // Save custom hotels with activities
@@ -1197,62 +1229,64 @@ export function ConfirmationForm({ initialData, onSubmit, isEdit = false }: Conf
                   <h2 className="text-lg font-semibold text-foreground">Rooms at our hotels</h2>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  How many rooms this tour takes at your hotels (auto-detected from the itinerary).
+                  Pick which room numbers this tour takes (auto-detected from the itinerary). Greyed-out numbers are already booked by another tour on these dates.
                 </p>
                 <div className="space-y-2.5">
                   {roomStays.map((stay) => {
-                    const taken = formData.room_usage?.[stay.stayKey] || 0;
-                    const over = taken > stay.roomCount;
-                    const pct = stay.roomCount > 0 ? Math.min(100, (taken / stay.roomCount) * 100) : 0;
-                    const setRooms = (next: number) => {
-                      const clamped = Math.max(0, next);
-                      setFormData((prev) => ({
-                        ...prev,
-                        room_usage: { ...(prev.room_usage || {}), [stay.stayKey]: clamped },
-                      }));
+                    const selected = formData.room_numbers?.[stay.stayKey] || [];
+                    const selectedSet = new Set(selected);
+                    const taken = takenForStay(stay);
+                    const freeCount = Math.max(0, stay.roomCount - taken.size - selectedSet.size);
+                    const toggleRoom = (n: number) => {
+                      setFormData((prev) => {
+                        const cur = prev.room_numbers?.[stay.stayKey] || [];
+                        const next = cur.includes(n)
+                          ? cur.filter((x) => x !== n)
+                          : [...cur, n].sort((a, b) => a - b);
+                        return { ...prev, room_numbers: { ...(prev.room_numbers || {}), [stay.stayKey]: next } };
+                      });
                     };
                     return (
                       <div key={stay.stayKey} className="rounded-xl border border-[#0F4C5C]/10 bg-white p-3 shadow-[0_6px_16px_rgba(15,76,92,0.05)]">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center justify-between gap-3 mb-2.5">
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-foreground truncate">{stay.hotelName}</div>
                             <div className="text-xs text-muted-foreground">
                               {stay.checkIn}{stay.checkOut !== stay.checkIn ? ` → ${stay.checkOut}` : ""} · {stay.nights} {stay.nights === 1 ? "night" : "nights"}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8 rounded-full"
-                              disabled={taken <= 0}
-                              onClick={() => setRooms(taken - 1)}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <span className="w-6 text-center text-base font-semibold tabular-nums">{taken}</span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8 rounded-full"
-                              onClick={() => setRooms(taken + 1)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <span className="text-xs text-muted-foreground w-12 text-right">of {stay.roomCount}</span>
-                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0 tabular-nums">
+                            {selected.length} of {stay.roomCount} chosen
+                          </span>
                         </div>
-                        <div className="mt-2 h-1.5 w-full rounded-full bg-[#0F4C5C]/10 overflow-hidden">
-                          <div
-                            className={cn("h-full rounded-full transition-all", over ? "bg-amber-500" : "bg-[#12A6C2]")}
-                            style={{ width: `${pct}%` }}
-                          />
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.from({ length: stay.roomCount }, (_, i) => i + 1).map((n) => {
+                            const isSelected = selectedSet.has(n);
+                            const isTaken = taken.has(n) && !isSelected;
+                            return (
+                              <button
+                                key={n}
+                                type="button"
+                                disabled={isTaken}
+                                onClick={() => toggleRoom(n)}
+                                title={isTaken ? "Already booked by another tour on these dates" : undefined}
+                                className={cn(
+                                  "h-8 min-w-[2rem] px-2 rounded-lg text-sm font-semibold tabular-nums border transition-colors",
+                                  isSelected
+                                    ? "bg-[#12A6C2] text-white border-[#12A6C2]"
+                                    : isTaken
+                                      ? "bg-muted text-muted-foreground/40 border-transparent line-through cursor-not-allowed"
+                                      : "bg-white text-foreground border-[#0F4C5C]/15 hover:border-[#12A6C2] hover:text-[#12A6C2]"
+                                )}
+                              >
+                                {n}
+                              </button>
+                            );
+                          })}
                         </div>
-                        {over && (
-                          <p className="mt-1.5 text-[11px] font-medium text-amber-600">
-                            Over capacity — {taken} booked but only {stay.roomCount} rooms exist.
+                        {selected.length > 0 && (
+                          <p className="mt-2 text-[11px] text-muted-foreground">
+                            Rooms {selected.join(", ")} · {freeCount} still free
                           </p>
                         )}
                       </div>

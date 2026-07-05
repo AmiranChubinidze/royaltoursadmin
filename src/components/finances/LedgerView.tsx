@@ -123,6 +123,22 @@ const getCategoryLabel = (category: string) => {
   return CATEGORY_LABELS[category] || category.charAt(0).toUpperCase() + category.slice(1);
 };
 
+// Export "Source": partner-agency bookings store the agency name (TRAVEL DOOR,
+// A2Z, ...) in the tracking number — show that, not the raw "partner-agency" enum.
+const getSourceLabel = (c?: Transaction["confirmation"]) => {
+  if (!c) return "—";
+  if (c.tour_source === "partner-agency") return c.raw_payload?.trackingNumber || "Partner agency";
+  if (c.tour_source === "direct") return "Direct";
+  return c.tour_source || "—";
+};
+
+// Export "Category": a cottage booking's income still lands under tour_payment;
+// label it "Cottage" so cottages are distinguishable from RGT tours.
+const getExportCategoryLabel = (t: Transaction) => {
+  if (t.category === "tour_payment" && t.confirmation?.raw_payload?.doc_type === "cottage") return "Cottage";
+  return getCategoryLabel(t.category);
+};
+
 const getCategoryColor = (category: string) => {
   return CATEGORY_COLORS[category] || "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400";
 };
@@ -585,9 +601,9 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       const row = [
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
-        { v: t.confirmation?.tour_source || "—", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
+        { v: getSourceLabel(t.confirmation), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.kind.toUpperCase(), s: { ...cellBorder, ...rowStyle, ...centerStyle, font: { bold: true } } },
-        { v: getCategoryLabel(t.category), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
+        { v: getExportCategoryLabel(t), s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...rowStyle, ...cellStyle } },
         { v: t.amount, s: { ...cellBorder, ...rowStyle, ...amountStyle } },
         { v: t.currency || "USD", s: { ...cellBorder, ...rowStyle, ...centerStyle } },
@@ -616,8 +632,8 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       incomeRows.push([
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
-        { v: t.confirmation?.tour_source || "—", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
-        { v: getCategoryLabel(t.category), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
+        { v: getSourceLabel(t.confirmation), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
+        { v: getExportCategoryLabel(t), s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...incomeRowStyle, ...cellStyle } },
         { v: t.amount, s: { ...cellBorder, ...incomeRowStyle, ...amountStyle } },
         { v: t.currency || "USD", s: { ...cellBorder, ...incomeRowStyle, ...centerStyle } },
@@ -646,8 +662,8 @@ export function LedgerView({ dateFrom, dateTo }: LedgerViewProps) {
       expenseRows.push([
         { v: format(new Date(t.date), "MMM d, yyyy"), s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: t.confirmation?.confirmation_code || "General", s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
-        { v: t.confirmation?.tour_source || "—", s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
-        { v: getCategoryLabel(t.category), s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
+        { v: getSourceLabel(t.confirmation), s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
+        { v: getExportCategoryLabel(t), s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: t.description || "—", s: { ...cellBorder, ...expenseRowStyle, ...cellStyle } },
         { v: t.amount, s: { ...cellBorder, ...expenseRowStyle, ...amountStyle } },
         { v: t.currency || "USD", s: { ...cellBorder, ...expenseRowStyle, ...centerStyle } },

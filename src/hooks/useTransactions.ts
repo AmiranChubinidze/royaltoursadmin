@@ -41,6 +41,7 @@ export interface Transaction {
     confirmation_code: string;
     main_client_name: string | null;
     tour_source: string | null;
+    raw_payload?: { trackingNumber?: string | null; doc_type?: string | null } | null;
   } | null;
   holder?: {
     id: string;
@@ -111,7 +112,7 @@ export const useTransactions = (filters?: {
         .from("transactions")
         .select(`
           *,
-          confirmation:confirmations(confirmation_code, main_client_name, tour_source),
+          confirmation:confirmations(confirmation_code, main_client_name, tour_source, raw_payload),
           holder:holders!transactions_holder_id_fkey(id, name, type),
           from_holder:holders!transactions_from_holder_id_fkey(id, name, type),
           to_holder:holders!transactions_to_holder_id_fkey(id, name, type),

@@ -312,6 +312,15 @@ export default function CalendarPage() {
 
   const selectedKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
   const selectedStays = selectedKey ? visibleStaysByDate.get(selectedKey) || [] : [];
+  // Stay identities that check IN on the selected day — price shows only here, not every occupied day.
+  const selectedCheckInStayIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!selectedKey) return set;
+    for (const s of checkInsByDate.get(selectedKey) || []) {
+      if (s.stayKey) set.add(`${s.confirmationId}::${s.stayKey}`);
+    }
+    return set;
+  }, [selectedKey, checkInsByDate]);
   const selectedDateLabel = selectedDate
     ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(selectedDate)
     : "Select a Date";
@@ -736,7 +745,7 @@ export default function CalendarPage() {
                 <div className="space-y-3">
                   <div className="text-xs font-medium text-muted-foreground">Hotel Stays</div>
                   {selectedStays.map((s, idx) => {
-                    const invoiceInfo = s.stayKey
+                    const invoiceInfo = s.stayKey && selectedCheckInStayIds.has(`${s.confirmationId}::${s.stayKey}`)
                       ? invoiceAmountByConfirmationStay.get(`${s.confirmationId}::${s.stayKey}`)
                       : null;
                     return (
@@ -801,7 +810,7 @@ export default function CalendarPage() {
                 // ponytail: per-currency sum of everything shown above (USD + GEL can't merge into one number)
                 const totals: Record<string, number> = {};
                 for (const s of selectedStays) {
-                  const info = s.stayKey
+                  const info = s.stayKey && selectedCheckInStayIds.has(`${s.confirmationId}::${s.stayKey}`)
                     ? invoiceAmountByConfirmationStay.get(`${s.confirmationId}::${s.stayKey}`)
                     : null;
                   if (info) totals[info.currency] = (totals[info.currency] || 0) + info.amount;

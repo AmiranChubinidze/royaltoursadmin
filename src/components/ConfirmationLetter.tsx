@@ -1,5 +1,6 @@
 import { Confirmation, ConfirmationPayload, HotelBooking, ItineraryDay } from "@/types/confirmation";
 import signatureStamp from "@/assets/signature-levani.png";
+import rgtStamp from "@/assets/rgt-stamp.png";
 import { parseDateDDMMYYYY, formatDateDDMMYYYY, datePlusDays, generateItineraryFromBookings } from "@/lib/confirmationUtils";
 
 interface ConfirmationLetterProps {
@@ -219,11 +220,16 @@ export function ConfirmationLetter({ confirmation }: ConfirmationLetterProps) {
 
         {/* Signature Section */}
         <section className="flex-[0_0_45%] flex justify-center items-center text-center print:flex-[0_0_42%]">
-          <div>
+          <div className="relative inline-block">
             <img
               src={signatureStamp}
-              alt="Signature and Stamp"
-              className="max-w-[220px] h-auto block mx-auto print:max-w-[140px]"
+              alt="Signature"
+              className="max-w-[220px] h-auto block mx-auto print:max-w-[140px] relative z-10"
+            />
+            <img
+              src={rgtStamp}
+              alt="Royal Georgian Tours official stamp"
+              className="absolute bottom-0 right-6 h-28 w-28 object-contain -rotate-12 print:h-20 print:w-20"
             />
           </div>
         </section>

@@ -49,7 +49,9 @@ import { canAccessFinances, canManageFinances } from "@/lib/roles";
 import { useUnpaidArrivalsToday } from "@/hooks/useUnpaidArrivalsToday";
 import { UnpaidArrivalsBanner, UnpaidArrivalBadge } from "@/components/UnpaidArrivalWarning";
 
-const COTTAGE_GREEN = "#2c5e4a";
+// Muted forest green — matches the cottage form brand color (was a clashing
+// vibrant #00e64d). Reads clearly next to the blue "T" tour chip.
+const COTTAGE_GREEN = "#2f6b4f";
 
 // Dropdown that lets the user choose which document type to create.
 function NewDocMenu({ className }: { className?: string }) {
@@ -97,13 +99,13 @@ function DocTypeTag({ payload }: { payload: unknown }) {
   const isCottage = docType === "cottage";
   const letter = isCottage ? "C" : "T";
   const title = isCottage ? "Cottages — Inn Martvili" : "Tourism company — Royal Georgian Tours";
-  const color = isCottage ? COTTAGE_GREEN : "#2f5597";
-  const bg = isCottage ? "#eaf3ed" : "#eaf0f8";
+  const color = "#ffffff";
+  const bg = isCottage ? COTTAGE_GREEN : "#2f5597";
 
   return (
     <span
       title={title}
-      className="inline-flex h-5 w-5 items-center justify-center rounded-md text-[11px] font-bold leading-none shadow-sm"
+      className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-md text-[12px] font-bold leading-none shadow-sm"
       style={{ background: bg, color, boxShadow: `inset 0 0 0 1px ${color}22` }}
     >
       {letter}

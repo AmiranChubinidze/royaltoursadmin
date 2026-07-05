@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ConfirmationForm } from "@/components/ConfirmationForm";
+import { CottageConfirmationForm } from "@/components/CottageConfirmationForm";
 import { useConfirmation, useUpdateConfirmation } from "@/hooks/useConfirmations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,12 @@ export default function EditConfirmation() {
   }
 
   const payload = confirmation.raw_payload as ConfirmationPayload;
+
+  // Cottage confirmations use their own form (own field set, no hotel gating).
+  if (payload?.doc_type === "cottage") {
+    return <CottageConfirmationForm editId={confirmation.id} initialPayload={payload} />;
+  }
+
   const isDraft = confirmation.status === "draft";
   const hotelBookings = payload?.hotelBookings as HotelBooking[] | undefined;
 

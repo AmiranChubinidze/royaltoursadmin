@@ -11,6 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -28,6 +34,8 @@ import {
   LayoutGrid,
   Calendar,
   Plus,
+  Home,
+  FileText,
   Inbox,
   Database,
   Wallet,
@@ -243,15 +251,34 @@ export function AppSidebar() {
 
               {effectiveCanEdit && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={isActive("/new")}
-                    onClick={() => go("/new")}
-                    tooltip="New Confirmation"
-                    className={navItemClass("/new")}
-                  >
-                    <NavIcon icon={Plus} />
-                    <span className="group-data-[collapsible=icon]:hidden">New Confirmation</span>
-                  </SidebarMenuButton>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={isActive("/new")}
+                        tooltip="New Confirmation"
+                        className={navItemClass("/new")}
+                      >
+                        <NavIcon icon={Plus} />
+                        <span className="group-data-[collapsible=icon]:hidden">New Confirmation</span>
+                      </SidebarMenuButton>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" side="right" className="w-64">
+                      <DropdownMenuItem className="gap-2 py-2.5" onClick={() => go("/new")}>
+                        <FileText className="h-4 w-4 text-[#2f5597]" />
+                        <div>
+                          <div className="text-sm font-medium">Tour Confirmation</div>
+                          <div className="text-xs text-muted-foreground">Royal Georgian Tours</div>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2 py-2.5" onClick={() => go("/new?type=cottage")}>
+                        <Home className="h-4 w-4" style={{ color: "#2f6b4f" }} />
+                        <div>
+                          <div className="text-sm font-medium">Cottage Confirmation</div>
+                          <div className="text-xs text-muted-foreground">Inn Martvili</div>
+                        </div>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </SidebarMenuItem>
               )}
 

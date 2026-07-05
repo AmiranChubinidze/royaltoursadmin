@@ -69,7 +69,7 @@ export interface InvoiceData {
   // Cottage invoice
   line_description?: string;      // default "Cottage Stay"
   rate?: number | null;           // per-night rate
-  additional_charges?: number | null;
+  additional_expenses?: { description: string; amount: number | null }[];
 }
 
 export interface ConfirmationPayload {

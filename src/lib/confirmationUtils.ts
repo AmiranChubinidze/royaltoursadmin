@@ -343,6 +343,10 @@ export function takenRoomNumbers(
   return taken;
 }
 
+export function sumAdditionalExpenses(expenses?: { amount: number | null }[]): number {
+  return (expenses ?? []).reduce((sum, e) => sum + (e.amount ?? 0), 0);
+}
+
 export function getMainClientName(clients: { name: string; passport: string }[]): string {
   const validClients = clients.filter((c) => c.name.trim());
   return validClients.length > 0 ? validClients[0].name : "";

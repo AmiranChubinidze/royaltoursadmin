@@ -1,15 +1,17 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ArrowLeft, CalendarIcon, BedDouble, Home, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmationPayload, ItineraryDay } from "@/types/confirmation";
-import { useCreateConfirmation, useConfirmations } from "@/hooks/useConfirmations";
+import { useCreateConfirmation, useUpdateConfirmation, useConfirmations } from "@/hooks/useConfirmations";
 import { useSavedHotels } from "@/hooks/useSavedData";
+import { useExpenseRules } from "@/hooks/useExpenseRules";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -67,24 +69,52 @@ function DatePicker({
   );
 }
 
-export function CottageConfirmationForm() {
+export function CottageConfirmationForm({
+  editId,
+  initialPayload,
+}: {
+  editId?: string;
+  initialPayload?: ConfirmationPayload;
+} = {}) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const createMutation = useCreateConfirmation();
+  const updateMutation = useUpdateConfirmation();
+  const isEdit = !!editId;
   const { data: savedHotels = [] } = useSavedHotels();
   const { data: allConfirmations = [] } = useConfirmations(500);
+  const { data: expenseRules = [] } = useExpenseRules();
+  const activeRules = expenseRules.filter((r) => r.active);
 
-  const [guestNames, setGuestNames] = useState<string[]>([""]);
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [numAdults, setNumAdults] = useState(2);
-  const [numKids, setNumKids] = useState(0);
-  const [kidsAges, setKidsAges] = useState<number[]>([]);
-  const [trackingNumber, setTrackingNumber] = useState("");
-  const [price, setPrice] = useState<string>("");
-  const [priceCurrency, setPriceCurrency] = useState<"USD" | "GEL">("USD");
-  const [cottageNumbers, setCottageNumbers] = useState<number[]>([]);
-  const [manualCottages, setManualCottages] = useState("");
+  // On edit, take the cottage numbers off the single room_numbers stay entry.
+  const initialCottages = () => {
+    const first = Object.values(initialPayload?.room_numbers ?? {})[0];
+    return Array.isArray(first) ? [...first].sort((a, b) => a - b) : [];
+  };
+
+  const [guestNames, setGuestNames] = useState<string[]>(
+    () => initialPayload?.clients?.map((c) => c.name) ?? [""]
+  );
+  const [checkIn, setCheckIn] = useState(() => initialPayload?.arrival?.date ?? "");
+  const [checkOut, setCheckOut] = useState(() => initialPayload?.departure?.date ?? "");
+  const [numAdults, setNumAdults] = useState(() => initialPayload?.guestInfo?.numAdults ?? 2);
+  const [numKids, setNumKids] = useState(() => initialPayload?.guestInfo?.numKids ?? 0);
+  const [kidsAges, setKidsAges] = useState<number[]>(
+    () => initialPayload?.guestInfo?.kidsAges?.map((k) => k?.age ?? 0) ?? []
+  );
+  const [trackingNumber, setTrackingNumber] = useState(() => initialPayload?.trackingNumber ?? "");
+  const [price, setPrice] = useState<string>(() =>
+    initialPayload?.price != null ? String(initialPayload.price) : ""
+  );
+  const [priceCurrency, setPriceCurrency] = useState<"USD" | "GEL">(
+    () => initialPayload?.priceCurrency ?? "USD"
+  );
+  const [cottageNumbers, setCottageNumbers] = useState<number[]>(initialCottages);
+  const [manualCottages, setManualCottages] = useState(() => initialCottages().join(", "));
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>(
+    () => initialPayload?.selectedRuleIds ?? []
+  );
+  const manuallyDeselectedRef = useRef<Set<string>>(new Set());
 
   // The owned cottage property (set up once in Saved Data).
   const innProperty = useMemo(
@@ -109,6 +139,15 @@ export function CottageConfirmationForm() {
     }
     return out;
   }, [checkIn, checkOut]);
+
+  // Itinerary shape shared by the expense-rule matching below and the submit payload.
+  const itinerary: ItineraryDay[] = useMemo(
+    () => nights.map((d) => ({ date: d, day: "", route: "", hotel: propertyName, roomType: "", meals: "" })),
+    [nights, propertyName]
+  );
+
+  // NOTE: unlike the RGT form, cottage stays don't gate expenses by hotel — every
+  // stay is Inn Martvili, so all active rules apply and are freely selectable.
 
   // Cottages occupied by other bookings on overlapping nights → locked out.
   const otherBookings: RoomBooking[] = useMemo(() => {
@@ -167,15 +206,6 @@ export function CottageConfirmationForm() {
       return;
     }
 
-    const itinerary: ItineraryDay[] = nights.map((d) => ({
-      date: d,
-      day: "",
-      route: "",
-      hotel: propertyName,
-      roomType: "",
-      meals: "",
-    }));
-
     const sorted = [...chosen].sort((a, b) => a - b);
     const payload: ConfirmationPayload & { tourSource?: string; price?: number | null } = {
       doc_type: "cottage",
@@ -188,11 +218,17 @@ export function CottageConfirmationForm() {
       room_numbers: sorted.length ? { [roomStayKey(propertyName, nights[0])]: sorted } : undefined,
       price: price === "" ? null : Number(price),
       priceCurrency,
+      selectedRuleIds: selectedRuleIds.length ? selectedRuleIds : undefined,
     };
 
     try {
-      const result = await createMutation.mutateAsync(payload);
-      navigate(`/confirmation/${result.id}`);
+      if (isEdit) {
+        await updateMutation.mutateAsync({ id: editId!, payload });
+        navigate(`/confirmation/${editId}`);
+      } else {
+        const result = await createMutation.mutateAsync(payload);
+        navigate(`/confirmation/${result.id}`);
+      }
     } catch {
       /* toast handled by the mutation */
     }
@@ -207,7 +243,7 @@ export function CottageConfirmationForm() {
         <div>
           <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <Home className="h-5 w-5" style={{ color: COTTAGE_GREEN }} />
-            New Cottage Confirmation
+            {isEdit ? "Edit Cottage Confirmation" : "New Cottage Confirmation"}
           </h1>
           <p className="text-sm text-muted-foreground">Inn Martvili — cabins near Martvili Canyon</p>
         </div>
@@ -368,6 +404,90 @@ export function CottageConfirmationForm() {
           )}
         </div>
 
+        {/* Additional Expenses */}
+        {activeRules.length > 0 && (
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Additional Expenses</h2>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-3">Select which charges apply to this stay</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {activeRules.map((rule) => {
+                const isSelected = selectedRuleIds.includes(rule.id);
+                // Cottage form: no hotel gating — every rule applies over the stay nights.
+                const numDays = itinerary.length || 1;
+                const dayMultiplier = numDays;
+                const total = rule.rate * (rule.per_person ? numAdults : 1) * (rule.per_day ? dayMultiplier : 1);
+                const sym = rule.currency === "GEL" ? "₾" : "$";
+                const formulaParts = [
+                  rule.per_person ? `${numAdults} adults` : null,
+                  rule.per_day ? `${dayMultiplier} nights` : null,
+                  `${rule.rate} ${sym}`,
+                ].filter(Boolean);
+
+                function toggle() {
+                  const affectedIds = rule.group
+                    ? activeRules.filter((r) => r.group === rule.group).map((r) => r.id)
+                    : [rule.id];
+                  const willSelect = !isSelected;
+                  setSelectedRuleIds((prev) => {
+                    const set = new Set(prev);
+                    for (const id of affectedIds) {
+                      if (willSelect) set.add(id);
+                      else set.delete(id);
+                    }
+                    return Array.from(set);
+                  });
+                  for (const id of affectedIds) {
+                    if (willSelect) manuallyDeselectedRef.current.delete(id);
+                    else manuallyDeselectedRef.current.add(id);
+                  }
+                }
+
+                return (
+                  <div
+                    key={rule.id}
+                    onClick={toggle}
+                    className={cn(
+                      "rounded-xl border p-4 transition-all duration-150",
+                      isSelected
+                        ? "cursor-pointer shadow-[0_0_0_1px_rgba(44,94,74,0.12),0_4px_12px_rgba(44,94,74,0.08)]"
+                        : "cursor-pointer border-border/60 bg-white hover:bg-[#F6FAF8]"
+                    )}
+                    style={
+                      isSelected
+                        ? { borderColor: `${COTTAGE_GREEN}59`, background: `linear-gradient(to bottom right, ${COTTAGE_GREEN}14, white, white)` }
+                        : ({ ["--hover-cg" as string]: COTTAGE_GREEN } as React.CSSProperties)
+                    }
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={toggle}
+                          onClick={(e) => e.stopPropagation()}
+                          style={isSelected ? { borderColor: COTTAGE_GREEN, backgroundColor: COTTAGE_GREEN } : undefined}
+                        />
+                        <span className="text-sm font-semibold text-foreground">{rule.name}</span>
+                      </div>
+                      <span className="text-xl font-bold font-mono" style={{ color: COTTAGE_GREEN }}>
+                        {`${total} ${sym}`}
+                      </span>
+                    </div>
+                    <div className="mt-1 pl-7 space-y-0.5">
+                      {rule.per_person || rule.per_day ? (
+                        <span className="text-xs text-muted-foreground">
+                          {formulaParts.join(" · ")}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">flat fee</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Tracking + price */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -411,11 +531,17 @@ export function CottageConfirmationForm() {
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={createMutation.isPending}
+            disabled={createMutation.isPending || updateMutation.isPending}
             style={{ backgroundColor: COTTAGE_GREEN }}
             className="text-white hover:opacity-90"
           >
-            {createMutation.isPending ? "Creating…" : "Create Confirmation"}
+            {isEdit
+              ? updateMutation.isPending
+                ? "Saving…"
+                : "Save Changes"
+              : createMutation.isPending
+                ? "Creating…"
+                : "Create Confirmation"}
           </Button>
         </div>
       </div>

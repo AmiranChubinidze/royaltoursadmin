@@ -1,5 +1,6 @@
 import { Confirmation, ConfirmationPayload, InvoiceData } from "@/types/confirmation";
 import signatureStamp from "@/assets/signature-levani.png";
+import rgtStamp from "@/assets/rgt-stamp.png";
 
 interface RGTInvoiceProps {
   confirmation: Confirmation;
@@ -139,9 +140,14 @@ export function RGTInvoice({ confirmation, invoice }: RGTInvoiceProps) {
         </table>
       </div>
 
-      {/* Signature */}
+      {/* Signature + stamp */}
       <div className="flex items-end justify-end mt-12 print:mt-8 print-break-avoid">
-        <div className="text-center">
+        <img
+          src={rgtStamp}
+          alt="Royal Georgian Tours official stamp"
+          className="h-28 w-28 object-contain -mr-16 mb-8 -rotate-12 print:h-24 print:w-24"
+        />
+        <div className="text-center relative z-10">
           <img src={signatureStamp} alt="Signature" className="max-w-[160px] h-auto mx-auto print:max-w-[120px]" />
           <div className="border-t border-[#cdd3dd] pt-1 mt-1 text-sm text-[#48526a]">
             Thank you,

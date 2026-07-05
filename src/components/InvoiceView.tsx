@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save } from "lucide-react";
+import { Save, Plus, Trash2 } from "lucide-react";
 import { Confirmation, ConfirmationPayload, InvoiceData } from "@/types/confirmation";
 import { useUpdateInvoice } from "@/hooks/useConfirmations";
 import { toast } from "@/hooks/use-toast";
@@ -24,6 +24,17 @@ export function InvoiceView({ confirmation, canEdit }: InvoiceViewProps) {
 
   const set = (patch: Partial<InvoiceData>) => setInvoice((prev) => ({ ...prev, ...patch }));
   const num = (v: string): number | null => (v === "" ? null : Number(v));
+
+  const addExpense = () =>
+    set({ additional_expenses: [...(invoice.additional_expenses ?? []), { description: "", amount: null }] });
+  const updateExpense = (index: number, patch: Partial<{ description: string; amount: number | null }>) =>
+    set({
+      additional_expenses: (invoice.additional_expenses ?? []).map((expense, i) =>
+        i === index ? { ...expense, ...patch } : expense
+      ),
+    });
+  const removeExpense = (index: number) =>
+    set({ additional_expenses: (invoice.additional_expenses ?? []).filter((_, i) => i !== index) });
 
   const handleSave = async () => {
     try {
@@ -108,14 +119,34 @@ export function InvoiceView({ confirmation, canEdit }: InvoiceViewProps) {
                     placeholder={String(confirmation.price ?? 0)}
                   />
                 </Field>
-                <Field label="Additional charges">
-                  <Input
-                    type="number"
-                    min={0}
-                    value={invoice.additional_charges ?? ""}
-                    onChange={(e) => set({ additional_charges: num(e.target.value) })}
-                    placeholder="0"
-                  />
+                <Field label="Additional expenses" className="md:col-span-3">
+                  <div className="space-y-2">
+                    {(invoice.additional_expenses ?? []).map((expense, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          value={expense.description}
+                          onChange={(e) => updateExpense(index, { description: e.target.value })}
+                          placeholder="Description (e.g. Extra cleaning fee)"
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          min={0}
+                          value={expense.amount ?? ""}
+                          onChange={(e) => updateExpense(index, { amount: num(e.target.value) })}
+                          placeholder="0"
+                          className="w-28"
+                        />
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeExpense(index)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={addExpense}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add expense
+                    </Button>
+                  </div>
                 </Field>
               </>
             ) : (

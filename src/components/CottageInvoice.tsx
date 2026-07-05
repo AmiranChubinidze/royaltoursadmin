@@ -1,6 +1,8 @@
 import { Confirmation, ConfirmationPayload, InvoiceData } from "@/types/confirmation";
 import { formatGuests, cottageNumberLabel } from "@/components/CottageConfirmationLetter";
+import { sumAdditionalExpenses } from "@/lib/confirmationUtils";
 import signatureEliso from "@/assets/signature-eliso.png";
+import stampInnMartvili from "@/assets/inn-martvili-stamp.png";
 
 interface CottageInvoiceProps {
   confirmation: Confirmation;
@@ -24,9 +26,10 @@ export function CottageInvoice({ confirmation, invoice }: CottageInvoiceProps) {
   const nights = confirmation.total_nights ?? 0;
   const rate = invoice.rate ?? confirmation.price ?? 0;
   const amount = nights * rate;
-  const additional = invoice.additional_charges ?? 0;
+  const expenses = (invoice.additional_expenses ?? []).filter((e) => e.description || e.amount);
+  const expensesTotal = sumAdditionalExpenses(expenses);
   const subtotal = amount;
-  const total = subtotal + additional;
+  const total = subtotal + expensesTotal;
 
   const cottageDetail = cottage.replace(/^No\.\s*/, "#");
 
@@ -81,11 +84,17 @@ export function CottageInvoice({ confirmation, invoice }: CottageInvoiceProps) {
           <div>
             <strong>Phone:</strong> +995 599 40 67 41
           </div>
-          <div>
-            <strong>Bank Account:</strong> GE22BG0000000823495300
+          <div className="whitespace-nowrap">
+            <strong>Bank:</strong> Bank of Georgia
           </div>
           <div>
-            <strong>Bank:</strong> Bank of Georgia
+            GE22BG0000000823495300
+          </div>
+          <div className="whitespace-nowrap">
+            <strong>Bank:</strong> TBC
+          </div>
+          <div>
+            GE85TB7585345061100061
           </div>
         </div>
       </div>
@@ -143,20 +152,33 @@ export function CottageInvoice({ confirmation, invoice }: CottageInvoiceProps) {
               <td className="text-right text-[#48503f]">{money(rate)}</td>
               <td className="text-right font-semibold">{money(amount)}</td>
             </tr>
+            {expenses.map((expense, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid #f0eee5" }}>
+                <td className="py-3 font-semibold text-[#1c241e]">{expense.description || "Additional expense"}</td>
+                <td className="text-center text-[#8a8f82]">—</td>
+                <td className="text-right text-[#8a8f82]">—</td>
+                <td className="text-right font-semibold">{money(expense.amount ?? 0)}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
         {/* Totals */}
         <div className="flex justify-end mt-4">
           <div className="w-64 text-sm print:text-[12px]">
-            <div className="flex justify-between py-1 text-[#48503f]">
+            <div
+              className="flex justify-between py-1 text-[#48503f]"
+              style={expensesTotal > 0 ? undefined : { borderBottom: "1px solid #e6e2d6" }}
+            >
               <span>Subtotal:</span>
               <span className="font-semibold text-[#1c241e]">{money(subtotal)}</span>
             </div>
-            <div className="flex justify-between py-1 text-[#48503f]" style={{ borderBottom: "1px solid #e6e2d6" }}>
-              <span>Additional Charges:</span>
-              <span className="font-semibold text-[#1c241e]">{money(additional)}</span>
-            </div>
+            {expensesTotal > 0 && (
+              <div className="flex justify-between py-1 text-[#48503f]" style={{ borderBottom: "1px solid #e6e2d6" }}>
+                <span>Additional Expenses:</span>
+                <span className="font-semibold text-[#1c241e]">{money(expensesTotal)}</span>
+              </div>
+            )}
             <div className="flex justify-between py-2 text-base">
               <span className="text-[#48503f]">Total Amount:</span>
               <span className="font-extrabold" style={{ color: GREEN }}>
@@ -168,15 +190,22 @@ export function CottageInvoice({ confirmation, invoice }: CottageInvoiceProps) {
       </div>
 
       {/* Footer / signature */}
-      <div className="flex items-end justify-between mt-10 print:mt-8 print-break-avoid">
-        <div className="text-center">
+      <div className="flex items-end justify-between mt-4 print:mt-3 print-break-avoid">
+        <div className="flex items-end">
+          <div className="text-center relative z-10">
+            <img
+              src={signatureEliso}
+              alt="Authorized signature"
+              className="h-36 w-auto mx-auto mb-1 object-contain -translate-y-3 print:h-32"
+            />
+            <div className="w-44 border-b border-dashed border-[#b8bcae] mb-1" />
+            <div className="text-xs text-[#8a8f82]">Authorized Signature</div>
+          </div>
           <img
-            src={signatureEliso}
-            alt="Authorized signature"
-            className="h-16 w-auto mx-auto mb-1 object-contain print:h-12"
+            src={stampInnMartvili}
+            alt="Inn Martvili official stamp"
+            className="h-32 w-32 object-contain mb-4 -ml-24 -translate-y-3 rotate-12 print:h-28 print:w-28"
           />
-          <div className="w-44 border-b border-dashed border-[#b8bcae] mb-1" />
-          <div className="text-xs text-[#8a8f82]">Authorized Signature</div>
         </div>
         <div className="font-semibold" style={{ color: GREEN }}>
           Thank you for choosing Inn Martvili!

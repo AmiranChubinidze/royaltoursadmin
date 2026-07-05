@@ -91,25 +91,18 @@ function NewDocMenu({ className }: { className?: string }) {
   );
 }
 
-// Slim per-brand letter chip shown next to the code in the list.
-// T = Tourism company (RGT), C = Cottages (Inn Martvili).
+// Cottage bookings (Inn Martvili) get a small green dot; RGT tours show nothing.
 function DocTypeTag({ payload }: { payload: unknown }) {
   const docType =
     payload && typeof payload === "object" ? (payload as ConfirmationPayload).doc_type : undefined;
-  const isCottage = docType === "cottage";
-  const letter = isCottage ? "C" : "T";
-  const title = isCottage ? "Cottages — Inn Martvili" : "Tourism company — Royal Georgian Tours";
-  const color = "#ffffff";
-  const bg = isCottage ? COTTAGE_GREEN : "#2f5597";
+  if (docType !== "cottage") return null;
 
   return (
     <span
-      title={title}
-      className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-md text-[12px] font-bold leading-none shadow-sm"
-      style={{ background: bg, color, boxShadow: `inset 0 0 0 1px ${color}22` }}
-    >
-      {letter}
-    </span>
+      title="Cottages — Inn Martvili"
+      className="inline-block h-2 w-2 rounded-full"
+      style={{ background: COTTAGE_GREEN }}
+    />
   );
 }
 

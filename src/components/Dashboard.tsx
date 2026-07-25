@@ -109,7 +109,10 @@ function DocTypeTag({ payload }: { payload: unknown }) {
 export function Dashboard() {
   const navigate = useNavigate();
   const { isAdmin, isAccountant, isWorker, isCoworker, canEdit, role } = useUserRole();
-  const { data: confirmations, isLoading, error } = useConfirmations();
+  // Load the full working set (not the default 50) so no confirmation ever
+  // drops off the dashboard, search covers everything, and the stat counts are
+  // accurate. Matches Calendar/Ledger/Cottage, which already fetch 500.
+  const { data: confirmations, isLoading, error } = useConfirmations(500);
   const isMobile = useIsMobile();
   
   // Admin "View as" feature

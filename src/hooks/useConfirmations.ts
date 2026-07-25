@@ -32,8 +32,12 @@ export function useConfirmations(limit = 50) {
       const { data, error } = await supabase
         .from("confirmations")
         .select("*")
-        .order("date_code", { ascending: false })
-        .order("confirmation_code", { ascending: true })
+        // Order by created_at (a real timestamp), NOT date_code: date_code is a
+        // DDMMYYYY *string*, so lexicographic sort isn't chronological and buries
+        // low day-of-month codes (01–09) at the bottom — combined with the row
+        // limit they'd silently drop off the dashboard. Recency is what the
+        // "Recent Confirmations" view wants anyway; callers re-sort as needed.
+        .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) throw error;

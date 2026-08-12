@@ -8,6 +8,7 @@ import {
   getMainClientName,
   formatDateToDDMMYYYY,
   isoDateFromDdMmYyyy,
+  byArrivalDateDesc,
 } from "@/lib/confirmationUtils";
 import { toast } from "@/hooks/use-toast";
 import { Json } from "@/integrations/supabase/types";
@@ -35,13 +36,16 @@ export function useConfirmations(limit = 50) {
         // Order by created_at (a real timestamp), NOT date_code: date_code is a
         // DDMMYYYY *string*, so lexicographic sort isn't chronological and buries
         // low day-of-month codes (01–09) at the bottom — combined with the row
-        // limit they'd silently drop off the dashboard. Recency is what the
-        // "Recent Confirmations" view wants anyway; callers re-sort as needed.
+        // limit they'd silently drop off the dashboard.
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) throw error;
-      return (data || []).map(toConfirmation);
+      // created_at picks WHICH rows come back; arrival date decides the ORDER
+      // they're shown in. Sorting here means every list (dashboard, ledger,
+      // finances, booking requests) reads newest-trip-first without each one
+      // re-implementing it.
+      return (data || []).map(toConfirmation).sort(byArrivalDateDesc);
     },
   });
 }

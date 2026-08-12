@@ -164,11 +164,12 @@ export function Dashboard() {
     }
   };
 
-  // Filter and sort confirmations
+  // Filter confirmations. Order comes from useConfirmations (arrival date,
+  // newest first) and filter() preserves it — no local re-sort needed.
   const filteredConfirmations = useMemo(() => {
     if (!confirmations) return [];
 
-    const filtered = confirmations.filter((c) => {
+    return confirmations.filter((c) => {
       // Search filter
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
@@ -225,16 +226,6 @@ export function Dashboard() {
       }
 
       return matchesSearch && matchesMonth && matchesDateRange;
-    });
-
-    // Sort by arrival date (recent to old)
-    return filtered.sort((a, b) => {
-      const dateA = parseArrivalDate(a.arrival_date);
-      const dateB = parseArrivalDate(b.arrival_date);
-      if (!dateA && !dateB) return 0;
-      if (!dateA) return 1; // No date goes to end
-      if (!dateB) return -1;
-      return dateB.getTime() - dateA.getTime(); // Recent first
     });
   }, [confirmations, searchQuery, filterMonth, dateFrom, dateTo]);
 

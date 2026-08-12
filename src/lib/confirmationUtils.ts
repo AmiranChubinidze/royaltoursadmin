@@ -49,6 +49,25 @@ export function isoDateFromDdMmYyyy(dateStr: string | null | undefined): string 
   return new Date().toISOString().split("T")[0];
 }
 
+// Display order for every confirmation list: arrival date, newest first.
+// This can't be an ORDER BY: arrival_date and date_code are DD/MM/YYYY *strings*,
+// so Postgres sorts them lexicographically — days 01–09 sink below every day
+// 10–31 and fall out of the row limit entirely (the 2026-07-25 bug). The query
+// orders by created_at so the row window is chronologically honest; the list
+// order is decided here, once, for all callers.
+export function byArrivalDateDesc(
+  a: { arrival_date?: string | null; created_at?: string | null },
+  b: { arrival_date?: string | null; created_at?: string | null }
+): number {
+  const da = a.arrival_date ? parseDDMMYYYY(a.arrival_date) : null;
+  const db = b.arrival_date ? parseDDMMYYYY(b.arrival_date) : null;
+  if (da && db && da.getTime() !== db.getTime()) return db.getTime() - da.getTime();
+  if (da && !db) return -1; // rows with no usable arrival date go last
+  if (!da && db) return 1;
+  // Same arrival day (or both undated): newest created first, so ties are stable.
+  return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+}
+
 export function calculateDaysAndNights(
   arrivalDate: string,
   departureDate: string

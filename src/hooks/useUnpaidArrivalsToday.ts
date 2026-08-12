@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedHotels } from "@/hooks/useSavedData";
-import { unpaidArrivalsForDay } from "@/lib/confirmationUtils";
+import { unpaidArrivalsUpTo, daysOverdue } from "@/lib/confirmationUtils";
 import type { ConfirmationPayload } from "@/types/confirmation";
 
 export interface UnpaidArrival {
@@ -10,6 +10,8 @@ export interface UnpaidArrival {
   confirmationCode: string;
   clientName: string | null;
   hotel: string;
+  checkIn: string; // dd/mm/yyyy
+  daysLate: number; // 0 = arriving today
 }
 
 interface ArrivalRow {
@@ -39,7 +41,9 @@ function useArrivalRows() {
   });
 }
 
-// Hotels whose guests check in today and which aren't marked paid yet.
+// Hotels whose guests have checked in (today or recently) and still aren't
+// marked paid. Overdue stays stay on the banner until they're settled — the
+// original today-only version dropped a missed hotel the next morning.
 export function useUnpaidArrivalsToday() {
   const { data: rows } = useArrivalRows();
   const { data: savedHotels } = useSavedHotels();
@@ -54,15 +58,20 @@ export function useUnpaidArrivalsToday() {
 
     const arrivals: UnpaidArrival[] = [];
     for (const c of rows || []) {
-      for (const stay of unpaidArrivalsForDay(c.raw_payload, today, ownedLower)) {
+      for (const stay of unpaidArrivalsUpTo(c.raw_payload, today, ownedLower)) {
         arrivals.push({
           confirmationId: c.id,
           confirmationCode: c.confirmation_code,
           clientName: c.main_client_name,
           hotel: stay.hotel,
+          checkIn: stay.checkIn,
+          daysLate: daysOverdue(stay.checkIn, today),
         });
       }
     }
+    // Most overdue first — the debt that's been sitting longest is the one
+    // that needs chasing, and it's the one the old version made invisible.
+    arrivals.sort((a, b) => b.daysLate - a.daysLate);
     return { arrivals, confirmationIds: new Set(arrivals.map((a) => a.confirmationId)) };
   }, [rows, savedHotels]);
 }

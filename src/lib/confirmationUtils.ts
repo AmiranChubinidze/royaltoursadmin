@@ -317,24 +317,48 @@ export function getHotelStays(payload: ConfirmationPayload | null | undefined): 
   return stays;
 }
 
-// Hotels whose guests check in on `today` and which aren't marked paid.
-// `today` and each stay's check-in are compared at day granularity.
+// How far back the unpaid-arrival warning keeps nagging. A debt doesn't stop
+// existing because the guest checked in yesterday — the original today-only
+// check meant a hotel missed on the day silently disappeared the next morning.
+// ponytail: a window, not "all history". Bookings created before the warning
+// feature (2026-06-28) have no hotel_paid snapshot at all, so an unbounded
+// lookback would flag every historical stay as unpaid. Widen if 30 days ever
+// proves too short.
+export const UNPAID_ARRIVAL_LOOKBACK_DAYS = 30;
+
+// Hotels whose guests have already checked in (today or in the last
+// UNPAID_ARRIVAL_LOOKBACK_DAYS days) and which still aren't marked paid.
+// Dates are compared at day granularity; future arrivals are not warnings yet.
 // Owned (company) hotels are excluded — you don't pay yourself.
-export function unpaidArrivalsForDay(
+// Known ceiling (unchanged): hotel_paid is only refreshed when a booking's
+// attachments page is opened, so a stay paid but never opened still shows here.
+export function unpaidArrivalsUpTo(
   payload: ConfirmationPayload | null | undefined,
   today: Date,
-  ownedLowerSet: Set<string>
+  ownedLowerSet: Set<string>,
+  lookbackDays = UNPAID_ARRIVAL_LOOKBACK_DAYS
 ): HotelStay[] {
   const paid = payload?.hotel_paid || {};
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const floor = t - lookbackDays * 86_400_000;
   return getHotelStays(payload).filter((stay) => {
     const lower = stay.hotel.trim().toLowerCase();
     if (ownedLowerSet.has(lower)) return false;
     const d = parseDDMMYYYY(stay.checkIn);
     if (!d) return false;
-    if (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() !== t) return false;
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    if (day > t || day < floor) return false;
     return paid[roomStayKey(stay.hotel, stay.checkIn)] !== true;
   });
+}
+
+// Whole days between a stay's check-in and today. 0 = arriving today.
+export function daysOverdue(checkIn: string, today: Date): number {
+  const d = parseDDMMYYYY(checkIn);
+  if (!d) return 0;
+  const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.max(0, Math.round((t - day) / 86_400_000));
 }
 
 // A room booking at an owned hotel: which nights + which room numbers.

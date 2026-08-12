@@ -78,9 +78,10 @@ export function useUnpaidArrivalsToday() {
         });
       }
     }
-    // Most overdue first — the debt that's been sitting longest is the one
-    // that needs chasing, and it's the one the old version made invisible.
-    arrivals.sort((a, b) => b.daysLate - a.daysLate);
+    // Most recent check-in first: today at the top, then yesterday, then older.
+    // Reads as a diary rather than a debt ranking — the severity chip already
+    // carries urgency, so the order doesn't need to.
+    arrivals.sort((a, b) => a.daysLate - b.daysLate);
     return { arrivals, confirmationIds: new Set(arrivals.map((a) => a.confirmationId)) };
   }, [rows, savedHotels]);
 }

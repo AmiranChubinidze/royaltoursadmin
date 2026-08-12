@@ -154,9 +154,11 @@ function ArrivalRow({ arrival }: { arrival: UnpaidArrival }) {
 }
 
 // Amber banner: guests have checked into these hotels (today or in the last 30
-// days) and they're still not marked paid. Overdue leads, most-late first. Each
-// row jumps to its booking — the affected row in the table sits below every
-// future arrival and is usually off-screen, so the banner carries the workflow.
+// days) and they're still not marked paid. Ordered most-recent check-in first
+// (today, then yesterday, then older) — the severity chip carries urgency, so
+// the order doesn't have to. Each row jumps to its booking; the affected row in
+// the table sits below every future arrival and is usually off-screen, so the
+// banner carries the workflow.
 export function UnpaidArrivalsBanner({
   arrivals,
   className,

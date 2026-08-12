@@ -68,6 +68,14 @@ const totalsLine = (rows: Row[]) => {
   return parts.length ? parts.join("  ·  ") : "—";
 };
 
+// Collapse the template's newlines + indentation into one line before sending.
+// The SMTP layer quoted-printable-encodes the HTML part, and a line that is only
+// whitespace (which the `note` and row interpolations leave behind when empty)
+// comes out as a literal "=20" in the delivered mail — two stray "=20" rows were
+// showing under the header. No line breaks, nothing to encode. Rendering is
+// unchanged: every whitespace run collapsed here sits between tags.
+const oneLine = (html: string) => html.replace(/>\s+</g, "><").replace(/\s+/g, " ").trim();
+
 const renderHtml = (rows: Row[], note?: string) => {
   const total = totalsLine(rows);
   const body = rows
@@ -84,7 +92,7 @@ const renderHtml = (rows: Row[], note?: string) => {
       </tr>`
     )
     .join("");
-  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:8px;">
+  return oneLine(`<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:8px;">
     <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;overflow:hidden;">
       <div style="padding:15px 18px ${note ? "2px" : "11px"};font-size:15px;font-weight:700;color:#92400e;">Today's check-ins — not paid</div>
       ${note ? `<div style="padding:0 18px 11px;font-size:12px;color:#b45309;">${escapeHtml(note)}</div>` : ""}
@@ -98,7 +106,7 @@ const renderHtml = (rows: Row[], note?: string) => {
         </tbody>
       </table>
     </div>
-  </div>`;
+  </div>`);
 };
 
 const renderText = (rows: Row[], note?: string) => {

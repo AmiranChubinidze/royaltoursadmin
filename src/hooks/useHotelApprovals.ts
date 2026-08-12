@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { roomStayKey } from "@/lib/confirmationUtils";
 import { Confirmation } from "@/types/confirmation";
 import type { SavedHotel } from "@/hooks/useSavedData";
 
@@ -149,6 +150,88 @@ export function useSetHotelApproval() {
     onSettled: (_data, _error, { confirmationId }) => {
       queryClient.invalidateQueries({ queryKey: ["confirmations"] });
       queryClient.invalidateQueries({ queryKey: ["confirmation", confirmationId] });
+    },
+  });
+}
+
+// Silence the unpaid-arrival warning for ONE hotel stay, without claiming it was
+// paid. Some warnings can never resolve on their own — settled in cash, booking
+// cancelled, or hotel_paid never captured because nobody opened that booking's
+// attachments page — and a permanent warning is a warning nobody reads.
+// Same storage shape as hotel_paid/hotel_approvals: a map in raw_payload keyed
+// by roomStayKey, so no migration. Optimistic: the row must leave the banner on
+// click, not after a round-trip.
+export function useSetHotelIgnored() {
+  const queryClient = useQueryClient();
+
+  const patchPayload = (rp: Record<string, any>, key: string, ignored: boolean) => ({
+    ...rp,
+    hotel_ignored: { ...(rp.hotel_ignored || {}), [key]: ignored },
+  });
+
+  return useMutation({
+    mutationFn: async ({
+      confirmationId,
+      hotel,
+      checkIn,
+      ignored,
+    }: {
+      confirmationId: string;
+      hotel: string;
+      checkIn: string;
+      ignored: boolean;
+    }) => {
+      const { data: conf } = await supabase
+        .from("confirmations")
+        .select("raw_payload")
+        .eq("id", confirmationId)
+        .maybeSingle();
+
+      const rawPayload =
+        conf?.raw_payload && typeof conf.raw_payload === "object"
+          ? (conf.raw_payload as Record<string, any>)
+          : {};
+
+      const { error } = await supabase
+        .from("confirmations")
+        .update({ raw_payload: patchPayload(rawPayload, roomStayKey(hotel, checkIn), ignored) })
+        .eq("id", confirmationId);
+      if (error) throw error;
+      return { confirmationId };
+    },
+    onMutate: async ({ confirmationId, hotel, checkIn, ignored }) => {
+      await queryClient.cancelQueries({ queryKey: ["confirmations"] });
+      await queryClient.cancelQueries({ queryKey: ["confirmation", confirmationId] });
+      await queryClient.cancelQueries({ queryKey: ["unpaid-arrival-rows"] });
+
+      const key = roomStayKey(hotel, checkIn);
+      const patch = (conf: any) => {
+        if (!conf || conf.id !== confirmationId) return conf;
+        return { ...conf, raw_payload: patchPayload(conf.raw_payload || {}, key, ignored) };
+      };
+      const patchList = (list: any) => (Array.isArray(list) ? list.map(patch) : list);
+
+      const previous = queryClient.getQueriesData({ queryKey: ["confirmations"] });
+      queryClient.setQueriesData({ queryKey: ["confirmations"] }, patchList);
+      // The banner reads its own focused query, not the dashboard list — patch it
+      // too or the ignored row survives until the next refetch.
+      const previousRows = queryClient.getQueriesData({ queryKey: ["unpaid-arrival-rows"] });
+      queryClient.setQueriesData({ queryKey: ["unpaid-arrival-rows"] }, patchList);
+      const previousSingle = queryClient.getQueryData(["confirmation", confirmationId]);
+      queryClient.setQueryData(["confirmation", confirmationId], patch);
+
+      return { previous, previousRows, previousSingle, confirmationId };
+    },
+    onError: (error: Error, _vars, context) => {
+      context?.previous?.forEach(([key, data]: [any, any]) => queryClient.setQueryData(key, data));
+      context?.previousRows?.forEach(([key, data]: [any, any]) => queryClient.setQueryData(key, data));
+      if (context) queryClient.setQueryData(["confirmation", context.confirmationId], context.previousSingle);
+      toast({ title: "Failed to update warning", description: error.message, variant: "destructive" });
+    },
+    onSettled: (_data, _error, { confirmationId }) => {
+      queryClient.invalidateQueries({ queryKey: ["confirmations"] });
+      queryClient.invalidateQueries({ queryKey: ["confirmation", confirmationId] });
+      queryClient.invalidateQueries({ queryKey: ["unpaid-arrival-rows"] });
     },
   });
 }

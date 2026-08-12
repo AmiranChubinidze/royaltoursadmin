@@ -332,6 +332,8 @@ export const UNPAID_ARRIVAL_LOOKBACK_DAYS = 30;
 // Owned (company) hotels are excluded — you don't pay yourself.
 // Known ceiling (unchanged): hotel_paid is only refreshed when a booking's
 // attachments page is opened, so a stay paid but never opened still shows here.
+// That ceiling is exactly why hotel_ignored exists — a warning that can never
+// resolve on its own needs a way out that isn't lying about payment.
 export function unpaidArrivalsUpTo(
   payload: ConfirmationPayload | null | undefined,
   today: Date,
@@ -339,6 +341,7 @@ export function unpaidArrivalsUpTo(
   lookbackDays = UNPAID_ARRIVAL_LOOKBACK_DAYS
 ): HotelStay[] {
   const paid = payload?.hotel_paid || {};
+  const ignored = payload?.hotel_ignored || {};
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const floor = t - lookbackDays * 86_400_000;
   return getHotelStays(payload).filter((stay) => {
@@ -348,7 +351,9 @@ export function unpaidArrivalsUpTo(
     if (!d) return false;
     const day = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
     if (day > t || day < floor) return false;
-    return paid[roomStayKey(stay.hotel, stay.checkIn)] !== true;
+    const key = roomStayKey(stay.hotel, stay.checkIn);
+    if (ignored[key] === true) return false;
+    return paid[key] !== true;
   });
 }
 

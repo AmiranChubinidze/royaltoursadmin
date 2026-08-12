@@ -107,12 +107,17 @@ export interface ConfirmationPayload {
   attachment_stay_map?: Record<string, string>;
   // Per-stay paid snapshot, keyed by roomStayKey (hotelLower::checkInRaw).
   // Written by ConfirmationAttachments when it recomputes is_paid; read by the
-  // unpaid-arrival warning (dashboard + email). See unpaidArrivalsForDay.
+  // unpaid-arrival warning (dashboard + email). See unpaidArrivalsUpTo.
   hotel_paid?: Record<string, boolean>;
   // Per-stay invoice amount due, same roomStayKey. Persisted alongside hotel_paid
   // (the amount derives from mapped invoice attachments, so it can't be read
   // server-side). Read by the warning email to show price + total per hotel.
   hotel_amounts?: Record<string, { amount: number; currency: string }>;
+  // Per-stay "stop warning me about this", same roomStayKey. Set from the
+  // dashboard banner's Ignore action; read by unpaidArrivalsUpTo. Deliberately
+  // NOT read by the warning email — an ignored stay still shows up in the daily
+  // digest (Amiran's call, 2026-08-12: dashboard only).
+  hotel_ignored?: Record<string, boolean>;
 }
 
 export interface Confirmation {

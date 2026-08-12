@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSavedHotels } from "@/hooks/useSavedData";
-import { unpaidArrivalsUpTo, daysOverdue } from "@/lib/confirmationUtils";
+import { unpaidArrivalsUpTo, daysOverdue, roomStayKey } from "@/lib/confirmationUtils";
 import type { ConfirmationPayload } from "@/types/confirmation";
 
 export interface UnpaidArrival {
@@ -12,6 +12,8 @@ export interface UnpaidArrival {
   hotel: string;
   checkIn: string; // dd/mm/yyyy
   daysLate: number; // 0 = arriving today
+  amount: number | null; // null when no invoice amount is mapped yet
+  currency: string;
 }
 
 interface ArrivalRow {
@@ -58,7 +60,12 @@ export function useUnpaidArrivalsToday() {
 
     const arrivals: UnpaidArrival[] = [];
     for (const c of rows || []) {
+      // Amount due per stay, keyed the same way as hotel_paid. Already persisted
+      // for the warning email — reading it here costs nothing and turns "which
+      // hotels" into "how much money".
+      const amounts = c.raw_payload?.hotel_amounts || {};
       for (const stay of unpaidArrivalsUpTo(c.raw_payload, today, ownedLower)) {
+        const due = amounts[roomStayKey(stay.hotel, stay.checkIn)];
         arrivals.push({
           confirmationId: c.id,
           confirmationCode: c.confirmation_code,
@@ -66,6 +73,8 @@ export function useUnpaidArrivalsToday() {
           hotel: stay.hotel,
           checkIn: stay.checkIn,
           daysLate: daysOverdue(stay.checkIn, today),
+          amount: typeof due?.amount === "number" ? due.amount : null,
+          currency: due?.currency || "USD",
         });
       }
     }

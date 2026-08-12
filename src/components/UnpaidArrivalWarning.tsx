@@ -3,6 +3,9 @@ import { AlertTriangle, BellOff, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useViewAs } from "@/contexts/ViewAsContext";
+import { canAccessFinances } from "@/lib/roles";
 import { useSetHotelIgnored } from "@/hooks/useHotelApprovals";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -49,11 +52,25 @@ function outstanding(arrivals: UnpaidArrival[]): string | null {
 
 const VISIBLE_ROWS = 4;
 
-function ArrivalRow({ arrival }: { arrival: UnpaidArrival }) {
+function ArrivalRow({
+  arrival,
+  canOpenAttachments,
+}: {
+  arrival: UnpaidArrival;
+  canOpenAttachments: boolean;
+}) {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const setIgnored = useSetHotelIgnored();
   const severity = overdueSeverity(arrival.daysLate);
+
+  // Straight to Hotel Payments — that's where the warning gets resolved, and
+  // it's also the only page that refreshes the hotel_paid snapshot this banner
+  // reads. Roles without booking access are bounced off that route by
+  // BookingRoute, so send them to the confirmation view instead of home.
+  const target = canOpenAttachments
+    ? `/confirmation/${arrival.confirmationId}/attachments`
+    : `/confirmation/${arrival.confirmationId}`;
 
   const ignore = () => {
     setIgnored.mutate(
@@ -92,7 +109,7 @@ function ArrivalRow({ arrival }: { arrival: UnpaidArrival }) {
     <div className="group flex items-center transition-colors hover:bg-amber-100/60">
       <button
         type="button"
-        onClick={() => navigate(`/confirmation/${arrival.confirmationId}`)}
+        onClick={() => navigate(target)}
         title={`Check-in ${arrival.checkIn}`}
         className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 pr-2 text-left"
       >
@@ -167,6 +184,12 @@ export function UnpaidArrivalsBanner({
   className?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { role } = useUserRole();
+  const { viewAsRole } = useViewAs();
+  // Same predicate BookingRoute guards the attachments route with, resolved
+  // once here rather than per row.
+  const canOpenAttachments = canAccessFinances(viewAsRole || role);
+
   if (arrivals.length === 0) return null;
 
   const overdue = arrivals.filter((a) => a.daysLate > 0).length;
@@ -196,7 +219,11 @@ export function UnpaidArrivalsBanner({
 
       <div className="divide-y divide-amber-200/70 border-t border-amber-200/70">
         {visible.map((a) => (
-          <ArrivalRow key={`${a.confirmationId}-${a.hotel}-${a.checkIn}`} arrival={a} />
+          <ArrivalRow
+            key={`${a.confirmationId}-${a.hotel}-${a.checkIn}`}
+            arrival={a}
+            canOpenAttachments={canOpenAttachments}
+          />
         ))}
       </div>
 
@@ -205,7 +232,11 @@ export function UnpaidArrivalsBanner({
           <CollapsibleContent>
             <div className="divide-y divide-amber-200/70 border-t border-amber-200/70">
               {hidden.map((a) => (
-                <ArrivalRow key={`${a.confirmationId}-${a.hotel}-${a.checkIn}`} arrival={a} />
+                <ArrivalRow
+                  key={`${a.confirmationId}-${a.hotel}-${a.checkIn}`}
+                  arrival={a}
+                  canOpenAttachments={canOpenAttachments}
+                />
               ))}
             </div>
           </CollapsibleContent>

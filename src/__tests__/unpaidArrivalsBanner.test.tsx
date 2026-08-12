@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ViewAsProvider } from "@/contexts/ViewAsContext";
 import { UnpaidArrivalsBanner } from "@/components/UnpaidArrivalWarning";
 import type { UnpaidArrival } from "@/hooks/useUnpaidArrivalsToday";
 
@@ -20,9 +21,11 @@ const arrival = (over: Partial<UnpaidArrival> = {}): UnpaidArrival => ({
 const renderBanner = (arrivals: UnpaidArrival[]) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter>
-        <UnpaidArrivalsBanner arrivals={arrivals} />
-      </MemoryRouter>
+      <ViewAsProvider>
+        <MemoryRouter>
+          <UnpaidArrivalsBanner arrivals={arrivals} />
+        </MemoryRouter>
+      </ViewAsProvider>
     </QueryClientProvider>
   );
 
